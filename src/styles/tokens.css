@@ -1,0 +1,79 @@
+/*
+  Nurse Love Company design tokens.
+  Layout concept: warm ivory page, soft pink bands, rounded product boxes with
+  fine borders, one continuous hero that fades its imagery into the cream.
+  Every color, font, spacing step and motion setting used by the site lives here.
+*/
+:root {
+  color-scheme: light;
+
+  /* Color */
+  --ivory: #fffaf6;
+  --blush: #fff0f2;
+  --pink: #fbdde5;
+  --pink-deep: #f6c9d6;
+  --raspberry: #d80853;
+  --raspberry-dark: #b3063f;
+  --burgundy: #680c35;
+  --burgundy-soft: #7d3a55;
+  --border: #efd8df;
+  --white: #ffffff;
+  --ink-muted: #8a5a6c;
+  --success: #2f7a55;
+  --shadow-color: 104 12 53;
+
+  /* Type */
+  --font-display: 'DM Serif Display', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --font-body: 'Nunito Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-script: 'Dancing Script', 'Brush Script MT', cursive;
+
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-md: 1.0625rem;
+  --text-lg: 1.25rem;
+  --text-xl: clamp(1.5rem, 1.2rem + 1.2vw, 2rem);
+  --text-2xl: clamp(1.9rem, 1.4rem + 2vw, 2.75rem);
+  --text-hero: clamp(2.4rem, 1rem + 3.6vw, 4rem);
+
+  /* Spacing (4px base) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+  --gutter: max(16px, env(safe-area-inset-left, 0px));
+  --gutter-r: max(16px, env(safe-area-inset-right, 0px));
+  --page-max: 1200px;
+
+  /* Shape */
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-pill: 999px;
+  --shadow-sm: 0 1px 2px rgb(var(--shadow-color) / 0.06), 0 2px 8px rgb(var(--shadow-color) / 0.05);
+  --shadow-md: 0 6px 18px rgb(var(--shadow-color) / 0.1), 0 2px 6px rgb(var(--shadow-color) / 0.06);
+  --shadow-lg: 0 18px 40px rgb(var(--shadow-color) / 0.16);
+
+  /* Motion: one coherent style. Interactions 150 to 250ms, sections 400 to 600ms. */
+  --ease-out: cubic-bezier(0.22, 0.8, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.45, 0, 0.25, 1);
+  --dur-fast: 160ms;
+  --dur-base: 220ms;
+  --dur-section: 520ms;
+  --lift: -4px;
+  --float-distance: 7px;
+  --float-duration: 7s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 1ms;
+    --dur-base: 1ms;
+    --dur-section: 1ms;
+    --lift: 0px;
+    --float-distance: 0px;
+  }
+}

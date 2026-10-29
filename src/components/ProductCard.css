@@ -1,0 +1,102 @@
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  gap: var(--space-5);
+}
+.product-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+  animation: card-in var(--dur-section) var(--ease-out) backwards;
+}
+.product-card:hover,
+.product-card:focus-within {
+  transform: translateY(var(--lift));
+  box-shadow: var(--shadow-md);
+}
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.product-card__media {
+  display: block;
+  aspect-ratio: 4 / 3;
+  background: var(--blush);
+  overflow: hidden;
+}
+.product-card__media > * {
+  transition: transform var(--dur-section) var(--ease-out);
+}
+.product-card:hover .product-card__media > * {
+  transform: scale(1.04);
+}
+.product-card--physical .product-card__media {
+  background: #fdf3f5;
+}
+.product-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  flex: 1;
+}
+.product-card .label {
+  white-space: normal;
+}
+.label-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.product-card__title {
+  font-size: 1.45rem;
+  margin-top: var(--space-1);
+}
+.product-card__title a {
+  text-decoration: none;
+}
+.product-card__title a:hover {
+  color: var(--raspberry);
+}
+.product-card__summary {
+  font-size: var(--text-sm);
+  color: var(--burgundy-soft);
+}
+.product-card__price {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--ink-muted);
+}
+.product-card__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: auto;
+  padding-top: var(--space-3);
+}
+.arrow-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  min-height: 44px;
+  font-weight: 700;
+  font-size: var(--text-sm);
+  color: var(--raspberry);
+  text-decoration: none;
+}
+.arrow-link:hover .arrow,
+.arrow-link:focus-visible .arrow {
+  transform: translateX(4px);
+}
+.arrow-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
