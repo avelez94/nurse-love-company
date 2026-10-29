@@ -2,6 +2,7 @@ import { ArrowRight, BookOpen, ExternalLink } from 'lucide-react'
 import { freebies } from '../data/catalog'
 import { site } from '../data/site'
 import { ExampleLabel } from '../components/Labels'
+import { TutorialHelpLink } from '../components/TutorialCard'
 import { Heart } from '../components/illustrations/Objects'
 import { SamplePageView } from '../components/SamplePageView'
 import { href } from '../lib/router'
@@ -86,6 +87,7 @@ export function Help() {
     { q: 'What are binder inserts?', a: 'Printable pages you add to your own binder. Nurse Love Company sells the inserts only. A binder is not included.' },
     { q: 'Can I use resources digitally?', a: 'Each resource lists its own format and how it can be used. Check each resource for details.' },
     { q: 'Which items ship to me?', a: 'Apparel, accessories and pens are physical items that ship to you. Shipping details will be shared before launch.' },
+    { q: 'How do I put my binder together?', a: 'Watch the free Tutorials. They show how to print, arrange and use your inserts. Physical binders are not included with digital purchases.' },
     { q: 'Can I buy on this preview?', a: 'Not yet. This preview shows how shopping will work. The bag is a demonstration and no purchase or payment takes place.' },
   ]
   return (
@@ -101,6 +103,9 @@ export function Help() {
           ))}
         </div>
         <aside className="help__contact">
+          <h2 className="help__title">Getting started</h2>
+          <TutorialHelpLink category="np-inserts" showTitle />
+          <TutorialHelpLink category="nurse-inserts" showTitle />
           <h2 className="help__title">Contact</h2>
           <p>Contact details for the new site will be added before launch.</p>
           <p>

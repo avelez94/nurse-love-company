@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { getCategory, getProduct } from './data/catalog'
+import { getTutorial } from './data/tutorials'
 import { site } from './data/site'
 import { BackToTop, ToastHost } from './components/Chrome'
 import { Footer } from './components/Footer'
@@ -13,6 +14,7 @@ import { ExtraCute } from './pages/ExtraCute'
 import { Home } from './pages/Home'
 import { Product } from './pages/Product'
 import { Shop } from './pages/Shop'
+import { Tutorials, TutorialWatch } from './pages/Tutorials'
 import { Freebies, Help, NotFound, Story } from './pages/Simple'
 
 function titleFor(route: Route): string {
@@ -27,6 +29,10 @@ function titleFor(route: Route): string {
       return `${route.tab === 'all' ? site.extraHeading : getCategory(route.tab).title} | ${site.name}`
     case 'freebies':
       return `${site.freebie.heading} | ${site.name}`
+    case 'tutorials':
+      return `Tutorials | ${site.name}`
+    case 'tutorial':
+      return `${getTutorial(route.slug)?.title ?? 'Tutorial'} | Tutorials | ${site.name}`
     case 'story':
       return `Our Story | ${site.name}`
     case 'help':
@@ -50,6 +56,10 @@ function Page({ route }: { route: Route }) {
       return <ExtraCute tab={route.tab} />
     case 'freebies':
       return <Freebies />
+    case 'tutorials':
+      return <Tutorials />
+    case 'tutorial':
+      return <TutorialWatch slug={route.slug} />
     case 'story':
       return <Story />
     case 'help':

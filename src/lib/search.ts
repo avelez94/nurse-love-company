@@ -1,10 +1,11 @@
 import { categories, freebies, getCategory, products } from '../data/catalog'
+import { getTutorialCategory, tutorials } from '../data/tutorials'
 
 /* Local search across the sample catalog, freebies and site pages. */
 
 export interface SearchResult {
   id: string
-  kind: 'digital' | 'physical' | 'freebie' | 'page'
+  kind: 'digital' | 'physical' | 'freebie' | 'tutorial' | 'page'
   title: string
   detail: string
   route: string
@@ -25,6 +26,7 @@ const pageEntries: Entry[] = [
     haystack: `${c.title} ${c.tagline} collection category`.toLowerCase(),
   })),
   { id: 'page-freebies', kind: 'page', title: 'The Freebie Corner', detail: 'Free printables', route: 'freebie-corner', haystack: 'freebie corner free printables downloads' },
+  { id: 'page-tutorials', kind: 'page', title: 'Tutorials', detail: 'Free how to videos', route: 'tutorials', haystack: 'tutorials videos how to help setup watch' },
   { id: 'page-story', kind: 'page', title: 'Our Story', detail: 'Made by a nurse, for nurses.', route: 'our-story', haystack: 'our story about founder nurse' },
   { id: 'page-help', kind: 'page', title: 'Help & contact', detail: 'Questions and contact', route: 'help', haystack: 'help contact questions faq support' },
 ]
@@ -45,6 +47,14 @@ const entries: Entry[] = [
     detail: 'The Freebie Corner',
     route: 'freebie-corner',
     haystack: [f.title, f.summary, ...f.keywords].join(' ').toLowerCase(),
+  })),
+  ...tutorials.map<Entry>((t) => ({
+    id: t.id,
+    kind: 'tutorial',
+    title: t.title,
+    detail: `Tutorial • ${getTutorialCategory(t.category).title}`,
+    route: `tutorial-${t.slug}`,
+    haystack: [t.title, t.summary, getTutorialCategory(t.category).title, 'tutorial video how to', ...t.keywords].join(' ').toLowerCase(),
   })),
   ...pageEntries,
 ]

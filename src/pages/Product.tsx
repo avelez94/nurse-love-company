@@ -8,6 +8,7 @@ import { ProductLabels } from '../components/Labels'
 import { useAddToBag } from '../components/Overlays'
 import { PeekInside } from '../components/PeekInside'
 import { ProductCard } from '../components/ProductCard'
+import { TutorialHelpLink } from '../components/TutorialCard'
 import { formatPrice } from '../lib/format'
 import { href } from '../lib/router'
 import { NotFound } from './Simple'
@@ -95,6 +96,8 @@ function ProductView({ product }: { product: ProductRecord }) {
           <p className="muted product__demo-note">
             <Check aria-hidden="true" size={16} /> Demonstration bag only. Purchasing is not enabled in this preview.
           </p>
+
+          {isDigital && <TutorialHelpLink category={product.category} />}
 
           <section className="details" aria-labelledby="details-title">
             <h2 id="details-title" className="details__title">Details</h2>

@@ -11,6 +11,8 @@ export type Route =
   | { name: 'collection'; id: 'nurse-inserts' | 'np-inserts' }
   | { name: 'extra-cute'; tab: 'all' | 'apparel' | 'accessories' | 'pens' }
   | { name: 'freebies' }
+  | { name: 'tutorials' }
+  | { name: 'tutorial'; slug: string }
   | { name: 'story' }
   | { name: 'help' }
   | { name: 'product'; slug: string }
@@ -36,11 +38,14 @@ export function parseHash(raw: string): Route {
       return { name: 'extra-cute', tab: hash }
     case 'freebie-corner':
       return { name: 'freebies' }
+    case 'tutorials':
+      return { name: 'tutorials' }
     case 'our-story':
       return { name: 'story' }
     case 'help':
       return { name: 'help' }
   }
+  if (hash.startsWith('tutorial-')) return { name: 'tutorial', slug: hash.slice('tutorial-'.length) }
   if (hash.startsWith('product-')) return { name: 'product', slug: hash.slice('product-'.length) }
   return { name: 'not-found', hash }
 }

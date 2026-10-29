@@ -12,6 +12,7 @@ import './Header.css'
 function isActive(route: Route, target: string) {
   if (target === 'shop') return route.name === 'shop' || route.name === 'collection' || route.name === 'extra-cute' || route.name === 'product'
   if (target === 'freebie-corner') return route.name === 'freebies'
+  if (target === 'tutorials') return route.name === 'tutorials' || route.name === 'tutorial'
   if (target === 'our-story') return route.name === 'story'
   return false
 }

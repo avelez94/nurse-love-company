@@ -7,6 +7,7 @@ export const site = {
   nav: [
     { label: 'Shop', route: 'shop' },
     { label: 'Freebie Corner', route: 'freebie-corner' },
+    { label: 'Tutorials', route: 'tutorials' },
     { label: 'Our Story', route: 'our-story' },
   ],
   searchPlaceholder: 'Search planners, study tools...',

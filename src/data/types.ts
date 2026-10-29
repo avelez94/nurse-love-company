@@ -118,3 +118,67 @@ export interface Freebie {
   isExample: boolean
   keywords: string[]
 }
+
+/* Tutorials */
+
+export type TutorialCategoryId = 'np-binder' | 'nurse-binder' | 'printing-assembly' | 'digital-files'
+
+export interface TutorialCategory {
+  id: TutorialCategoryId
+  title: string
+}
+
+export type TutorialVideo =
+  | {
+      /** A video file hosted with the site or on a video CDN. */
+      kind: 'file'
+      src: string
+      type: string
+      poster?: string
+    }
+  | {
+      /** A video hosted elsewhere (YouTube, Vimeo). Use a privacy friendly embed URL. */
+      kind: 'embed'
+      url: string
+    }
+
+export interface CaptionTrack {
+  label: string
+  srclang: string
+  /** URL of a WebVTT file... */
+  src?: string
+  /** ...or the WebVTT text itself. */
+  vtt?: string
+}
+
+export type TutorialThumbnail =
+  | { kind: 'illustration'; name: 'pages-np' | 'pages-nurse' | 'printing' | 'tablet'; alt: string }
+  | { kind: 'photo'; src: string; alt: string; width: number; height: number }
+
+export interface Tutorial {
+  id: string
+  slug: string
+  title: string
+  category: TutorialCategoryId
+  summary: string
+  /** Length of the video in seconds, taken from the actual file. */
+  durationSeconds: number
+  video: TutorialVideo
+  captions: CaptionTrack[]
+  thumbnail: TutorialThumbnail
+  /** Written, step by step instructions shown under the video. */
+  steps: string[]
+  /** Transcript paragraphs. When null, the caption text is shown instead. */
+  transcript: string[] | null
+  /** Product categories this tutorial helps with (drives the help links). */
+  productCategories: CategoryId[]
+  /** Optional links to products and resources. */
+  links: Array<{ label: string; route: string }>
+  featured: boolean
+  /** Only published tutorials appear on the site. */
+  published: boolean
+  isExample: boolean
+  /** True while the video is the temporary placeholder. */
+  placeholderVideo: boolean
+  keywords: string[]
+}

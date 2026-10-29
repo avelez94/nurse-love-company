@@ -66,6 +66,17 @@ Edit `src/data/catalog.ts`. Each product record has:
 
 Put image files in `public/images/` and reference them as `./images/your-file.jpg`.
 
+### Adding real tutorials
+
+Edit `src/data/tutorials.ts`. Each tutorial has a title, category, summary, `durationSeconds` (from the real file), `video`, `captions`, written `steps`, an optional `transcript`, `productCategories` (which product pages show the "Watch the tutorial" link), optional `links`, `featured` and `published`.
+
+* Self hosted video: `video: { kind: 'file', src: './tutorials/my-video.mp4', type: 'video/mp4', poster: './tutorials/my-poster.jpg' }` with the files in `public/tutorials/`.
+* Video hosted on YouTube or Vimeo: `video: { kind: 'embed', url: 'https://www.youtube-nocookie.com/embed/VIDEO_ID' }`.
+* Captions: `captions: [{ label: 'English', srclang: 'en', src: './tutorials/my-video.en.vtt' }]` (WebVTT).
+* Set `isExample` and `placeholderVideo` to `false` once the real content is in.
+
+Category filters appear automatically once there are at least 4 published tutorials (`MIN_TUTORIALS_FOR_FILTERS`). The current five tutorials are examples that share one 18 second placeholder video in `src/assets/tutorials/`.
+
 ### Replacing the logo
 
 The wordmark is temporary text in `src/components/Wordmark.tsx`. Swap in an `<img>` of the real logo there.
@@ -81,6 +92,9 @@ Works in the preview:
 * Quick view for apparel, accessories and pens
 * Demo bag: add, remove, change quantity for physical items, saved in this browser only
 * Freebie Corner preview and a real one page PDF download of a general planner page (prototype sample)
+* Public Tutorials page with a featured tutorial, category filters and cards showing thumbnail, title, description and length
+* Tutorial watch pages with an accessible video player (native controls, captions toggle, fullscreen, no autoplay), written instructions, transcript, helpful resource links and related tutorials
+* "Need help getting started? Watch the tutorial" links on digital product pages, in Peek inside, in the demo bag and on Help
 * Back to top, toasts, reduced motion support, keyboard focus, dialogs with Escape and focus return
 
 Demonstration only:
@@ -90,33 +104,9 @@ Demonstration only:
 * Checkout is disabled. No payment details are collected and nothing is purchased
 * The freebie PDF is a generic prototype page, not a finished Nurse Love Company resource
 * Our Story and contact details are placeholders
+* Tutorials are examples: one short placeholder video, sample steps and illustrated thumbnails
+* There is no customer account or dashboard yet. When one is added, drop `<TutorialHelpLink category=... />` from `src/components/TutorialCard.tsx` into it
 
-## Connecting a repository later
+## Repository
 
-This project currently lives in `clients/nurse-love-company/` inside the developer portfolio repository. To move it into its own repository:
-
-1. Create an empty repository (for example `nurse-love-company`) on GitHub.
-2. Copy this folder anywhere outside the portfolio repository.
-3. In the copied folder:
-
-```bash
-git init
-```
-
-```bash
-git add . && git commit -m "Nurse Love Company prototype"
-```
-
-```bash
-git remote add origin https://github.com/YOUR-ACCOUNT/nurse-love-company.git
-```
-
-```bash
-git push -u origin main
-```
-
-To keep the history from the portfolio repository instead, run this from the portfolio root and push the resulting branch:
-
-```bash
-git subtree split --prefix=clients/nurse-love-company -b nurse-love-company
-```
+This project lives in its own repository: https://github.com/avelez94/nurse-love-company

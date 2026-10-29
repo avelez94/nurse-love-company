@@ -17,6 +17,7 @@ import { ExampleLabel, ProductLabels } from './Labels'
 import { PeekInside } from './PeekInside'
 import { ProductArt } from './ProductArt'
 import { SamplePageView } from './SamplePageView'
+import { TutorialHelpLink } from './TutorialCard'
 import './Overlays.css'
 
 /** Adds a sample item to the demo bag with a friendly confirmation. */
@@ -45,7 +46,7 @@ export function Overlays() {
 
 /* Search */
 
-const kindLabel = { digital: 'Digital download', physical: 'Ships to you', freebie: 'Freebie', page: 'Page' } as const
+const kindLabel = { digital: 'Digital download', physical: 'Ships to you', freebie: 'Freebie', tutorial: 'Tutorial', page: 'Page' } as const
 
 function SearchDialog({ open, initial, onClose }: { open: boolean; initial: string; onClose: () => void }) {
   const [query, setQuery] = useState(initial)
@@ -327,6 +328,14 @@ function BagDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
               </li>
             ))}
           </ul>
+          {(() => {
+            const digital = lines.find((l) => l.product.type === 'digital')
+            return digital ? (
+              <div className="bag__help">
+                <TutorialHelpLink category={digital.product.category} onNavigate={onClose} />
+              </div>
+            ) : null
+          })()}
           <button type="button" className="bag__clear" onClick={clear}>
             Empty demo bag
           </button>
@@ -389,6 +398,9 @@ function PeekDialog({ product, start, onClose }: { product: Product | null; star
             <ProductLabels product={product} />
           </div>
           <PeekInside pages={product.samplePages} title={product.title} start={start} />
+          <div className="peek-dialog__help">
+            <TutorialHelpLink category={product.category} onNavigate={onClose} />
+          </div>
           <a className="button button--outline button--small peek-dialog__details" href={href(`product-${product.slug}`)} onClick={onClose}>
             <BookOpen aria-hidden="true" size={18} />
             View product details
