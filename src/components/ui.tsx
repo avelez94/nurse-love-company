@@ -1,3 +1,4 @@
+import { Eye, EyeOff } from 'lucide-react'
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { api, errorMessage } from '../lib/api'
 import { formatPrice } from '../lib/format'
@@ -48,6 +49,35 @@ export function TextInput(props: { label: string; value: string; onChange: (v: s
           aria-describedby={d}
           disabled={props.disabled}
         />
+      )}
+    </Field>
+  )
+}
+
+/** Password field with a button to show or hide what was typed. */
+export function PasswordInput(props: { label: string; value: string; onChange: (v: string) => void; hint?: ReactNode; error?: string; required?: boolean; autoComplete?: string; id?: string }) {
+  const [visible, setVisible] = useState(false)
+  return (
+    <Field label={props.label} hint={props.hint} error={props.error} id={props.id}>
+      {(id, d) => (
+        <div className="password-field">
+          <input
+            id={id}
+            className="input"
+            type={visible ? 'text' : 'password'}
+            value={props.value}
+            onChange={(e) => props.onChange(e.target.value)}
+            required={props.required}
+            autoComplete={props.autoComplete}
+            aria-describedby={d}
+            aria-invalid={props.error ? true : undefined}
+            spellCheck={false}
+            autoCapitalize="none"
+          />
+          <button type="button" className="password-field__toggle" onClick={() => setVisible((v) => !v)} aria-label={visible ? `Hide ${props.label.toLowerCase()}` : `Show ${props.label.toLowerCase()}`} aria-pressed={visible} aria-controls={id}>
+            {visible ? <EyeOff size={20} aria-hidden="true" /> : <Eye size={20} aria-hidden="true" />}
+          </button>
+        </div>
       )}
     </Field>
   )

@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { api, errorMessage } from '../lib/api'
 import { href, navigate } from '../lib/router'
 import { useSession } from '../lib/session'
-import { FormError, Notice, TextInput } from '../components/ui'
+import { FormError, Notice, PasswordInput, TextInput } from '../components/ui'
 import { Heart } from '../components/illustrations/Objects'
 import './Auth.css'
 
@@ -79,18 +79,23 @@ export function SignIn() {
 
 export function SignUp() {
   const { signUp } = useSession()
-  const [name, setName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const mismatch = confirm.length > 0 && confirm !== password
   const submit = async (e: FormEvent) => {
     e.preventDefault()
+    if (!firstName.trim() || !lastName.trim()) return setError('Please enter your first and last name.')
     if (password.length < 10) return setError('Please choose a password with at least 10 characters.')
+    if (password !== confirm) return setError('The two passwords do not match. Please type them again.')
     setBusy(true)
     setError('')
     try {
-      await signUp(name, email, password)
+      await signUp(`${firstName.trim()} ${lastName.trim()}`, email, password)
       navigate(takeReturn('account'))
     } catch (err) {
       setError(errorMessage(err))
@@ -101,11 +106,15 @@ export function SignUp() {
   return (
     <AuthCard title="Create your account" intro="Your account keeps your orders, receipts and downloads in one place.">
       <form className="form-stack" onSubmit={submit} noValidate>
-        <TextInput label="Name" value={name} onChange={setName} autoComplete="name" required maxLength={100} />
+        <div className="form-pair">
+          <TextInput label="First name" value={firstName} onChange={setFirstName} autoComplete="given-name" required maxLength={50} />
+          <TextInput label="Last name" value={lastName} onChange={setLastName} autoComplete="family-name" required maxLength={50} />
+        </div>
         <TextInput label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" required />
-        <TextInput label="Password" type="password" value={password} onChange={setPassword} autoComplete="new-password" required hint="At least 10 characters." />
+        <PasswordInput label="Password" value={password} onChange={setPassword} autoComplete="new-password" required hint="At least 10 characters." />
+        <PasswordInput label="Confirm password" value={confirm} onChange={setConfirm} autoComplete="new-password" required error={mismatch ? 'Passwords do not match yet.' : undefined} />
         <FormError message={error} />
-        <button type="submit" className="button" disabled={busy || !name || !email || !password}>
+        <button type="submit" className="button" disabled={busy || !firstName.trim() || !lastName.trim() || !email || !password || !confirm || mismatch}>
           {busy ? 'Creating account...' : 'Create account'}
         </button>
       </form>

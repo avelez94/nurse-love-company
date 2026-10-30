@@ -40,6 +40,44 @@ textarea.input {
   background: var(--blush);
   color: var(--ink-muted);
 }
+.password-field {
+  position: relative;
+}
+.password-field .input {
+  padding-right: 52px;
+}
+.password-field__toggle {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--burgundy-soft);
+  cursor: pointer;
+}
+.password-field__toggle:hover {
+  color: var(--raspberry);
+}
+.password-field__toggle:focus-visible {
+  outline: 2px solid var(--raspberry);
+  outline-offset: 1px;
+}
+.form-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+@media (max-width: 380px) {
+  .form-pair {
+    grid-template-columns: 1fr;
+  }
+}
 .money {
   display: flex;
   align-items: center;
