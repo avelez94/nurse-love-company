@@ -1,0 +1,139 @@
+/*
+  Branded email templates. The owner can edit the subject, heading, body text
+  and button label of each template in the admin (stored in email_templates).
+  The layout and all variable values are rendered here with HTML escaping, so
+  template edits can never inject markup.
+*/
+
+export type EmailType = 'order_confirmation' | 'digital_available' | 'shipping_confirmation' | 'product_update' | 'password_reset'
+
+export interface TemplateText {
+  subject: string
+  heading: string
+  body: string
+  button_label: string
+}
+
+export const templateInfo: Record<EmailType, { title: string; placeholders: string[]; buttonPath: string }> = {
+  order_confirmation: { title: 'Order confirmation', placeholders: ['name', 'order_number', 'order_total'], buttonPath: 'order' },
+  digital_available: { title: 'Digital purchase available', placeholders: ['name', 'order_number', 'product_list'], buttonPath: 'downloads' },
+  shipping_confirmation: { title: 'Shipping confirmation', placeholders: ['name', 'order_number', 'carrier', 'tracking_number'], buttonPath: 'order' },
+  product_update: { title: 'Product update available', placeholders: ['name', 'product_title', 'version', 'update_notes'], buttonPath: 'downloads' },
+  password_reset: { title: 'Password reset', placeholders: ['name'], buttonPath: 'reset' },
+}
+
+export const defaultTemplates: Record<EmailType, TemplateText> = {
+  order_confirmation: {
+    subject: 'Your Nurse Love Company order {{order_number}}',
+    heading: 'Thank you for your order!',
+    body: 'Hi {{name}},\n\nWe received your order {{order_number}}. Your total was {{order_total}}.\n\nYou can view your order details and receipt in your account at any time.',
+    button_label: 'View your order',
+  },
+  digital_available: {
+    subject: 'Your digital download is ready',
+    heading: 'Your download is ready',
+    body: 'Hi {{name}},\n\nYour digital purchase from order {{order_number}} is ready in your account: {{product_list}}.\n\nEach purchase includes one download. Sign in to your account to download your file, and save it somewhere you can find it again.',
+    button_label: 'Go to My Downloads',
+  },
+  shipping_confirmation: {
+    subject: 'Your order {{order_number}} has shipped',
+    heading: 'Your order is on its way',
+    body: 'Hi {{name}},\n\nGood news! Items from order {{order_number}} have shipped with {{carrier}}. Your tracking number is {{tracking_number}}.',
+    button_label: 'Track your order',
+  },
+  product_update: {
+    subject: 'An update to {{product_title}} is available',
+    heading: 'A new version is ready',
+    body: 'Hi {{name}},\n\nVersion {{version}} of {{product_title}} has been released.\n\n{{update_notes}}\n\nYour account now includes one download of the new version.',
+    button_label: 'Go to My Downloads',
+  },
+  password_reset: {
+    subject: 'Reset your Nurse Love Company password',
+    heading: 'Reset your password',
+    body: 'Hi {{name}},\n\nWe received a request to reset your password. This link expires in one hour. If you did not ask for this, you can ignore this email.',
+    button_label: 'Choose a new password',
+  },
+}
+
+const LIMITS = { subject: 160, heading: 160, body: 4000, button_label: 60 }
+
+/** Validates owner edits: plain text only, known placeholders only, sensible lengths. */
+export function validateTemplate(type: EmailType, t: TemplateText): string[] {
+  const errors: string[] = []
+  const allowed = new Set(templateInfo[type].placeholders)
+  for (const key of Object.keys(LIMITS) as Array<keyof typeof LIMITS>) {
+    const v = t[key] ?? ''
+    if (typeof v !== 'string') errors.push(`${key} must be text`)
+    else if (v.length > LIMITS[key]) errors.push(`${key} is longer than ${LIMITS[key]} characters`)
+    else if (key !== 'button_label' && v.trim() === '') errors.push(`${key} cannot be empty`)
+    for (const m of String(v).matchAll(/\{\{\s*([a-z_]+)\s*\}\}/g)) if (!allowed.has(m[1])) errors.push(`Unknown placeholder {{${m[1]}}} in ${key}`)
+    if (/<[a-z!/]/i.test(String(v))) errors.push(`${key} cannot contain HTML`)
+  }
+  return errors
+}
+
+export function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+}
+
+function fill(text: string, vars: Record<string, string>): string {
+  return text.replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (_, k: string) => vars[k] ?? '')
+}
+
+export interface RenderInput {
+  template: TemplateText
+  vars: Record<string, string>
+  buttonUrl?: string
+  /** Optional rows (for example order lines) drawn as a simple table. */
+  rows?: Array<[string, string]>
+  footerNote?: string
+}
+
+export function renderEmail({ template, vars, buttonUrl, rows, footerNote }: RenderInput) {
+  const subject = fill(template.subject, vars).replace(/[\r\n]+/g, ' ').trim()
+  const heading = fill(template.heading, vars)
+  const paragraphs = fill(template.body, vars).split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)
+
+  const rowsHtml = rows?.length
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;border-collapse:collapse">${rows
+        .map(
+          ([a, b]) =>
+            `<tr><td style="padding:8px 0;border-bottom:1px solid #EFD8DF;color:#680C35">${escapeHtml(a)}</td><td style="padding:8px 0;border-bottom:1px solid #EFD8DF;color:#680C35;text-align:right;white-space:nowrap">${escapeHtml(b)}</td></tr>`,
+        )
+        .join('')}</table>`
+    : ''
+
+  const button =
+    buttonUrl && template.button_label
+      ? `<p style="margin:24px 0"><a href="${escapeHtml(buttonUrl)}" style="display:inline-block;background:#D80853;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:999px;font-family:Georgia,serif;font-size:17px">${escapeHtml(template.button_label)}</a></p>`
+      : ''
+
+  const html = `<!doctype html><html><body style="margin:0;background:#FFFAF6;font-family:Helvetica,Arial,sans-serif;color:#680C35">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FFFAF6"><tr><td align="center" style="padding:24px 12px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #EFD8DF;border-radius:16px">
+<tr><td style="background:#FFF0F2;border-radius:16px 16px 0 0;padding:16px 24px;font-family:Georgia,serif;font-size:22px;color:#680C35">Nurse Love Company</td></tr>
+<tr><td style="padding:24px">
+<h1 style="font-family:Georgia,serif;font-weight:normal;font-size:26px;margin:0 0 16px;color:#680C35">${escapeHtml(heading)}</h1>
+${paragraphs.map((p) => `<p style="margin:0 0 12px;line-height:1.55;font-size:16px">${escapeHtml(p)}</p>`).join('\n')}
+${rowsHtml}${button}
+${footerNote ? `<p style="margin:16px 0 0;font-size:13px;color:#8A5A6C">${escapeHtml(footerNote)}</p>` : ''}
+</td></tr>
+<tr><td style="padding:16px 24px;border-top:1px solid #EFD8DF;font-size:12px;color:#8A5A6C">Made by a nurse, for nurses.</td></tr>
+</table></td></tr></table></body></html>`
+
+  const text = [
+    heading,
+    '',
+    ...paragraphs.flatMap((p) => [p, '']),
+    ...(rows ?? []).map(([a, b]) => `${a}: ${b}`),
+    rows?.length ? '' : null,
+    buttonUrl && template.button_label ? `${template.button_label}: ${buttonUrl}` : null,
+    footerNote ?? null,
+    '',
+    'Nurse Love Company. Made by a nurse, for nurses.',
+  ]
+    .filter((l) => l !== null)
+    .join('\n')
+
+  return { subject, html, text }
+}

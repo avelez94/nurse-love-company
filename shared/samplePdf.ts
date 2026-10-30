@@ -23,14 +23,14 @@ function rect(x: number, y: number, w: number, h: number, rgb = '0.847 0.031 0.3
   return `${rgb} RG ${lw} w ${x} ${y} ${w} ${h} re S`
 }
 
-export function buildSamplePlannerPdf(): Uint8Array {
+export function buildSamplePlannerPdf(title = 'Daily Planner', note = 'Prototype sample. Not a finished Nurse Love Company resource.'): Uint8Array {
   const ops: string[] = []
   const left = 54
   const right = W - 54
 
   ops.push('1 0.98 0.965 rg 0 0 612 792 re f')
-  ops.push(textOp(left, H - 80, 30, 'F2', 'Daily Planner'))
-  ops.push(textOp(left, H - 102, 10, 'F1', 'Prototype sample. Not a finished Nurse Love Company resource.', '0.54 0.35 0.42'))
+  ops.push(textOp(left, H - 80, title.length > 28 ? 20 : 30, 'F2', title))
+  ops.push(textOp(left, H - 102, 10, 'F1', note, '0.54 0.35 0.42'))
   ops.push(textOp(right - 160, H - 80, 11, 'F1', 'Date'))
   ops.push(line(right - 130, H - 82, right, H - 82, '0.408 0.047 0.208', 0.6))
 
@@ -81,7 +81,7 @@ export function buildSamplePlannerPdf(): Uint8Array {
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
     '<< /Type /Font /Subtype /Type1 /BaseFont /Times-Bold /Encoding /WinAnsiEncoding >>',
     `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
-    '<< /Title (Daily Planner prototype sample) /Producer (Nurse Love Company preview) >>',
+    `<< /Title (${esc(title)}) /Producer (Nurse Love Company preview) >>`,
   ]
 
   let out = '%PDF-1.4\n'

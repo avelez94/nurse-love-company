@@ -4,22 +4,46 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "dev": "node scripts/dev.mjs",
+    "build": "tsc --noEmit && tsc -p tsconfig.server.json --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.server.json --noEmit",
     "smoke": "node scripts/smoke.mjs",
-    "build:artifact": "vite build --mode artifact && node scripts/make-artifact.mjs"
+    "build:artifact": "vite build --mode artifact && node scripts/make-artifact.mjs",
+    "dev:web": "vite",
+    "dev:api": "tsx watch --clear-screen=false server/index.ts",
+    "start": "NODE_ENV=production tsx server/index.ts",
+    "test": "node --import tsx --test --test-concurrency=1 server/tests/*.test.ts",
+    "seed": "tsx server/scripts.ts seed",
+    "migrate": "tsx server/scripts.ts migrate",
+    "admin:create": "tsx server/scripts.ts admin"
   },
   "dependencies": {
+    "@hono/node-server": "^2.1.5",
+    "@tiptap/core": "^3.32.1",
+    "@tiptap/pm": "^3.32.1",
+    "@tiptap/react": "^3.32.1",
+    "@tiptap/starter-kit": "^3.32.1",
+    "aws4fetch": "^1.0.20",
+    "better-auth": "^1.7.14",
+    "hls.js": "^1.7.4",
+    "hono": "^4.13.14",
     "lucide-react": "^1.41.0",
+    "pg": "^8.23.1",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "resend": "^6.35.0",
+    "stripe": "^23.1.0",
+    "svix": "^2.9.1"
   },
   "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "embedded-postgres": "^17.10.0-beta.17",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vite": "^8.3.5"
   }
