@@ -14,6 +14,7 @@ export type EmailType =
   | 'download_reminder'
   | 'review_request_digital'
   | 'review_request_physical'
+  | 'free_order_confirmation'
 
 /** Automation emails are edited under Marketing, Email Automations rather than the general template list. */
 export const AUTOMATION_TYPES: EmailType[] = ['download_reminder', 'review_request_digital', 'review_request_physical']
@@ -34,6 +35,7 @@ export const templateInfo: Record<EmailType, { title: string; placeholders: stri
   download_reminder: { title: 'Download reminder', placeholders: ['name', 'order_number'], buttonPath: 'downloads' },
   review_request_digital: { title: 'Review request (digital)', placeholders: ['name', 'order_number'], buttonPath: 'none' },
   review_request_physical: { title: 'Review request (physical)', placeholders: ['name', 'order_number'], buttonPath: 'none' },
+  free_order_confirmation: { title: 'Free resource claimed', placeholders: ['name', 'order_number', 'product_list'], buttonPath: 'downloads' },
 }
 
 export const defaultTemplates: Record<EmailType, TemplateText> = {
@@ -78,6 +80,12 @@ export const defaultTemplates: Record<EmailType, TemplateText> = {
     heading: 'We would love your honest review',
     body: 'Hi {{name}},\n\nThank you again for your order {{order_number}}. When you have a moment, we would love to hear what you honestly think. Praise, suggestions and things that did not work for you are all welcome, and every review helps other nurses choose what is right for them.',
     button_label: 'Leave a review',
+  },
+  free_order_confirmation: {
+    subject: 'Your free resource is ready 💕',
+    heading: 'Enjoy your freebie',
+    body: 'Hi {{name}},\n\nThank you for claiming {{product_list}} (order {{order_number}}). It is ready for you in My downloads.\n\nEach free resource includes one download, so save your file somewhere you can easily find it again.',
+    button_label: 'My downloads',
   },
   review_request_physical: {
     subject: 'How are you liking your Nurse Love Company order?',

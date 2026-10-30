@@ -2,6 +2,7 @@ import { Webhook } from 'svix'
 import type { SessionUser } from '../auth.js'
 import { one, q } from '../db/pool.js'
 import { kickDispatcher } from '../email/outbox.js'
+import { contactSuppressed } from './consent.js'
 import { AUTOMATION_TYPES, defaultTemplates, templateInfo, validateTemplate, type EmailType, type TemplateText } from '../email/templates.js'
 import { config } from '../env.js'
 import { audit } from '../lib/audit.js'
@@ -147,6 +148,7 @@ export async function ingestResendEvent(svixId: string, evt: { type: string; cre
     )
     if (evt.type === 'email.bounced' || evt.type === 'email.complained') {
       await q(`insert into email_suppressions (email, reason) values (lower($1), $2) on conflict (email) do nothing`, [email.to_email, evt.type === 'email.bounced' ? 'Bounced' : 'Marked as spam'])
+      await contactSuppressed(email.to_email)
     }
   }
   return 'processed'

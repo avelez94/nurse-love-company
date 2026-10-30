@@ -14,6 +14,7 @@ import { RichText } from '../components/RichText'
 import { href } from '../lib/router'
 import { displayPrice, useStore } from '../lib/store'
 import { useUI } from '../lib/ui'
+import { CONSENT_WORDING } from '../../shared/consent'
 import { NotFound } from './Simple'
 
 function Detail({ term, value }: { term: string; value: string | null }) {
@@ -97,7 +98,7 @@ export function ProductView({ product, preview = false }: { product: ProductReco
               }}
             >
               {added ? <Heart className="button__heart" /> : <ShoppingBag aria-hidden="true" size={18} />}
-              {soldOut ? 'Sold out' : unpriced ? 'Pricing to be added' : needsVariant ? 'Choose an option' : added ? (isDigital ? 'In your bag' : 'Add another') : 'Add to bag'}
+              {soldOut ? 'Sold out' : unpriced ? 'Pricing to be added' : needsVariant ? 'Choose an option' : added ? (isDigital ? 'In your bag' : 'Add another') : product.isFreebie ? 'Add free resource to bag' : 'Add to bag'}
             </button>
             {product.samplePages.length > 0 && (
               <button type="button" className="button button--outline" onClick={() => open({ kind: 'peek', product })} aria-haspopup="dialog">
@@ -106,6 +107,11 @@ export function ProductView({ product, preview = false }: { product: ProductReco
               </button>
             )}
           </div>
+          {product.isFreebie && (
+            <p className="freebie-terms">
+              <strong>Free with our email list:</strong> {CONSENT_WORDING['freebie-v1']} No payment or card details needed.
+            </p>
+          )}
           {isDigital && (
             <p className="muted product__demo-note">
               <Check aria-hidden="true" size={16} /> Each purchase includes one download of the latest version, in your account after payment.

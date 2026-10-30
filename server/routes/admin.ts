@@ -204,7 +204,7 @@ adminRoutes.get('/admin/orders', async (c) => {
   const offset = int(c.req.query('offset') ?? 0, 'offset', { min: 0, max: 1_000_000 })!
   params.push(limit, offset)
   const orders = await q(
-    `select o.id, o.order_number, o.customer_name, o.email, o.status, o.fulfillment_status, o.total_cents, o.refunded_cents, o.created_at, o.paid_at, o.is_demo, o.user_id,
+    `select o.id, o.order_number, o.customer_name, o.email, o.status, o.fulfillment_status, o.total_cents, o.refunded_cents, o.created_at, o.paid_at, o.is_demo, o.is_free_claim, o.user_id,
             (select string_agg(distinct oi.product_type, ',') from order_items oi where oi.order_id = o.id) as types,
             (select count(*) from order_items oi where oi.order_id = o.id)::int as item_count
        from orders o where ${where.join(' and ')} order by o.created_at desc limit $${params.length - 1} offset $${params.length}`,

@@ -12,6 +12,7 @@ import { EmailDetail, Emails, Templates } from './Emails'
 import { OrderDetail, Orders } from './Orders'
 import { Automations } from './Automations'
 import { HelpFaqsEditor } from './HelpFaqs'
+import { EmailList } from './EmailList'
 import { QuizEditor, Quizzes } from './Quizzes'
 import { ReviewsAdmin } from './Reviews'
 import { StoryEditor } from './Story'
@@ -45,6 +46,7 @@ const nav: NavItem[] = [
     children: [
       { label: 'Resource Quiz', route: 'admin-quizzes', match: ['quizzes', 'quiz'] },
       { label: 'Email Automations', route: 'admin-email-automations', match: ['automations'] },
+      { label: 'Email list', route: 'admin-email-list', match: ['email-list'] },
       { label: 'Nurse Kin', route: 'admin-nurse-kin', match: ['popup'] },
     ],
   },
@@ -156,6 +158,7 @@ export default function AdminApp({ view, param }: { view: AdminView; param?: str
           {view === 'story' && <StoryEditor />}
           {view === 'automations' && <Automations />}
           {view === 'help' && <HelpFaqsEditor />}
+          {view === 'email-list' && <EmailList />}
           {view === 'settings' && <SettingsPage />}
           {view === 'audit' && <Audit />}
         </main>

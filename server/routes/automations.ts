@@ -21,6 +21,7 @@ import {
   type AutomationKind,
 } from '../services/automations.js'
 import { ingestDeliveryEvent } from '../services/delivery.js'
+import { contactHistory, emailListOverview, syncNow } from '../services/consent.js'
 
 export const automationRoutes = new Hono<AppEnv>()
 const ip = (c: Parameters<typeof clientIp>[0]) => clientIp(c)
@@ -101,3 +102,11 @@ automationRoutes.post('/admin/automations/:kind/test', async (c) => {
   await rateLimit(`automation-test:${actor.id}`, 20, 3600)
   return c.json(await testSend(actor, kindOf(c.req.param('kind')), (await jsonBody(c)).to, ip(c)))
 })
+
+/* ---------- Admin: Marketing, Email list ---------- */
+
+automationRoutes.use('/admin/email-list', adminOnly)
+automationRoutes.use('/admin/email-list/*', adminOnly)
+automationRoutes.get('/admin/email-list', async (c) => c.json(await emailListOverview(c.req.query('search') || undefined)))
+automationRoutes.get('/admin/email-list/history', async (c) => c.json({ events: await contactHistory(String(c.req.query('email') ?? '')) }))
+automationRoutes.post('/admin/email-list/sync', async (c) => c.json(await syncNow(requireAdmin(c), ip(c))))

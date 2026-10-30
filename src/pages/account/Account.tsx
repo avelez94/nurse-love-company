@@ -86,6 +86,7 @@ interface OrderSummary {
   created_at: string
   paid_at: string | null
   is_demo: boolean
+  is_free_claim?: boolean
   items: Array<{ title: string; variant: string; quantity: number; type: string }>
 }
 
@@ -191,6 +192,7 @@ function Orders() {
             <span className="order-card__head">
               <strong>Order {o.order_number}</strong>
               {o.is_demo && <span className="demo-tag">Demo</span>}
+              {o.is_free_claim && <span className="demo-tag">Free resource</span>}
               <span className="muted">{dateOnly(o.paid_at ?? o.created_at)}</span>
             </span>
             <span className="order-card__items">{o.items.map((i) => `${i.title}${i.variant ? ` (${i.variant})` : ''}${i.quantity > 1 ? ` × ${i.quantity}` : ''}`).join(', ')}</span>
@@ -532,7 +534,7 @@ function Settings() {
         <Checkbox label="Product update emails" checked={prefs.product_updates} onChange={(v) => setPrefs({ ...prefs, product_updates: v })} hint="When a new version of something you bought is released." />
         <Checkbox label="Download reminders" checked={prefs.download_reminders} onChange={(v) => setPrefs({ ...prefs, download_reminders: v })} hint="One reminder if a digital purchase is still waiting to be downloaded." />
         <Checkbox label="Review requests" checked={prefs.review_requests} onChange={(v) => setPrefs({ ...prefs, review_requests: v })} hint="One email asking for your honest review of something you bought." />
-        <Checkbox label="News and new products" checked={prefs.marketing} onChange={(v) => setPrefs({ ...prefs, marketing: v })} hint="Off unless you turn it on." />
+        <Checkbox label="News and new products" checked={prefs.marketing} onChange={(v) => setPrefs({ ...prefs, marketing: v })} hint="Nurse Love Company news, new resources, and offers by email. You can unsubscribe at any time. Unsubscribing never affects your orders, downloads or receipts." />
         <FormError message={error} />
         <div className="button-row">
           <button type="submit" className="button button--small">Save</button>
@@ -706,7 +708,7 @@ function Support() {
   )
 }
 
-export function CheckoutResult({ result }: { result: 'success' | 'canceled' }) {
+export function CheckoutResult({ result, free }: { result: 'success' | 'canceled'; free?: boolean }) {
   const { clear } = useCart()
   useEffect(() => {
     if (result === 'success') clear()
@@ -714,7 +716,16 @@ export function CheckoutResult({ result }: { result: 'success' | 'canceled' }) {
   return (
     <section className="container auth">
       <div className="auth__card">
-        {result === 'success' ? (
+        {result === 'success' && free ? (
+          <>
+            <h1 className="auth__title">Your freebie is ready!</h1>
+            <p>Thank you for joining us. Your free resource is in My downloads now, with one download. Save it somewhere you can easily find it again.</p>
+            <div className="button-row">
+              <a className="button button--small" href={href('account-downloads')}>My downloads</a>
+              <a className="button button--outline button--small" href={href('freebie-corner')}>Back to the Freebie Corner</a>
+            </div>
+          </>
+        ) : result === 'success' ? (
           <>
             <h1 className="auth__title">Thank you!</h1>
             <p>Your payment is being confirmed. Your order and any downloads appear in your account as soon as the payment provider confirms it, usually within a minute.</p>

@@ -35,6 +35,7 @@ export function ExampleLabel({ demo = false }: { demo?: boolean }) {
 export function Price({ product, variant, className = '' }: { product: Product; variant?: Variant | null; className?: string }) {
   const { now, was } = displayPrice(product, variant)
   if (now === null || now === undefined) return <span className={`price price--none ${className}`}>Pricing to be added</span>
+  if (product.isFreebie) return <span className={`price ${className}`}><span className="price__now">Free</span></span>
   return (
     <span className={`price ${className}`}>
       {was !== null && <s className="price__was">{formatPrice(was)}</s>}

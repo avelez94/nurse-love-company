@@ -10,6 +10,7 @@ import { toWebBody } from '../lib/stream.js'
 import { bool, str, uuid } from '../lib/validate.js'
 import { listDownloads, prepareDownload, reportProblem, startDelivery } from '../services/entitlements.js'
 import { createCheckout, money, priceCart, type CartLine } from '../services/orders.js'
+import { marketingStatus, setAccountMarketing } from '../services/consent.js'
 
 export const accountRoutes = new Hono<AppEnv>()
 
@@ -28,18 +29,19 @@ accountRoutes.patch('/account/profile', async (c) => {
   const name = str(b.name, 'Name', { min: 1, max: 100 })
   await q('update "user" set name = $2, "updatedAt" = now() where id = $1', [user.id, name])
   await q(
-    `insert into customer_profiles (user_id, order_updates, product_updates, marketing, download_reminders, review_requests) values ($1,$2,$3,$4,$5,$6)
-     on conflict (user_id) do update set order_updates = excluded.order_updates, product_updates = excluded.product_updates, marketing = excluded.marketing,
+    `insert into customer_profiles (user_id, order_updates, product_updates, download_reminders, review_requests) values ($1,$2,$3,$4,$5)
+     on conflict (user_id) do update set order_updates = excluded.order_updates, product_updates = excluded.product_updates,
        download_reminders = excluded.download_reminders, review_requests = excluded.review_requests, updated_at = now()`,
     [
       user.id,
       b.order_updates === undefined ? true : bool(b.order_updates),
       b.product_updates === undefined ? true : bool(b.product_updates),
-      bool(b.marketing),
       b.download_reminders === undefined ? true : bool(b.download_reminders),
       b.review_requests === undefined ? true : bool(b.review_requests),
     ],
   )
+  // The email list goes through the consent record (with its wording and history), never a silent flag.
+  if (b.marketing !== undefined) await setAccountMarketing(user, bool(b.marketing), clientIp(c))
   return c.json({ ok: true })
 })
 
@@ -91,7 +93,7 @@ accountRoutes.delete('/account/addresses/:id', async (c) => {
 accountRoutes.get('/account/orders', async (c) => {
   const user = requireUser(c)
   const orders = await q(
-    `select o.id, o.order_number, o.status, o.fulfillment_status, o.total_cents, o.refunded_cents, o.created_at, o.paid_at, o.is_demo,
+    `select o.id, o.order_number, o.status, o.fulfillment_status, o.total_cents, o.refunded_cents, o.created_at, o.paid_at, o.is_demo, o.is_free_claim,
             (select json_agg(json_build_object('title', oi.title_snapshot, 'variant', oi.variant_snapshot, 'quantity', oi.quantity, 'type', oi.product_type) order by oi.title_snapshot) from order_items oi where oi.order_id = o.id) as items
        from orders o where o.user_id = $1 and o.status <> 'pending' order by o.created_at desc`,
     [user.id],
@@ -229,6 +231,12 @@ accountRoutes.post('/cart/price', async (c) => {
 accountRoutes.post('/checkout', async (c) => {
   const user = requireUser(c)
   await rateLimit(`checkout:${user.id}`, 10, 60)
-  const b = await jsonBody<{ items: CartLine[] }>(c)
-  return c.json(await createCheckout(user, b.items ?? []))
+  const b = await jsonBody<{ items: CartLine[]; join_list?: boolean }>(c)
+  return c.json(await createCheckout(user, b.items ?? [], { joinList: b.join_list === true, ip: clientIp(c) }))
+})
+
+/** The customer's email list status, so checkout shows their real preference. */
+accountRoutes.get('/account/marketing', async (c) => {
+  const user = requireUser(c)
+  return c.json(await marketingStatus(user))
 })

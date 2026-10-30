@@ -546,3 +546,37 @@
   text-decoration: line-through;
   cursor: not-allowed;
 }
+
+/* Email list choice in the bag */
+.bag__list-consent {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--blush);
+  border: 1px solid var(--border);
+}
+.bag__consent {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  cursor: pointer;
+}
+.bag__consent input {
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  flex: none;
+  accent-color: var(--raspberry);
+}
+.bag__needs-list {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+  font-size: var(--text-sm);
+}
+.bag__needs-list p {
+  margin: 0;
+}

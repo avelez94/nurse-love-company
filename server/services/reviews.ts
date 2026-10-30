@@ -2,7 +2,7 @@
   Verified purchase reviews.
 
   Who can review: a signed in customer with a paid purchase of the product
-  that is not fully refunded (order paid or partially refunded, and that
+  (a free Freebie Corner claim does not count) that is not fully refunded (order paid or partially refunded, and that
   line not fully refunded). Checked on the server on every write.
 
   One review per customer per product (database unique key). Writing again
@@ -28,13 +28,13 @@ import { int, oneOf, str } from '../lib/validate.js'
 
 const ELIGIBLE = `exists (select 1 from order_items oi join orders o on o.id = oi.order_id
                    where o.user_id = r.user_id and oi.product_id = r.product_id
-                     and o.status in ('paid','partially_refunded') and oi.refunded_quantity < oi.quantity)`
+                     and o.status in ('paid','partially_refunded') and oi.refunded_quantity < oi.quantity and not oi.is_freebie)`
 
 export async function isEligible(userId: string, productId: string) {
   return Boolean(
     await one(
       `select 1 from order_items oi join orders o on o.id = oi.order_id
-        where o.user_id = $1 and oi.product_id = $2 and o.status in ('paid','partially_refunded') and oi.refunded_quantity < oi.quantity`,
+        where o.user_id = $1 and oi.product_id = $2 and o.status in ('paid','partially_refunded') and oi.refunded_quantity < oi.quantity and not oi.is_freebie`,
       [userId, productId],
     ),
   )
@@ -60,7 +60,7 @@ export async function reviewablePurchases(user: SessionUser) {
     `select p.id as product_id, p.slug, p.title, r.id as review_id, r.status as review_status, r.rating
        from products p left join reviews r on r.product_id = p.id and r.user_id = $1
       where exists (select 1 from order_items oi join orders o on o.id = oi.order_id
-                     where o.user_id = $1 and oi.product_id = p.id and o.status in ('paid','partially_refunded') and oi.refunded_quantity < oi.quantity)
+                     where o.user_id = $1 and oi.product_id = p.id and o.status in ('paid','partially_refunded') and oi.refunded_quantity < oi.quantity and not oi.is_freebie)
       order by p.title`,
     [user.id],
   )

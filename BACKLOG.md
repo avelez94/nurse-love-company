@@ -18,6 +18,8 @@ Built and ready, nothing published:
 * **Product previews**: selected sample page images, what's included lists, optional walkthrough tutorials.
 
 ## Not built
+* **Unsubscribes made in the mailing list provider** (for example a Resend unsubscribe link in a newsletter) are not copied back into the store's consent records yet. Needs the provider's contact webhook.
+* **Double opt in** (a confirmation email before someone is added to the list): owner decision, usually configured in the provider.
 * **Printful fulfillment and tracking connection.** The store accepts signed delivery events at `/api/webhooks/delivery` (shape documented in `server/routes/automations.ts`); a Printful adapter that translates Printful's shipment webhooks into that shape, plus `DELIVERY_WEBHOOK_SECRET`, is still to be built. Until then, delivery dates are recorded by the owner.
 * **List-Unsubscribe email header** for the automation emails (the footer link already works).
 * **Generating previews from the PDF automatically.** Previews are uploaded by hand for now (screenshots or exports), which keeps the owner in control of exactly which pages are shown.

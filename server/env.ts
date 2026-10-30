@@ -70,6 +70,8 @@ export const config = {
     apiKey: e.RESEND_API_KEY ?? '',
     from: e.RESEND_FROM ?? '',
     webhookSecret: e.RESEND_WEBHOOK_SECRET ?? '',
+    /** The Resend audience that holds the marketing email list. Unset: no list is connected. */
+    audienceId: e.RESEND_AUDIENCE_ID ?? '',
   },
 
   storage: {

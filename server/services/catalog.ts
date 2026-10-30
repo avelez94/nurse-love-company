@@ -36,6 +36,8 @@ export interface PublicProduct {
   priceCents: number | null
   salePriceCents: number | null
   featured: boolean
+  /** In the Freebie Corner: free, claimed through checkout with an email list signup. */
+  isFreebie: boolean
   isDemo: boolean
   images: PublicImage[]
   whatsIncluded: string[]
@@ -93,6 +95,7 @@ export async function loadProducts(where: string, params: unknown[], client?: Qu
       priceCents: (r.price_cents as number | null) ?? null,
       salePriceCents: (r.sale_price_cents as number | null) ?? null,
       featured: Boolean(r.featured),
+      isFreebie: Boolean(r.is_freebie),
       isDemo: Boolean(r.is_demo),
       inStock,
       soldOutBehavior: String(r.out_of_stock_behavior),

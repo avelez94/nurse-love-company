@@ -30,6 +30,7 @@ interface OrderRow {
   refunded_cents: number
   created_at: string
   is_demo: boolean
+  is_free_claim?: boolean
   types: string
   item_count: number
 }
@@ -95,6 +96,7 @@ export function Orders() {
                   <td>
                     <a href={href(`admin-order-${o.id}`)}>{o.order_number}</a>
                     {o.is_demo && <span className="demo-tag">Demo</span>}
+                    {o.is_free_claim && <span className="demo-tag">Free claim</span>}
                     <br />
                     <span className="muted">{dateTime(o.created_at)}</span>
                   </td>
@@ -195,6 +197,7 @@ export function OrderDetail({ id }: { id: string }) {
         <Pill value={o.status} />
         <Pill value={o.fulfillment_status} />
         {o.is_demo && <span className="demo-tag">Demo order: sample data, no payment</span>}
+        {o.is_free_claim && <span className="demo-tag">Free claim: Freebie Corner resource, not a paid purchase</span>}
         <span className="muted">Placed {dateTime(o.created_at)}{o.paid_at ? ` • paid ${dateTime(o.paid_at)}` : ''}</span>
       </div>
       <FormError message={actionError} />

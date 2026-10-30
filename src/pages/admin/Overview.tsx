@@ -80,6 +80,7 @@ interface Report {
   byCategory: Array<{ category: string; units: number; gross: number }>
   recentOrders: Array<{ id: string; order_number: string; customer_name: string; status: string; fulfillment_status: string; total_cents: number; created_at: string; is_demo: boolean }>
   lowStock: Array<{ product_id: string; title: string; stock: number; threshold: number }>
+  freeClaims?: { claims: number; customers: number }
   daily: Array<{ day: string; gross: number }>
   counts: { open_reports: number; open_support: number; to_fulfill: number; email_problems: number; has_demo: boolean }
   integrations: { payments: { state: string; webhook: boolean }; email: { configured: boolean; webhook: boolean }; storage: { driver: string; configured: boolean }; video: { provider: string; configured: boolean } }
@@ -165,6 +166,11 @@ export function Overview() {
             {data.counts.open_support > 0 && <a className="chip" href={href('admin-support')}>{data.counts.open_support} support messages</a>}
             {data.counts.email_problems > 0 && <a className="chip" href={href('admin-emails')}>{data.counts.email_problems} email delivery problems</a>}
           </div>
+          {data.freeClaims && data.freeClaims.claims > 0 && (
+            <Notice>
+              <strong>Free claims:</strong> {data.freeClaims.claims} Freebie Corner {data.freeClaims.claims === 1 ? 'resource' : 'resources'} claimed by {data.freeClaims.customers} {data.freeClaims.customers === 1 ? 'customer' : 'customers'} in this period. Free claims are not counted in orders, sales or customers below.
+            </Notice>
+          )}
           <section className="kpis" aria-label="Revenue">
             <Kpi label="Net sales" value={data.current.netSales} prev={data.previous.netSales} primary />
             <Kpi label="Gross sales" value={data.current.grossSales} prev={data.previous.grossSales} />

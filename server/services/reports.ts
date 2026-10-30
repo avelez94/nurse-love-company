@@ -14,6 +14,8 @@
   Processing fees  Stripe fees, when Stripe has reported them.
   Average order    (Gross sales − discounts) ÷ paid orders. Excludes shipping and tax.
   New customers    Customers whose first ever paid order falls in the range.
+  Free claims      Freebie Corner resources claimed at $0. Reported on their own
+                   and never counted as paid orders, sales or customers.
 
   None of these numbers is profit: product costs, shipping labels, platform
   fees and other expenses are not included.
@@ -29,7 +31,7 @@ export interface Range {
 const PAID = `('paid','partially_refunded','refunded','disputed')`
 
 async function summary(r: Range) {
-  const demo = r.includeDemo ? '' : 'and not o.is_demo'
+  const demo = `${r.includeDemo ? '' : 'and not o.is_demo'} and not o.is_free_claim`
   const params = [r.from.toISOString(), r.to.toISOString()]
   const orders = await one<{ orders: number; discounts: number; shipping: number; tax: number; fees: number; fees_missing: number }>(
     `select count(*)::int as orders, coalesce(sum(discount_cents),0)::int as discounts, coalesce(sum(shipping_cents),0)::int as shipping,
@@ -83,7 +85,8 @@ async function summary(r: Range) {
 export async function revenueReport(r: Range) {
   const span = r.to.getTime() - r.from.getTime()
   const prev: Range = { from: new Date(r.from.getTime() - span), to: new Date(r.from.getTime()), includeDemo: r.includeDemo }
-  const demo = r.includeDemo ? '' : 'and not o.is_demo'
+  const demo = `${r.includeDemo ? '' : 'and not o.is_demo'} and not o.is_free_claim`
+  const demoAll = r.includeDemo ? '' : 'and not o.is_demo'
   const params = [r.from.toISOString(), r.to.toISOString()]
   const [current, previous, byProduct, byCategory, recent, lowStock, daily] = await Promise.all([
     summary(r),
@@ -91,20 +94,20 @@ export async function revenueReport(r: Range) {
     q(
       `select oi.product_id, max(oi.title_snapshot) as title, max(oi.product_type) as type, sum(oi.quantity)::int as units, sum(oi.unit_price_cents * oi.quantity)::int as gross
          from order_items oi join orders o on o.id = oi.order_id
-        where o.status in ${PAID} and o.paid_at >= $1 and o.paid_at < $2 ${demo}
+        where o.status in ${PAID} and o.paid_at >= $1 and o.paid_at < $2 ${demo} and not oi.is_freebie
         group by oi.product_id order by gross desc limit 50`,
       params,
     ),
     q(
       `select oi.category_snapshot as category, sum(oi.quantity)::int as units, sum(oi.unit_price_cents * oi.quantity)::int as gross
          from order_items oi join orders o on o.id = oi.order_id
-        where o.status in ${PAID} and o.paid_at >= $1 and o.paid_at < $2 ${demo}
+        where o.status in ${PAID} and o.paid_at >= $1 and o.paid_at < $2 ${demo} and not oi.is_freebie
         group by oi.category_snapshot order by gross desc`,
       params,
     ),
     q(
-      `select o.id, o.order_number, o.customer_name, o.email, o.status, o.fulfillment_status, o.total_cents, o.created_at, o.is_demo
-         from orders o where o.status <> 'pending' ${demo} order by o.created_at desc limit 8`,
+      `select o.id, o.order_number, o.customer_name, o.email, o.status, o.fulfillment_status, o.total_cents, o.created_at, o.is_demo, o.is_free_claim
+         from orders o where o.status <> 'pending' ${demoAll} order by o.created_at desc limit 8`,
     ),
     q(
       `select p.id as product_id, null as variant_id, p.title, p.inventory_quantity as stock, p.low_stock_threshold as threshold
@@ -124,7 +127,13 @@ export async function revenueReport(r: Range) {
       params,
     ),
   ])
-  return { range: { from: r.from, to: r.to }, previousRange: { from: prev.from, to: prev.to }, current, previous, byProduct, byCategory, recentOrders: recent, lowStock, daily }
+  // Free claims, reported on their own (not sales).
+  const freeClaims = await one<{ claims: number; customers: number }>(
+    `select count(*)::int as claims, count(distinct o.user_id)::int as customers from order_items oi join orders o on o.id = oi.order_id
+      where oi.is_freebie and o.status in ${PAID} and o.paid_at >= $1 and o.paid_at < $2 ${demoAll}`,
+    params,
+  )
+  return { range: { from: r.from, to: r.to }, previousRange: { from: prev.from, to: prev.to }, current, previous, byProduct, byCategory, recentOrders: recent, lowStock, daily, freeClaims }
 }
 
 /** CSV with protection against spreadsheet formula injection. */
@@ -143,24 +152,24 @@ export async function ordersCsv(r: Range) {
   const demo = r.includeDemo ? '' : 'and not o.is_demo'
   const rows = await q<Record<string, unknown>>(
     `select o.order_number, o.created_at, o.paid_at, o.customer_name, o.email, o.status, o.fulfillment_status, o.subtotal_cents, o.discount_cents, o.shipping_cents, o.tax_cents,
-            o.total_cents, o.refunded_cents, o.fee_cents, o.stripe_payment_intent_id, o.is_demo
+            o.total_cents, o.refunded_cents, o.fee_cents, o.stripe_payment_intent_id, o.is_demo, o.is_free_claim
        from orders o where o.created_at >= $1 and o.created_at < $2 ${demo} order by o.created_at`,
     [r.from.toISOString(), r.to.toISOString()],
   )
-  const mapped = rows.map((x) => ({ ...x, subtotal: dollars(x.subtotal_cents), discount: dollars(x.discount_cents), shipping: dollars(x.shipping_cents), tax: dollars(x.tax_cents), total: dollars(x.total_cents), refunded: dollars(x.refunded_cents), fee: dollars(x.fee_cents), demo: x.is_demo ? 'yes' : 'no' }))
+  const mapped = rows.map((x) => ({ ...x, subtotal: dollars(x.subtotal_cents), discount: dollars(x.discount_cents), shipping: dollars(x.shipping_cents), tax: dollars(x.tax_cents), total: dollars(x.total_cents), refunded: dollars(x.refunded_cents), fee: dollars(x.fee_cents), demo: x.is_demo ? 'yes' : 'no', kind: x.is_free_claim ? 'Free claim' : 'Paid order' }))
   return toCsv(mapped, [
     ['order_number', 'Order'], ['created_at', 'Created'], ['paid_at', 'Paid'], ['customer_name', 'Customer'], ['email', 'Email'], ['status', 'Payment status'], ['fulfillment_status', 'Fulfillment'],
-    ['subtotal', 'Subtotal (USD)'], ['discount', 'Discounts'], ['shipping', 'Shipping'], ['tax', 'Tax'], ['total', 'Total charged'], ['refunded', 'Refunded'], ['fee', 'Processing fee'], ['stripe_payment_intent_id', 'Payment reference'], ['demo', 'Demo data'],
+    ['subtotal', 'Subtotal (USD)'], ['discount', 'Discounts'], ['shipping', 'Shipping'], ['tax', 'Tax'], ['total', 'Total charged'], ['refunded', 'Refunded'], ['fee', 'Processing fee'], ['stripe_payment_intent_id', 'Payment reference'], ['demo', 'Demo data'], ['kind', 'Type'],
   ])
 }
 
 export async function salesCsv(r: Range) {
-  const demo = r.includeDemo ? '' : 'and not o.is_demo'
+  const demo = `${r.includeDemo ? '' : 'and not o.is_demo'} and not o.is_free_claim`
   const rows = await q<Record<string, unknown>>(
     `select o.order_number, o.paid_at, oi.title_snapshot, oi.variant_snapshot, oi.sku_snapshot, oi.category_snapshot, oi.product_type, oi.quantity, oi.unit_price_cents,
             oi.unit_price_cents * oi.quantity as gross_cents, oi.refunded_quantity, o.is_demo
        from order_items oi join orders o on o.id = oi.order_id
-      where o.status in ${PAID} and o.paid_at >= $1 and o.paid_at < $2 ${demo} order by o.paid_at`,
+      where o.status in ${PAID} and o.paid_at >= $1 and o.paid_at < $2 ${demo} and not oi.is_freebie order by o.paid_at`,
     [r.from.toISOString(), r.to.toISOString()],
   )
   const mapped = rows.map((x) => ({ ...x, unit: dollars(x.unit_price_cents), gross: dollars(x.gross_cents), demo: x.is_demo ? 'yes' : 'no' }))

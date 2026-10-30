@@ -9,10 +9,49 @@ import { HelpLoading, HelpView } from '../components/HelpFaq'
 import { usePublishedHelp } from '../lib/help'
 import { paragraphs, usePublishedStory, type PublicStory } from '../lib/story'
 import { useUI } from '../lib/ui'
+import { useStore } from '../lib/store'
+import { ProductCard } from '../components/ProductCard'
+import { CONSENT_WORDING } from '../../shared/consent'
 import { PageHeader } from './PageHeader'
+
+/** The condition for every Freebie Corner resource, shown here and again in the bag before claiming. */
+function FreebieConsentNote() {
+  return (
+    <p className="freebie-terms">
+      <strong>How freebies work:</strong> {CONSENT_WORDING['freebie-v1']} You claim it through a short checkout with your account email; no payment or card details are needed.
+    </p>
+  )
+}
 
 export function Freebies() {
   const { open } = useUI()
+  const { products, status } = useStore()
+  const real = products.filter((p) => p.isFreebie)
+  if (real.length) {
+    return (
+      <>
+        <PageHeader
+          title={site.freebie.heading}
+          crumbs={[{ label: 'Home', route: 'home' }, { label: site.freebie.heading }]}
+          intro={
+            <>
+              <p className="page-header__tagline">{site.freebie.tagline}</p>
+              <p>{site.freebie.copy}</p>
+              <FreebieConsentNote />
+            </>
+          }
+        />
+        <section className="container freebie-list" aria-label="Free resources">
+          <div className="product-grid">
+            {real.map((p, i) => (
+              <ProductCard key={p.id} product={p} style={{ animationDelay: `${i * 50}ms` }} />
+            ))}
+          </div>
+        </section>
+      </>
+    )
+  }
+  if (status === 'loading') return <div className="container page-loading" role="status">Loading...</div>
   return (
     <>
       <PageHeader

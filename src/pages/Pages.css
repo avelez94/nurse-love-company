@@ -503,3 +503,15 @@
   text-align: center;
   color: var(--ink-muted);
 }
+
+/* Freebie Corner condition, shown on the page and the product */
+.freebie-terms {
+  max-width: 640px;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--blush);
+  border: 1px solid var(--pink-deep);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+}

@@ -131,12 +131,13 @@ type Form = {
   out_of_stock_behavior: string
   whats_included: string[]
   walkthrough_tutorial_id: string | null
+  is_freebie: boolean
 }
 
 const blank: Form = {
   title: '', slug: '', category: 'nurse-inserts', collection: '', type: 'digital', short_description: '', description: { type: 'doc', content: [] }, price_cents: null, sale_price_cents: null, featured: false, sort_order: 0,
   page_count: null, page_size: '', orientation: '', file_format: '', usage_attributes: [], app_compatibility: [], show_binder_notice: true,
-  sku: '', weight_grams: null, shipping_info: '', inventory_quantity: 0, low_stock_threshold: 3, out_of_stock_behavior: 'show_sold_out', whats_included: [], walkthrough_tutorial_id: null,
+  sku: '', weight_grams: null, shipping_info: '', inventory_quantity: 0, low_stock_threshold: 3, out_of_stock_behavior: 'show_sold_out', whats_included: [], walkthrough_tutorial_id: null, is_freebie: false,
 }
 
 interface Detail {
@@ -337,8 +338,26 @@ export function ProductEditor({ id }: { id: string }) {
           </section>
           <section className="panel form-stack">
             <h2 className="panel__title">Price</h2>
-            <MoneyInput label="Price" cents={form.price_cents} onChange={(c) => set('price_cents', c)} hint="Leave empty until the price is approved. Products without a price cannot be bought." />
-            <MoneyInput label="Sale price (optional)" cents={form.sale_price_cents} onChange={(c) => set('sale_price_cents', c)} />
+            {form.type === 'digital' && (
+              <Checkbox
+                label="Include in Freebie Corner"
+                checked={form.is_freebie}
+                onChange={(v) => setForm((f) => ({ ...f, is_freebie: v, price_cents: v ? 0 : null, sale_price_cents: null }))}
+                hint="Free with an email list signup, claimed through checkout and delivered in the customer's account."
+              />
+            )}
+            {form.is_freebie ? (
+              <Notice tone="warn">
+                Saving sets the price to <strong>$0</strong> and removes any sale price. Once published, it appears in the Freebie Corner. Customers claim it by checking out with their account email and joining your
+                email list; the file stays private and is delivered in their account with one download. Free claims are reported separately from sales.
+              </Notice>
+            ) : (
+              <>
+                {p?.is_freebie && <Notice tone="warn">This product is leaving the Freebie Corner. Enter the selling price you want before saving; the earlier price does not come back by itself.</Notice>}
+                <MoneyInput label="Price" cents={form.price_cents} onChange={(c) => set('price_cents', c)} hint="Leave empty until the price is approved. Products without a price cannot be bought." />
+                <MoneyInput label="Sale price (optional)" cents={form.sale_price_cents} onChange={(c) => set('sale_price_cents', c)} />
+              </>
+            )}
           </section>
         </div>
 

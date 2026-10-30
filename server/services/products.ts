@@ -18,8 +18,12 @@ export const PAGE_SIZES = ['US Letter (8.5 × 11 in)', 'A4 (210 × 297 mm)', 'A5
 
 export function parseProductInput(b: Record<string, unknown>) {
   const type = oneOf(b.type, 'Product type', ['digital', 'physical'] as const)
-  const price = int(b.price_cents, 'Price', { optional: true, max: 10_000_000 })
-  const sale = int(b.sale_price_cents, 'Sale price', { optional: true, max: 10_000_000 })
+  // Freebie Corner products are free: the price is $0 and there is no sale price.
+  const isFreebie = bool(b.is_freebie)
+  if (isFreebie && type !== 'digital') throw badRequest('Only digital downloads can be in the Freebie Corner.')
+  const price = isFreebie ? 0 : int(b.price_cents, 'Price', { optional: true, max: 10_000_000 })
+  const sale = isFreebie ? null : int(b.sale_price_cents, 'Sale price', { optional: true, max: 10_000_000 })
+  if (!isFreebie && price === 0) throw badRequest('A $0 price is only for Freebie Corner products. Set the selling price, or leave it empty until it is decided.')
   if (sale !== null && (price === null || sale >= price)) throw badRequest('Sale price must be lower than the regular price.')
   const base = {
     title: str(b.title, 'Product title', { min: 1, max: 160 }),
@@ -32,6 +36,7 @@ export function parseProductInput(b: Record<string, unknown>) {
     price_cents: price,
     sale_price_cents: sale,
     featured: bool(b.featured),
+    is_freebie: isFreebie,
     whats_included: strList(b.whats_included, "What's included", { maxItems: 25, maxLen: 160 }),
     walkthrough_tutorial_id: b.walkthrough_tutorial_id ? uuid(b.walkthrough_tutorial_id, 'walkthrough video') : null,
     sort_order: int(b.sort_order, 'Display order', { optional: true, min: -100000, max: 100000 }) ?? 0,
@@ -64,7 +69,7 @@ export function parseProductInput(b: Record<string, unknown>) {
 
 type ProductInput = ReturnType<typeof parseProductInput>
 const COLUMNS: Array<keyof ProductInput> = [
-  'title', 'slug', 'category', 'collection', 'type', 'short_description', 'description', 'price_cents', 'sale_price_cents', 'featured', 'whats_included', 'walkthrough_tutorial_id', 'sort_order',
+  'title', 'slug', 'category', 'collection', 'type', 'short_description', 'description', 'price_cents', 'sale_price_cents', 'featured', 'is_freebie', 'whats_included', 'walkthrough_tutorial_id', 'sort_order',
   'page_count', 'page_size', 'orientation', 'file_format', 'usage_attributes', 'app_compatibility', 'show_binder_notice',
   'sku', 'weight_grams', 'shipping_info', 'inventory_quantity', 'low_stock_threshold', 'out_of_stock_behavior',
 ]
@@ -96,6 +101,8 @@ export async function updateProduct(actor: SessionUser, id: string, body: Record
     const sold = await one('select 1 from order_items where product_id = $1', [id], client)
     if (sold) throw badRequest('The product type cannot change after it has been ordered. Duplicate it instead.')
   }
+  // Leaving the Freebie Corner: the owner sets the selling price on purpose; no earlier price comes back by itself.
+  if (before.is_freebie && !input.is_freebie && !input.price_cents) throw badRequest('Set the selling price before taking this product out of the Freebie Corner.')
   await assertUnique(input.slug, input.sku, id, client)
   const sets = COLUMNS.map((c, i) => `${c} = $${i + 2}`).join(', ')
   await q(`update products set ${sets}, updated_at = now() where id = $1`, [id, ...values(input)], client)

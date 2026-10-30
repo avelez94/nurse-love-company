@@ -11,6 +11,7 @@ import { useSession } from '../lib/session'
 import { displayPrice, useStore } from '../lib/store'
 import { href, navigate } from '../lib/router'
 import { buildSamplePlannerPdf } from '../../shared/samplePdf'
+import { CONSENT_WORDING, type MarketingStatus } from '../../shared/consent'
 import { search, searchSuggestions } from '../lib/search'
 import { useUI } from '../lib/ui'
 import { Dialog } from './Dialog'
@@ -267,6 +268,20 @@ function BagDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const unpriced = lines.some((l) => displayPrice(l.product, l.variant).now === null)
   const paymentsReady = payments === 'test' || payments === 'live'
   const digitalLine = lines.find((l) => l.product.type === 'digital')
+  const freebies = lines.filter((l) => l.product.isFreebie)
+  const allFree = lines.length > 0 && freebies.length === lines.length
+  const [joinList, setJoinList] = useState(false)
+  const [listStatus, setListStatus] = useState<MarketingStatus | null>(null)
+  useEffect(() => {
+    if (!open || !user) return setListStatus(null)
+    let alive = true
+    api<MarketingStatus>('/api/account/marketing').then((s) => alive && setListStatus(s), () => alive && setListStatus(null))
+    return () => {
+      alive = false
+    }
+  }, [open, user])
+  const subscribed = listStatus?.status === 'subscribed'
+  const needsList = freebies.length > 0 && !subscribed && !joinList
 
   const checkout = async () => {
     setError('')
@@ -275,14 +290,25 @@ function BagDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
       navigate('sign-in')
       return
     }
+    if (needsList) return
     setBusy(true)
     try {
-      const res = await api<{ url: string }>('/api/checkout', { body: { items: checkoutItems } })
-      window.location.assign(res.url)
+      const res = await api<{ url?: string; free?: boolean; orderNumber: string }>('/api/checkout', { body: { items: checkoutItems, join_list: joinList } })
+      if (res.free) {
+        clear()
+        onClose()
+        navigate('checkout-success?free=1')
+        setBusy(false)
+        return
+      }
+      window.location.assign(res.url!)
     } catch (err) {
       setError(errorMessage(err))
       setBusy(false)
     }
+  }
+  const removeFreebies = () => {
+    for (const l of freebies) remove(l.key)
   }
 
   return (
@@ -298,14 +324,49 @@ function BagDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
               <span>Subtotal</span>
               <span>{unpriced ? 'Pricing to be added' : formatPrice(subtotal)}</span>
             </div>
-            <p className="bag__note">Shipping and any sales tax are calculated at checkout. Prices are confirmed by the store when you check out.</p>
+            <p className="bag__note">
+              {allFree ? 'No payment or card details needed.' : 'Shipping and any sales tax are calculated at checkout. Prices are confirmed by the store when you check out.'}
+            </p>
             {error && (
               <p className="form-error" role="alert">
                 {error}
               </p>
             )}
+            {user && status !== 'offline' && (
+              <div className="bag__list-consent">
+                {subscribed ? (
+                  <p className="bag__note">
+                    You’re on the Nurse Love Company email list{freebies.length ? ', so your free resource is ready to claim' : ''}. You can change this in your account settings.
+                  </p>
+                ) : (
+                  <>
+                    <label className="bag__consent">
+                      <input type="checkbox" checked={joinList} onChange={(e) => setJoinList(e.target.checked)} />
+                      <span>{freebies.length ? CONSENT_WORDING['freebie-v1'] : `Optional: ${CONSENT_WORDING['checkout-v1']}`}</span>
+                    </label>
+                    {listStatus?.status === 'unsubscribed' && <p className="bag__note">You unsubscribed earlier. Ticking the box signs you up again.</p>}
+                    {needsList && (
+                      <div className="bag__needs-list" role="status">
+                        <p>Free resources are a thank you for joining our email list. To claim {freebies.length === 1 ? 'it' : 'them'}, tick the box above.</p>
+                        <button type="button" className="button button--outline button--small" onClick={removeFreebies}>
+                          {allFree ? 'Remove the free resource' : 'Remove the free resource and continue'}
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+                <p className="bag__note">
+                  Your receipt, downloads and account emails go to {user.email} whether or not you join. Joining the list is separate from these.
+                </p>
+              </div>
+            )}
             {status === 'offline' ? (
               <p className="bag__note">Checkout needs the store server, which is not connected in this preview.</p>
+            ) : allFree ? (
+              <button type="button" className="button" onClick={checkout} disabled={busy || (Boolean(user) && needsList)}>
+                <ShoppingBag aria-hidden="true" size={18} />
+                {busy ? 'Claiming...' : user ? 'Claim my free resource' : 'Sign in to claim'}
+              </button>
             ) : !paymentsReady ? (
               <>
                 <button type="button" className="button" disabled aria-describedby="bag-checkout-note">
@@ -316,7 +377,7 @@ function BagDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
                 </p>
               </>
             ) : (
-              <button type="button" className="button" onClick={checkout} disabled={busy || unpriced}>
+              <button type="button" className="button" onClick={checkout} disabled={busy || unpriced || (Boolean(user) && needsList)}>
                 <ShoppingBag aria-hidden="true" size={18} />
                 {busy ? 'Opening secure checkout...' : user ? 'Check out securely' : 'Sign in to check out'}
               </button>
@@ -353,6 +414,7 @@ function BagDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
                   </a>
                   {variant && <span className="bag-line__type">{variant.title}</span>}
                   <span className="bag-line__type">{product.type === 'digital' ? 'Digital download • Binder not included' : 'Ships to you'}</span>
+                  {product.isFreebie && <span className="bag-line__type">Free with email list signup</span>}
                   <span className="bag-line__price">
                     <Price product={product} variant={variant} />
                   </span>

@@ -45,6 +45,8 @@ interface Automation {
   kind: AutomationKind
   enabled: boolean
   delay_days: number
+  /** Also for free Freebie Corner claims (off unless the owner turns it on). */
+  include_freebies: boolean
   updated_at: string
   updated_by: string | null
 }
@@ -52,7 +54,7 @@ interface Automation {
 export async function automationSettings(client?: Queryable) {
   // The defaults (all switched off) are restored if the rows are ever missing.
   await q(`insert into email_automations (kind, delay_days) values ('download_reminder',3),('digital_review',7),('physical_review',14) on conflict (kind) do nothing`, [], client)
-  const rows = await q<Automation>('select kind, enabled, delay_days, updated_at, updated_by from email_automations', [], client)
+  const rows = await q<Automation>('select kind, enabled, delay_days, include_freebies, updated_at, updated_by from email_automations', [], client)
   return Object.fromEntries(rows.map((r) => [r.kind, r])) as Record<AutomationKind, Automation>
 }
 
@@ -83,11 +85,16 @@ export async function scheduleForPaidOrder(orderId: string, client: Queryable) {
   const order = await one<{ id: string; user_id: string | null; paid_at: string | null; is_demo: boolean; status: string }>('select id, user_id, paid_at, is_demo, status from orders where id = $1', [orderId], client)
   if (!order?.user_id || !order.paid_at || order.is_demo || order.status !== 'paid') return
   const s = await automationSettings(client)
-  const items = await q<{ id: string; product_id: string; product_type: string }>('select id, product_id, product_type from order_items where order_id = $1', [orderId], client)
+  const items = await q<{ id: string; product_id: string; product_type: string; is_freebie: boolean }>('select id, product_id, product_type, is_freebie from order_items where order_id = $1', [orderId], client)
   const base = { userId: order.user_id, orderId: order.id, startAt: order.paid_at }
   for (const it of items) {
     const reviewKey = `review:${order.user_id}:${it.product_id}`
     if (it.product_type === 'digital') {
+      // Free claims get these emails only if the owner chose that for the automation.
+      if (it.is_freebie) {
+        if (s.download_reminder?.enabled && s.download_reminder.include_freebies) await insertJob(client, { ...base, kind: 'download_reminder', key: `download_reminder:${it.id}`, status: 'scheduled', hold: '', reason: '', itemId: it.id, productId: it.product_id, delayDays: s.download_reminder.delay_days })
+        continue
+      }
       if (s.download_reminder?.enabled) await insertJob(client, { ...base, kind: 'download_reminder', key: `download_reminder:${it.id}`, status: 'scheduled', hold: '', reason: '', itemId: it.id, productId: it.product_id, delayDays: s.download_reminder.delay_days })
       if (s.digital_review?.enabled) await insertJob(client, { ...base, kind: 'digital_review', key: reviewKey, status: 'scheduled', hold: '', reason: '', itemId: it.id, productId: it.product_id, delayDays: s.digital_review.delay_days })
     } else if (s.physical_review?.enabled) {
@@ -404,9 +411,10 @@ export async function updateAutomation(actor: SessionUser, kind: AutomationKind,
   if (!cur) throw notFound('Automation')
   const enabled = b.enabled === undefined ? cur.enabled : Boolean(b.enabled)
   const delay = b.delay_days === undefined ? cur.delay_days : Math.round(Number(b.delay_days))
+  const includeFreebies = b.include_freebies === undefined ? cur.include_freebies : b.include_freebies === true
   if (!Number.isInteger(delay) || delay < 1 || delay > 90) throw badRequest('The delay must be between 1 and 90 days.')
   return tx(async (client) => {
-    await q('update email_automations set enabled = $2, delay_days = $3, updated_at = now(), updated_by = $4 where kind = $1', [kind, enabled, delay, actor.email], client)
+    await q('update email_automations set enabled = $2, delay_days = $3, include_freebies = $5, updated_at = now(), updated_by = $4 where kind = $1', [kind, enabled, delay, actor.email, includeFreebies], client)
     let held = 0
     if (cur.enabled && !enabled) {
       // Switching off stops pending emails: they are held until the owner resumes or cancels them.
@@ -417,6 +425,7 @@ export async function updateAutomation(actor: SessionUser, kind: AutomationKind,
     const parts = [
       cur.enabled !== enabled ? (enabled ? 'switched on' : `switched off (${held} pending held)`) : null,
       cur.delay_days !== delay ? `delay ${cur.delay_days} to ${delay} days (future purchases)` : null,
+      cur.include_freebies !== includeFreebies ? (includeFreebies ? 'free claims included' : 'free claims excluded') : null,
     ].filter(Boolean)
     if (parts.length) await audit({ actor, action: 'automation.updated', entityType: 'email_automation', entityId: kind, summary: `${LABEL[kind]}: ${parts.join('; ')}`, ip }, client)
     return { held }

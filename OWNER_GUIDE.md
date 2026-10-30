@@ -2,7 +2,7 @@
 
 Banners, the resource quiz, the Nurse Kin button, reviews, Our Story and product previews. Nothing you create is visible to visitors until you press **Publish**.
 
-After each update is deployed, run the new files in `supabase/updates/` once, in order, in the Supabase SQL Editor (paste the whole file, click Run): `005_quiz_reviews_story_previews.sql`, then `006_email_automations.sql`, then `007_update_notifications.sql`.
+After each update is deployed, run the new files in `supabase/updates/` once, in order, in the Supabase SQL Editor (paste the whole file, click Run): `005_quiz_reviews_story_previews.sql`, then `006_email_automations.sql`, then `007_update_notifications.sql`, then `008_freebies_consent.sql`.
 
 # Banners
 
@@ -183,3 +183,19 @@ Edits to published answers stay drafts until you publish again. To take one answ
 You can rename and reorder categories, add, reorder, delete and move questions (Category menu), and add search keywords such as "coupon, promo". Links: `[My Downloads](#account-downloads)` for a page on this site, `[label](https://...)` for another site, and `[Find my resources](#find-my-resources)` to open the quiz. A paragraph that starts with `{{if quiz}}` only shows while a quiz is published (`{{if tutorials}}` for tutorials). Owner notes are only shown in the admin.
 
 The contact card shows the email, support hours, timezone and response time once they are filled in without brackets, plus "Message us from your account". The preview shows the computer and phone layout of what will be published.
+
+# Freebies and the email list
+
+**Make a freebie:** Products, open a digital product, tick **Include in Freebie Corner** (under Price) and save. The price becomes $0 and, once published, it shows in the Freebie Corner. The file stays private and is delivered in the customer's account with one download. To take it out of the Freebie Corner, untick the box and enter the selling price you want; the old price never comes back by itself. Draft, active and publish controls work as usual.
+
+**How customers claim it:** they add it to the bag and check out with their account email. The condition is shown on the Freebie Corner, on the product page and again in the bag:
+
+> Join our email list to receive this free resource, plus Nurse Love Company news, new resources, and offers. You can unsubscribe at any time.
+
+The box starts unticked and can always be unticked. Without it, the bag explains why and offers to remove the freebie (paid items can still be bought without joining). An all free bag needs no payment or card details and completes right away as a $0 order. Customers already on the list just claim it; customers who unsubscribed before must tick the box again. A customer can claim each freebie once.
+
+**What is recorded:** Marketing, **Email list** shows everyone who joined or unsubscribed, how (freebie checkout, checkout, account settings), when, and the exact wording they agreed to (History). Records cannot be edited. Unsubscribing never removes a freebie or stops receipts, download emails or account emails.
+
+**Mailing list:** Resend currently only sends order and account emails; there is no mailing list yet. Signups are stored and wait ("Waiting: no list connected"). To connect one, create an audience in Resend and add its id as `RESEND_AUDIENCE_ID` in Vercel; changes are then sent hourly or with **Send changes now**. Read the review list on that page before relying on the freebie signup offer.
+
+**Reports and emails:** free claims are listed as "Free claim", counted separately on the Overview, and left out of orders, sales and customers. They do not count as verified purchases for reviews, and get no review requests. Download reminders skip them unless you tick "Also for free Freebie Corner claims" under Email Automations. Each claim gets a "Your free resource is ready" email with a My downloads button.

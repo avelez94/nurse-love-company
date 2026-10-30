@@ -14,6 +14,7 @@ import { one, q, tx } from '../db/pool.js'
 import { kickDispatcher, queueEmail } from '../email/outbox.js'
 import { scheduleForPaidOrder } from './automations.js'
 import { assignShipmentItems } from './delivery.js'
+import { kickMarketingSync, marketingStatus, recordConsent } from './consent.js'
 import { config, paymentsState } from '../env.js'
 import { audit } from '../lib/audit.js'
 import { badRequest, conflict, HttpError, notFound } from '../lib/errors.js'
@@ -39,6 +40,7 @@ interface PricedLine {
   category: string
   unit_price_cents: number
   quantity: number
+  is_freebie: boolean
 }
 
 /** Validates a cart against live product data. Used for checkout and the cart preview. */
@@ -51,7 +53,7 @@ export async function priceCart(user: SessionUser | null, lines: CartLine[], cli
     const key = `${l.productId}:${l.variantId ?? ''}`
     if (seen.has(key)) throw badRequest('The same item appears twice in your bag.')
     seen.add(key)
-    const p = await one<{ id: string; title: string; type: 'digital' | 'physical'; category: string; price_cents: number | null; sale_price_cents: number | null; status: string; active: boolean; archived_at: string | null; sku: string | null; inventory_quantity: number; out_of_stock_behavior: string; current_version_id: string | null }>(
+    const p = await one<{ id: string; title: string; type: 'digital' | 'physical'; category: string; price_cents: number | null; sale_price_cents: number | null; status: string; active: boolean; archived_at: string | null; sku: string | null; inventory_quantity: number; out_of_stock_behavior: string; current_version_id: string | null; is_freebie: boolean }>(
       'select * from products where id = $1',
       [l.productId],
       client,
@@ -92,17 +94,88 @@ export async function priceCart(user: SessionUser | null, lines: CartLine[], cli
         throw conflict(stock <= 0 ? `${p.title}${variantTitle ? ` (${variantTitle})` : ''} is sold out.` : `Only ${stock} of ${p.title} left in stock.`, 'out_of_stock')
       }
     }
+    // Only Freebie Corner products are ever $0; anything else at $0 is a mistake, not a giveaway.
+    if (p.is_freebie) price = 0
+    else if (price === 0) price = null
     if (price === null || price === undefined) throw badRequest(`${p.title} is not available for purchase yet.`)
-    out.push({ product_id: p.id, variant_id: l.variantId ?? null, product_type: p.type, title: p.title, variant_title: variantTitle, sku, category: p.category, unit_price_cents: price, quantity: qty })
+    out.push({ product_id: p.id, variant_id: l.variantId ?? null, product_type: p.type, title: p.title, variant_title: variantTitle, sku, category: p.category, unit_price_cents: price, quantity: qty, is_freebie: Boolean(p.is_freebie) })
   }
   return out
 }
 
-/** Creates a pending order and a Stripe Checkout Session in test mode. */
-export async function createCheckout(user: SessionUser, lines: CartLine[]) {
+const freebieNeedsList = () =>
+  new HttpError(
+    400,
+    'Freebies are offered to members of our email list. Tick the email list box to claim it, or remove the freebie from your bag to continue with your other items.',
+    'freebie_needs_list',
+  )
+
+/** Writes the order lines (with the freebie flag) for a new order. */
+async function insertItems(client: PoolClient, orderId: string, priced: PricedLine[]) {
+  for (const l of priced) {
+    await q(
+      `insert into order_items (order_id, product_id, variant_id, product_type, title_snapshot, variant_snapshot, sku_snapshot, category_snapshot, unit_price_cents, quantity, line_total_cents, is_freebie)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+      [orderId, l.product_id, l.variant_id, l.product_type, l.title, l.variant_title, l.sku, l.category, l.unit_price_cents, l.quantity, l.unit_price_cents * l.quantity, l.is_freebie],
+      client,
+    )
+  }
+}
+
+/**
+ * A bag of only Freebie Corner resources: a genuine $0 order completed
+ * right away, with no payment details. One claim at a time per customer
+ * (the account row is locked), so repeated or simultaneous claims cannot
+ * add downloads beyond the usual one per product.
+ */
+async function claimFreebies(user: SessionUser, lines: CartLine[], joinList: boolean, ip?: string) {
+  const result = await tx(async (client) => {
+    await q('select id from "user" where id = $1 for update', [user.id], client)
+    const priced = await priceCart(user, lines, client)
+    if (!priced.every((l) => l.is_freebie)) throw badRequest('Your bag changed. Please review it and check out again.')
+    const status = await marketingStatus(user, client)
+    if (!joinList && status.status !== 'subscribed') throw freebieNeedsList()
+    const o = await one<{ id: string; order_number: string }>(
+      `insert into orders (user_id, email, customer_name, status, fulfillment_status, subtotal_cents, total_cents, paid_at, is_free_claim, billing_details, marketing_request)
+       values ($1,$2,$3,'paid','not_required',0,0, now(), true, $4, $5) returning id, order_number`,
+      [user.id, user.email, user.name, JSON.stringify({ name: user.name, email: user.email, address: null }), joinList ? JSON.stringify({ version: 'freebie-v1', ip: ip ?? null }) : null],
+      client,
+    )
+    await insertItems(client, o!.id, priced)
+    await grantPurchaseEntitlements(o!.id, client)
+    await q(`insert into order_updates (order_id, message, created_by) values ($1,'Free resource claimed. Enjoy!','system')`, [o!.id], client)
+    if (joinList) await recordConsent(client, { email: user.email, userId: user.id, action: 'subscribe', source: 'freebie_checkout', version: 'freebie-v1', orderId: o!.id, ip })
+    await scheduleForPaidOrder(o!.id, client)
+    await queueEmail(
+      {
+        type: 'free_order_confirmation',
+        to: user.email,
+        userId: user.id,
+        orderId: o!.id,
+        vars: { name: user.name.trim().split(/\s+/)[0] || 'there', order_number: o!.order_number, product_list: priced.map((l) => l.title).join(', ') },
+        idempotencyKey: `free_order_confirmation:${o!.id}`,
+      },
+      client,
+    )
+    return { free: true, orderNumber: o!.order_number }
+  })
+  kickDispatcher()
+  kickMarketingSync()
+  return result
+}
+
+/** Creates a pending order and a Stripe Checkout Session in test mode, or completes a free claim. */
+export async function createCheckout(user: SessionUser, lines: CartLine[], opts: { joinList?: boolean; ip?: string } = {}) {
+  const joinList = opts.joinList === true
+  const firstLook = await priceCart(user, lines)
+  if (firstLook.every((l) => l.is_freebie)) return claimFreebies(user, lines, joinList, opts.ip)
+  const priced = firstLook
+  const hasFreebie = priced.some((l) => l.is_freebie)
+  if (hasFreebie && !joinList && (await marketingStatus(user)).status !== 'subscribed') throw freebieNeedsList()
   const s = stripe() // throws a clear 503 when payments are not configured
   const settings = await getSettings()
-  const priced = await priceCart(user, lines)
+  // The signup is applied only when the payment completes.
+  const marketingRequest = joinList ? JSON.stringify({ version: hasFreebie ? 'freebie-v1' : 'checkout-v1', ip: opts.ip ?? null }) : null
   const hasPhysical = priced.some((l) => l.product_type === 'physical')
   if (hasPhysical && (!settings.shipping.configured || settings.shipping.flat_rate_cents === null)) {
     throw new HttpError(503, 'Shipping rates have not been set up yet, so items that ship cannot be purchased right now.', 'shipping_not_configured')
@@ -111,19 +184,12 @@ export async function createCheckout(user: SessionUser, lines: CartLine[]) {
 
   const order = await tx(async (client) => {
     const o = await one<{ id: string; order_number: string }>(
-      `insert into orders (user_id, email, customer_name, status, fulfillment_status, subtotal_cents, total_cents)
-       values ($1,$2,$3,'pending',$4,$5,$5) returning id, order_number`,
-      [user.id, user.email, user.name, hasPhysical ? 'unfulfilled' : 'not_required', subtotal],
+      `insert into orders (user_id, email, customer_name, status, fulfillment_status, subtotal_cents, total_cents, marketing_request)
+       values ($1,$2,$3,'pending',$4,$5,$5,$6) returning id, order_number`,
+      [user.id, user.email, user.name, hasPhysical ? 'unfulfilled' : 'not_required', subtotal, marketingRequest],
       client,
     )
-    for (const l of priced) {
-      await q(
-        `insert into order_items (order_id, product_id, variant_id, product_type, title_snapshot, variant_snapshot, sku_snapshot, category_snapshot, unit_price_cents, quantity, line_total_cents)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-        [o!.id, l.product_id, l.variant_id, l.product_type, l.title, l.variant_title, l.sku, l.category, l.unit_price_cents, l.quantity, l.unit_price_cents * l.quantity],
-        client,
-      )
-    }
+    await insertItems(client, o!.id, priced)
     return o!
   })
 
@@ -252,6 +318,11 @@ async function markPaid(session: Stripe.Checkout.Session) {
     }
 
     await grantPurchaseEntitlements(order.id, client)
+    // An email list signup chosen at checkout counts once the payment is confirmed.
+    const req = (await one<{ r: { version: 'freebie-v1' | 'checkout-v1'; ip: string | null } | null }>('select marketing_request as r from orders where id = $1', [order.id], client))!.r
+    if (req && order.user_id) {
+      await recordConsent(client, { email: order.email, userId: order.user_id, action: 'subscribe', source: req.version === 'freebie-v1' ? 'freebie_checkout' : 'checkout', version: req.version, orderId: order.id, ip: req.ip })
+    }
     // Download reminders and review requests, for automations switched on right now.
     await scheduleForPaidOrder(order.id, client)
     await q(`insert into order_updates (order_id, message, created_by) values ($1,'Payment received. Thank you for your order!','system')`, [order.id], client)
@@ -288,7 +359,10 @@ async function markPaid(session: Stripe.Checkout.Session) {
     }
     return order.id
   })
-  if (paidOrderId) void recordFee(paidOrderId)
+  if (paidOrderId) {
+    void recordFee(paidOrderId)
+    kickMarketingSync()
+  }
 }
 
 /** Payment processing fee from Stripe's balance transaction, when available. */

@@ -22,6 +22,7 @@ import { webhookRoutes } from './routes/webhooks.js'
 import { automationRoutes } from './routes/automations.js'
 import { runAutomations } from './services/automations.js'
 import { runUpdateNotifications } from './services/updates.js'
+import { syncMarketingContacts } from './services/consent.js'
 
 export function createApp() {
   const app = new Hono<AppEnv>()
@@ -95,11 +96,12 @@ export function createApp() {
     await requeueStalled()
     const automations = await runAutomations()
     const updateNotifications = await runUpdateNotifications()
+    const emailList = await syncMarketingContacts()
     await drainOutbox(100)
     await pruneRateLimits()
     const uploadsCleaned = await cleanAbandonedUploads()
     const couponBannersStopped = await recheckCoupons()
-    return c.json({ ok: true, uploadsCleaned, couponBannersStopped, automations, updateNotifications }, 200, { 'cache-control': 'no-store' })
+    return c.json({ ok: true, uploadsCleaned, couponBannersStopped, automations, updateNotifications, emailList }, 200, { 'cache-control': 'no-store' })
   })
 
   // Staging gate: the whole staging site, dashboards included, needs the

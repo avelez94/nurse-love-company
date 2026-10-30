@@ -17,7 +17,7 @@ export type Route =
   | { name: 'help' }
   | { name: 'product'; slug: string }
   | { name: 'auth'; mode: 'sign-in' | 'sign-up' | 'forgot-password' | 'reset-password' | 'admin-setup'; token?: string }
-  | { name: 'checkout'; result: 'success' | 'canceled' }
+  | { name: 'checkout'; result: 'success' | 'canceled'; free?: boolean }
   | { name: 'account'; view: AccountView; param?: string }
   | { name: 'admin'; view: AdminView; param?: string }
   | { name: 'email-preferences'; token: string }
@@ -49,6 +49,7 @@ export type AdminView =
   | 'story'
   | 'automations'
   | 'help'
+  | 'email-list'
 
 const accountViews: Record<string, AccountView> = { account: 'overview', 'account-orders': 'orders', 'account-downloads': 'downloads', 'account-settings': 'settings', 'account-support': 'support' }
 const adminViews: Record<string, AdminView> = {
@@ -69,6 +70,7 @@ const adminViews: Record<string, AdminView> = {
   'admin-our-story': 'story',
   'admin-email-automations': 'automations',
   'admin-help-faqs': 'help',
+  'admin-email-list': 'email-list',
 }
 const adminDetail: Array<[string, AdminView]> = [
   ['admin-product-', 'product'],
@@ -100,7 +102,7 @@ export function parseHash(raw: string): Route {
     case 'reset-password':
       return { name: 'auth', mode: 'reset-password', token: params.get('token') ?? undefined }
     case 'checkout-success':
-      return { name: 'checkout', result: 'success' }
+      return { name: 'checkout', result: 'success', free: params.get('free') === '1' }
     case 'checkout-canceled':
       return { name: 'checkout', result: 'canceled' }
     case '':

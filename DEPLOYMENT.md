@@ -143,6 +143,7 @@ The store keeps its own accounts (Better Auth). That is secure and needs no chan
 | `BETTER_AUTH_SECRET` | Required | 64 random characters, for example from `openssl rand -hex 32`. Changing it signs everyone out |
 | `STAGING_ACCESS_PASSWORD` | Required | 24 or more random characters. Share it privately with reviewers |
 | `CRON_SECRET` | Required | 32 or more random characters. Vercel Cron sends it automatically |
+| `RESEND_AUDIENCE_ID` | Optional | The Resend audience that holds the marketing email list. Without it, signups are stored and wait; Resend still sends order emails |
 | `DELIVERY_WEBHOOK_SECRET` | Optional | Only once Printful or carrier tracking is connected: signs delivery events sent to `/api/webhooks/delivery` (see `server/routes/automations.ts`). Until then, delivery dates are recorded by the owner |
 | `STORAGE_DRIVER` | Required | `supabase` |
 | `SUPABASE_URL` | Required | `https://YOUR-PROJECT.supabase.co` |

@@ -42,6 +42,7 @@ export interface ApiProduct {
   digital: Product['digital']
   whatsIncluded?: string[]
   walkthrough?: { slug: string; title: string } | null
+  isFreebie?: boolean
 }
 
 export interface ApiTutorial {
@@ -106,6 +107,7 @@ export function toProduct(p: ApiProduct): Product {
     deliveryRef: null,
     isExample: p.isDemo,
     isDemo: p.isDemo,
+    isFreebie: Boolean(p.isFreebie),
     inStock: p.inStock,
     featured: p.featured,
     digital: p.digital,

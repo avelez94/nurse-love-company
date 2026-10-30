@@ -1,6 +1,6 @@
 import { Eye, Send } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Confirm, Empty, FormError, Loading, Notice, Pill, Select, TextArea, TextInput, useApiData } from '../../components/ui'
+import { Checkbox, Confirm, Empty, FormError, Loading, Notice, Pill, Select, TextArea, TextInput, useApiData } from '../../components/ui'
 import { api, errorMessage } from '../../lib/api'
 import { href } from '../../lib/router'
 import { useUI } from '../../lib/ui'
@@ -26,6 +26,7 @@ interface Automation {
   label: string
   enabled: boolean
   delay_days: number
+  include_freebies: boolean
   startsFrom: string
   updated_at: string
   updated_by: string | null
@@ -316,6 +317,14 @@ function AutomationPanel({ a, timeZone, onChanged }: { a: Automation; timeZone?:
         </Notice>
       )}
 
+      {a.kind === 'download_reminder' && (
+        <Checkbox
+          label="Also for free Freebie Corner claims"
+          checked={a.include_freebies}
+          onChange={(v) => call(() => api(`/api/admin/automations/${a.kind}`, { method: 'PUT', body: { include_freebies: v } }), v ? 'Free claims will get a reminder too (new claims only).' : 'Free claims are left out.')}
+          hint="Off by default. Applies to new claims only. Review requests are never sent for free claims, because only paid purchases can leave a verified review."
+        />
+      )}
       <div className="auto-delay">
         <TextInput label={`Send this many days ${start}`} type="number" value={delay} onChange={setDelay} hint="1 to 90 days. Changes apply to future purchases." />
         <div className="button-row">

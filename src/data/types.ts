@@ -125,6 +125,8 @@ export interface Product {
   whatsIncluded?: string[]
   /** A published tutorial that walks through this product. */
   walkthrough?: { slug: string; title: string } | null
+  /** In the Freebie Corner: free with an email list signup. */
+  isFreebie?: boolean
   /** True when samplePages are owner approved, watermarked previews (not illustrations). */
   realSamples?: boolean
 }
