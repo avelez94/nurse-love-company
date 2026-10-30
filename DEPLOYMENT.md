@@ -1,165 +1,224 @@
-# Staging preview deployment
+# Staging preview on Vercel and Supabase
 
-This guide puts the full store (storefront, customer dashboard and admin dashboard) online as a **private staging preview** so it can be reviewed before anything goes live. It does not touch nurselovecompany.com, and live payments stay off.
+This guide puts the full store (storefront, customer dashboard, admin dashboard, tutorials) online as a **private staging preview**, so it can be reviewed before anything goes live. It does not touch nurselovecompany.com or its DNS, and live payments stay off.
 
-The pieces:
-
-| Piece | Provider used in this guide | Why |
-| --- | --- | --- |
-| Web server (site and API) | Render, free web service, from `render.yaml` | Runs `npm start`, restarts on crash, deploys from GitHub |
-| Database | Neon PostgreSQL, free plan | Render's free database expires after a limited time; Neon's free plan does not |
-| Private files (product files, images, tutorial videos) | Cloudflare R2 bucket | Render's free disk is wiped on every deploy and restart, so files must live in a bucket |
-| Payments | Stripe in **test mode** | Test cards only; no real money |
-| Email (optional) | Resend | Without it, emails are recorded in the admin and not sent |
-| Video streaming (optional) | Mux | Without it, tutorials must be MP4 files |
-
-## What costs money
-
-Confirm every price on the provider's own pricing page; plans change.
-
-| Resource | Cost in this setup |
+| Piece | Service |
 | --- | --- |
-| Render web service, `plan: free` | Free. It sleeps after about 15 idle minutes and takes up to a minute to wake. The paid "Starter" plan keeps it awake; only switch if you decide to. |
-| Neon database, free plan | Free, with storage and compute limits that a review site stays well under. |
-| Cloudflare R2 | Has a free monthly allowance. Cloudflare asks for a payment method on file before R2 can be turned on, and charges only beyond the free allowance. |
-| Stripe test mode | Free. Test payments never move money. |
-| Resend | Free tier with a monthly email limit. Sending to anyone other than yourself requires a verified domain. |
-| Mux | Usage based (storage, encoding, viewing). Optional; skip it for staging. |
+| Storefront pages and the API | Vercel (static files from `dist/`, the API as one Vercel Function at `api/index.ts`) |
+| Store data, accounts and sessions | Supabase PostgreSQL |
+| Product files, photos, sample pages, tutorial videos | Supabase Storage (two private buckets) |
+| Email | Resend (optional until you want real emails) |
+| Payments | Stripe in **test mode** |
+| Video streaming | Mux, optional and left disconnected |
 
-Nothing in `render.yaml` creates a paid resource.
+> **Obsolete:** the earlier Render, Neon and Cloudflare R2 plan. `render.yaml` has been removed. The settings `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `LOCAL_STORAGE_DIR`, `NODE_VERSION` and `PORT` are not used on Vercel. Leave them unset there. The `s3` and `local` storage drivers still exist for running the store on a computer or a single server.
+
+## What changed for Vercel, and why
+
+| Area | Before (one long running Node server) | Now on Vercel |
+| --- | --- | --- |
+| Server entry and routing | `server/index.ts` served the API and `dist/` | `api/index.ts` exports the same Hono app as a Vercel Function. `vercel.json` sends every `/api/...` request to it. Vercel serves `dist/` itself. `server/index.ts` is still used for local development. |
+| Accounts and sessions | Better Auth, httpOnly cookies, sessions in PostgreSQL | **Unchanged.** It already keeps sessions in the database, so it works the same across serverless instances. Its rate limit now uses the database too. No Supabase Auth is needed (see "Accounts" below). |
+| Database connections | Pool of 10, migrations at start up | A pool of 3 per instance through Supabase's connection pooler. Idle connections close before an instance sleeps. Locks that previously assumed one session now use transaction locks, which work through the pooler. |
+| File uploads | Browser sent files to the server | Vercel limits request bodies (4.5 MB), so files go **straight from the admin's browser to Supabase Storage** through a one path upload link the server issues. The server then reads the file back, checks its real type and size, and only then attaches it. |
+| Downloads | Streamed by the server after atomic redemption | **Unchanged rule.** Still streamed by the function after the database redeems the download atomically. No storage link is ever created for a purchasable file. |
+| Photos and tutorial videos | Streamed by the server | The server checks permission on every request, then redirects to a Supabase signed link that lasts one hour. |
+| Email sending | In memory loop every 30 seconds | The request that queues an email also sends it, kept alive with `waitUntil`. A scheduled job (`/api/cron/maintenance`) retries anything a stopped instance left behind. Duplicate protection is unchanged. |
+| Rate limits | In memory | Stored in the database, so they hold across instances. |
+| Migrations | Ran at every server start | **Never** inside functions. They run deliberately with `npm run migrate`, from GitHub Actions or a computer. |
+| Staging password | Checked by the server | Checked by `middleware.ts` before Vercel serves any page or file, and again by the API. |
 
 ## How staging access is restricted
 
-Keeping the address secret is not protection, so the staging server locks the whole site behind a password:
+Keeping the address secret is not protection. The staging site is locked with a password at two layers:
 
-* When `DEPLOY_ENV=staging`, every page and every API request must carry the staging username and password (`STAGING_ACCESS_USER`, `STAGING_ACCESS_PASSWORD`). The browser shows its built in sign in box. Wrong attempts are rate limited per address (20 per 10 minutes) and the password is compared in constant time.
-* This sits **in front of** the store's own accounts. A visitor needs the staging password just to see the storefront, and an admin account on top of that to see the admin dashboard. Customer and admin dashboards keep their normal role checks.
-* Two paths skip the staging password, because outside services cannot type one:
-  * `/api/webhooks/stripe`, `/api/webhooks/resend`, `/api/webhooks/mux`. Each one verifies the provider's cryptographic signature with its webhook secret and rejects anything unsigned or forged. They only accept events; they never return dashboard data.
-  * `/api/health`. It returns only status words (for example `"payments": "test"`), never data or secrets. Render uses it to check the server is up.
-* Every response carries `X-Robots-Tag: noindex, nofollow` so search engines do not list it.
-* The server refuses to start in staging if the staging password is missing or shorter than 16 characters.
+1. **`middleware.ts` (Vercel Routing Middleware)** runs before Vercel serves anything, including the static storefront and dashboard pages. Without the staging username and password, every page, script, image and API call gets `401` and the browser's sign in box.
+2. **The API** repeats the same check, with wrong attempts rate limited (20 per 10 minutes per address), so it holds even if the middleware were bypassed.
 
-## Safety rules built into the code
+On top of that, the admin dashboard needs an admin account, and the customer dashboard needs a customer account, exactly as before.
 
-* **Live payments cannot run on staging.** A live Stripe key is reported as "live blocked" and checkout is switched off, even if `LIVE_PAYMENTS_APPROVED=true` is set. Only `sk_test_` keys work.
-* **Missing integrations are shown, not faked.** `/api/health`, the admin Settings page and a site banner show each service as `test`, `live-blocked`, `not-configured` and so on. Checkout without Stripe says payments are not connected. Email without Resend is recorded as "not configured".
-* **Misconfiguration stops the server** with a list of every problem (no database, short secret, non https address, files that would be lost on restart, missing staging password, demo content in production).
-* **Migrations are safe to retry.** Each migration runs in its own transaction, is recorded once, and an advisory lock stops two starting servers from running them at the same time. A failed deploy can simply be redeployed.
+Paths that skip the staging password, because the services calling them cannot type one:
+
+| Path | Who calls it | What protects it |
+| --- | --- | --- |
+| `/api/webhooks/stripe` | Stripe | Stripe's signature, checked against `STRIPE_WEBHOOK_SECRET` on the raw body |
+| `/api/webhooks/resend` | Resend | Svix signature, checked against `RESEND_WEBHOOK_SECRET` |
+| `/api/webhooks/mux` | Mux | Mux signature, checked against `MUX_WEBHOOK_SECRET` |
+| `/api/cron/maintenance` | Vercel Cron | `Authorization: Bearer CRON_SECRET`, compared in constant time |
+| `/api/health` | You, monitoring | Returns status words only, never data or secrets |
+
+None of these return dashboard data. Every response is marked `noindex`.
+
+**Vercel's own Deployment Protection** can be added on top, but it blocks webhooks unless you also set up its bypass secret. Because the store's own password already covers everything, this guide does not rely on it.
+
+## Files, uploads and storage rules
+
+Two **private** buckets, created by `npm run migrate`:
+
+| Bucket | Holds | Who can read it |
+| --- | --- | --- |
+| `product-files` | Purchasable downloads, every version | Only the server, only during a redeemed download. The code refuses to create a signed link for this bucket. |
+| `media` | Product photos, sample pages, tutorial videos, thumbnails | Visitors receive a one hour signed link, issued only after the server confirms the item is visible to them. |
+
+Visibility rules, checked by the server on every request:
+
+* **Product photos and sample pages:** visible while the product is published. Draft product images are admin only.
+* **Tutorial videos, thumbnails and captions:** visible only while the tutorial is published. Drafts and unpublished tutorials return "not found" to the public. Admins can preview drafts.
+* After unpublishing, no new links are issued. A link given out just before unpublishing keeps working until it expires, at most one hour later.
+
+Both buckets are private, rather than one being public, so that publish and unpublish take effect without copying files and without a public CDN copy lingering after unpublishing.
+
+**Uploads** go straight from the admin's browser to storage:
+
+1. The admin's browser asks the store for an upload. The server checks the admin, the product or tutorial, the file type and the size, and records exactly where the file may go.
+2. The server returns a one path upload link (valid about two hours, cannot overwrite anything, useless for any other path).
+3. The browser sends the file to Supabase Storage.
+4. The browser tells the store it is done. The server reads the file back from storage, checks its real type from its first bytes, its real size and its SHA-256, and only then attaches it. Anything that fails is deleted. Confirming twice attaches once.
+
+Unfinished uploads are cleaned up by the scheduled job. Product files stay invisible to customers until "Publish digital product update", as before.
+
+### File limits and formats
+
+| Kind | Formats | Limit on Supabase's free plan |
+| --- | --- | --- |
+| Product download files | PDF, ZIP, PNG, JPG | 50 MB (`MAX_PRODUCT_FILE_MB`) |
+| Product photos and sample pages | PNG, JPG, WebP | 10 MB (`MAX_IMAGE_MB`) |
+| Tutorial thumbnails | PNG, JPG, WebP | 10 MB |
+| Tutorial videos | **MP4 only** (H.264 video, AAC audio) | 50 MB (`MAX_VIDEO_MB`) |
+
+Supabase's free plan caps every stored file at 50 MB. A paid Supabase plan lets you raise that project setting, and then the `MAX_*` values here. Vercel has no ffmpeg, so videos are played exactly as uploaded: export them as MP4 with "optimize for web" or "fast start" turned on, so playback can begin before the whole file loads. MOV and WebM are refused with a message saying to convert to MP4 first. For longer videos, Mux can be connected later.
+
+## The strict download rule on Vercel
+
+The rule is unchanged and still enforced in the database:
+
+* Each purchased digital product gets one download. Publishing a new version gives each eligible buyer one new download for that version. Listing edits, email resends and password resets grant nothing.
+* A download starts with a short lived token tied to the signed in customer. Delivery checks ownership, then redeems the token and the download together, in one transaction, with conditional updates. Of many simultaneous requests, exactly one succeeds. A reused or shared link fails.
+* The file is opened **before** anything is used up, so a storage outage leaves the download available.
+* The file streams from the private bucket through the function. **No reusable Supabase link is ever created for a purchasable file.**
+
+Limits that matter here:
+
+* **Function duration:** `vercel.json` allows 300 seconds. A 50 MB file needs a connection of roughly 1.5 Mbps or better to finish in that time. If a transfer is cut off, the download is already used (the server cannot know whether the file was saved). The event log shows it started but did not finish, the customer can report a problem, and an admin can grant an audited replacement. This is the same safety net as before.
+* **Response size, to verify on staging:** Vercel caps ordinary function responses at 4.5 MB. Streamed responses work differently, and I could not open Vercel's documentation from the build environment to confirm their current ceiling. **The first staging check below is to download a test file larger than 5 MB.** If Vercel cuts it short, do not swap in a signed storage link. The smallest fix that keeps the rule is chunked delivery: one redemption opens a delivery session bound to the signed in customer for a few minutes, and the browser fetches the file in pieces under 4.5 MB through the same function, so there is still no reusable link. That would be a separate, reviewed change.
+
+## Background work
+
+* **Email:** a queued email is sent by the same request that created it, kept alive with `waitUntil`. If an instance stops mid send, the row stays in the database. The next queued email, or the scheduled job, sends it again with the same Resend idempotency key, so it is never delivered twice. After five stalled attempts it is marked failed and shows in the email center. Demo emails are recorded as "suppressed" and never sent. All logs, resends and webhooks are unchanged.
+* **Scheduled job:** `vercel.json` runs `/api/cron/maintenance` once a day, which is the most often Vercel's free Hobby plan allows. On Pro you can run it more often. For more frequent retries on the free plan, Supabase Cron (with its `pg_net` extension) can call the same address every few minutes with the `Authorization: Bearer CRON_SECRET` header.
+* **Tutorial videos** are checked when the upload completes. There is no background processing on Vercel.
+
+## Migrations
+
+Migrations never run inside Vercel Functions. Run them deliberately, once per database, whenever a release adds a file to `server/db/migrations/`:
+
+* **From GitHub:** Actions tab, "Run database migrations", Run workflow, choose `staging`. It uses the secrets of the GitHub environment with that name, so staging and production never mix.
+* **From a computer:** `DATABASE_URL=... STORAGE_DRIVER=supabase SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run migrate`
+
+Use Supabase's **Session pooler** connection string (port 5432) for migrations. The same command creates or updates the two private storage buckets. It is safe to run again: each migration runs once, in its own transaction, under a lock.
+
+`/api/health` reports `"schema": "behind"` (and returns 503) if the code expects a migration the database does not have yet.
+
+Migrations also switch on row level security, with no policies, for every store table. Supabase publishes the `public` schema through its Data API. With row level security on, that API sees nothing, while the store's own server connection is unaffected.
+
+## Keeping staging and production apart
+
+* Staging gets its **own Supabase project** and its **own Vercel project**. The future live store gets a separate Supabase project and Vercel project. They share no database, storage, keys or webhooks.
+* In the staging Vercel project, add the variables to the **Production** environment only. Branch preview deployments then have no settings, show "not configured", and cannot touch staging data.
+* Stripe stays in test mode for staging. Live keys are refused on staging even if someone sets them.
+
+## Accounts
+
+The store keeps its own accounts (Better Auth). That is secure and needs no change on Vercel: passwords are hashed with scrypt, sessions are httpOnly cookies stored in the database, roles cannot be set from the browser, and sign in is rate limited across instances. Supabase Auth is **not** used, and no migration to it is proposed. In Supabase, leave Authentication unconfigured.
 
 ## Environment variables
 
-**Required** means the server will not start on staging without it. Values in `render.yaml` are already set; "you type it" means Render asks for it during setup or you add it under Environment.
+### Vercel (staging project, Production environment)
 
-### Core
+| Variable | Required | Value |
+| --- | --- | --- |
+| `DEPLOY_ENV` | Required | `staging` |
+| `APP_URL` | Required | The project's address, for example `https://nurse-love-staging.vercel.app` (no trailing slash) |
+| `DATABASE_URL` | Required | Supabase **Transaction pooler** connection string (port 6543), with your database password filled in and no `sslmode` |
+| `DATABASE_SSL_CA` | Required | The Supabase CA certificate (Database settings, SSL, download certificate), pasted in whole. The database driver verifies the server against it |
+| `BETTER_AUTH_SECRET` | Required | 64 random characters, for example from `openssl rand -hex 32`. Changing it signs everyone out |
+| `STAGING_ACCESS_PASSWORD` | Required | 24 or more random characters. Share it privately with reviewers |
+| `CRON_SECRET` | Required | 32 or more random characters. Vercel Cron sends it automatically |
+| `STORAGE_DRIVER` | Required | `supabase` |
+| `SUPABASE_URL` | Required | `https://YOUR-PROJECT.supabase.co` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Required | The project's secret key (the `service_role` key, or the newer "secret" key). Mark it **Sensitive** in Vercel. It never reaches the browser |
+| `STAGING_ACCESS_USER` | Optional | Defaults to `nurselove` |
+| `ADMIN_BOOTSTRAP_TOKEN` | Optional | 32 or more random characters for the one time admin setup. **Delete after use** |
+| `DEMO_CONTENT` | Optional | `true` to allow the "Load demo content" button. Staging only |
+| `STRIPE_SECRET_KEY` | Optional | Must start with `sk_test_`. Without it, checkout says payments are not connected |
+| `STRIPE_WEBHOOK_SECRET` | With Stripe | `whsec_...` from the Stripe test mode webhook |
+| `RESEND_API_KEY` | Optional | Without it, emails are recorded as "not configured" and nothing is sent |
+| `RESEND_FROM` | With Resend | For example `Nurse Love Company <hello@your-verified-domain.com>` |
+| `RESEND_WEBHOOK_SECRET` | Optional | `whsec_...` from the Resend webhook, for delivery tracking |
+| `VIDEO_PROVIDER` | Optional | `local` (default: MP4s in Supabase Storage) or `mux` |
+| `MUX_TOKEN_ID`, `MUX_TOKEN_SECRET`, `MUX_WEBHOOK_SECRET`, `MUX_SIGNING_KEY_ID`, `MUX_SIGNING_PRIVATE_KEY` | With Mux | Leave unset for now |
+| `MAX_PRODUCT_FILE_MB`, `MAX_IMAGE_MB`, `MAX_VIDEO_MB` | Optional | Defaults 50, 10, 50. Keep at or below Supabase's file size limit |
+| `SUPABASE_FILES_BUCKET`, `SUPABASE_MEDIA_BUCKET` | Optional | Defaults `product-files` and `media` |
+| `DB_POOL_MAX` | Optional | Connections per instance, default 3 |
+| `LIVE_PAYMENTS_APPROVED` | Leave unset | Ignored on staging. Only for the future live store, after the owner approves launch |
 
-| Variable | Required | Where it comes from | Purpose |
-| --- | --- | --- | --- |
-| `DEPLOY_ENV` | Required | `render.yaml`: `staging` | Turns on the staging password gate, blocks live payments, allows demo content when asked |
-| `NODE_VERSION` | Required on Render | `render.yaml`: `22` | Node version Render installs (the app needs 20.12 or newer) |
-| `APP_URL` | Required | You type it | The https address Render gives the service, for example `https://nurse-love-staging.onrender.com`. Used for sign in cookies, email links and Stripe return pages |
-| `DATABASE_URL` | Required | You type it (from Neon) | PostgreSQL connection string, ending in `?sslmode=require` |
-| `BETTER_AUTH_SECRET` | Required | Generated by Render | Signs sign in sessions. At least 32 random characters. Changing it signs everyone out |
-| `PORT` | Set by Render | Render | Port to listen on; do not set it yourself |
+Vercel sets `VERCEL` itself. If any required value is missing or invalid, every API request answers 503 "not fully configured", and the exact list is in the function logs (Vercel project, Logs).
 
-### Staging access and first admin
+### GitHub (environment named `staging`, for the migration workflow)
 
-| Variable | Required | Where it comes from | Purpose |
-| --- | --- | --- | --- |
-| `STAGING_ACCESS_USER` | Optional | `render.yaml`: `nurselove` | Username for the staging password box |
-| `STAGING_ACCESS_PASSWORD` | Required | Generated by Render | Password for the staging password box, at least 16 characters. Share it privately |
-| `ADMIN_BOOTSTRAP_TOKEN` | Optional | Generated by Render | One time setup code that turns the first signed in account into the admin. Only works while no admin exists. Delete it after use |
+| Name | Kind | Value |
+| --- | --- | --- |
+| `DATABASE_URL` | Secret | Supabase **Session pooler** connection string (port 5432) |
+| `DATABASE_SSL_CA` | Secret | Same certificate as in Vercel |
+| `SUPABASE_URL` | Secret | Same as in Vercel |
+| `SUPABASE_SERVICE_ROLE_KEY` | Secret | Same as in Vercel |
+| `MAX_PRODUCT_FILE_MB`, `MAX_VIDEO_MB` | Variable, optional | Only if you changed them in Vercel; they set the bucket limits |
 
-### Demo content
+### Not used on Vercel
 
-| Variable | Required | Where it comes from | Purpose |
-| --- | --- | --- | --- |
-| `DEMO_CONTENT` | Optional | `render.yaml`: `false` | Set to `true` on staging to allow the "Load demo content" button. Refused in production |
+`PORT`, `LOCAL_STORAGE_DIR`, `S3_*`, `NODE_VERSION`, `SEED_DEMO`, `DEV_DB_PORT`, `EXTRA_ORIGINS`, `TEST_DATABASE_URL`.
 
-### File storage
+## What costs money
 
-| Variable | Required | Where it comes from | Purpose |
-| --- | --- | --- | --- |
-| `STORAGE_DRIVER` | Required | `render.yaml`: `s3` | `s3` for a bucket. `local` only with a persistent disk (see below) |
-| `S3_ENDPOINT` | Required with `s3` | You type it (from R2) | `https://ACCOUNT_ID.r2.cloudflarestorage.com` |
-| `S3_BUCKET` | Required with `s3` | You type it | Bucket name, for example `nurse-love-staging` |
-| `S3_REGION` | Optional | `render.yaml`: `auto` | `auto` for R2 |
-| `S3_ACCESS_KEY_ID` | Required with `s3` | You type it (from R2 API token) | Bucket access key |
-| `S3_SECRET_ACCESS_KEY` | Required with `s3` | You type it (from R2 API token) | Bucket secret key |
-| `LOCAL_STORAGE_DIR` | Required with `local` | You type it | Absolute path on a persistent disk, for example `/var/data/storage` (needs a paid Render disk) |
-| `MAX_PRODUCT_FILE_MB` | Optional | `render.yaml`: `100` | Largest product file upload |
-| `MAX_IMAGE_MB` | Optional | `render.yaml`: `10` | Largest image upload |
-| `MAX_VIDEO_MB` | Optional | `render.yaml`: `150` | Largest tutorial video upload without Mux |
+Confirm every price on the provider's own pricing page; I could not open them from the build environment.
 
-Uploads to the bucket pass through the server's memory, so the limits are kept below the free plan's 512 MB. Raise them only on a larger plan. With Mux, videos upload straight to Mux and this limit does not apply.
-
-### Payments (Stripe, test mode only)
-
-| Variable | Required | Where it comes from | Purpose |
-| --- | --- | --- | --- |
-| `STRIPE_SECRET_KEY` | Optional | You type it | Must start with `sk_test_`. Without it, checkout says payments are not connected |
-| `STRIPE_WEBHOOK_SECRET` | Optional, needed with Stripe | You type it | `whsec_...` from the Stripe webhook you create. Without it, paid orders are never marked paid |
-| `LIVE_PAYMENTS_APPROVED` | Optional | `render.yaml`: `false` | Ignored on staging. In production, live keys need this set to `true` after the owner approves launch |
-
-### Email (Resend)
-
-| Variable | Required | Where it comes from | Purpose |
-| --- | --- | --- | --- |
-| `RESEND_API_KEY` | Optional | You type it | Without it, emails are recorded as "not configured" and nothing is sent |
-| `RESEND_FROM` | Optional, needed with Resend | You type it | For example `Nurse Love Company <hello@your-verified-domain.com>` |
-| `RESEND_WEBHOOK_SECRET` | Optional | You type it | `whsec_...` from the Resend webhook, for delivery and bounce tracking |
-
-### Video (Mux)
-
-| Variable | Required | Where it comes from | Purpose |
-| --- | --- | --- | --- |
-| `VIDEO_PROVIDER` | Optional | `render.yaml`: `local` | `local` stores MP4 files in the bucket. `mux` streams through Mux |
-| `MUX_TOKEN_ID`, `MUX_TOKEN_SECRET` | Needed with `mux` | You type them | Mux access token |
-| `MUX_WEBHOOK_SECRET` | Needed with `mux` | You type it | Tells the store when a video is ready |
-| `MUX_SIGNING_KEY_ID`, `MUX_SIGNING_PRIVATE_KEY` | Optional with `mux` | You type them | Lets admins preview unpublished videos privately |
-
-Without Mux, Render has no ffmpeg, so tutorial uploads must be MP4. MOV or WebM uploads fail with a message saying so.
-
-### Development only
-
-`SEED_DEMO`, `DEV_DB_PORT`, `EXTRA_ORIGINS`, `TEST_DATABASE_URL` are for running on a computer and tests. Leave them unset on Render.
+| Resource | Cost |
+| --- | --- |
+| Vercel Hobby | Free, but Vercel limits Hobby to **non commercial personal use**. The live store will need **Vercel Pro (paid, per team member per month)**. Whether a private review copy of a business site may sit on Hobby is Vercel's call; choosing Pro for staging too keeps you clearly within their terms. **Decide before creating the project.** |
+| Supabase Free | Free: a small database, about 1 GB of file storage, a 50 MB per file cap, and the project pauses after a week without activity (restore it in the dashboard). Two free projects per account. **Supabase Pro is paid** and is recommended for the live store (backups, no pausing). |
+| Stripe test mode | Free. No real money moves. |
+| Resend | Free tier with a monthly limit. Sending to anyone but yourself needs a verified domain. Do not use nurselovecompany.com's DNS for this without deciding that separately. |
+| Mux | Usage based. Not needed now. |
+| Function time and transfer | Downloads and checks run through the function and count toward Vercel's included usage. A review site stays far below it. |
 
 ## First admin, securely
 
-No admin account exists on a fresh deployment, and no default admin password exists anywhere in the code for staging or production.
+No admin exists on a fresh deployment, and there is no default admin password anywhere.
 
 1. Open the staging address, enter the staging password, then **Create account** with the owner's email and a strong password of her own.
 2. While signed in, go to `/#admin-setup`.
-3. Enter the `ADMIN_BOOTSTRAP_TOKEN` value (Render, the service, Environment, reveal the value).
-4. The account becomes the admin and the action is written to the audit log. The setup page stops working as soon as one admin exists, and wrong codes are rate limited.
-5. In Render, **delete** `ADMIN_BOOTSTRAP_TOKEN` and save. The page then answers "not available".
-
-Alternative with shell access (paid Render plans have a Shell tab): `npm run admin:create -- owner@example.com` after that person has signed up.
+3. Enter the `ADMIN_BOOTSTRAP_TOKEN` value (Vercel project, Settings, Environment Variables).
+4. The account becomes the admin, and the action is written to the audit log. The setup page stops working as soon as one admin exists, and wrong codes are rate limited.
+5. Delete `ADMIN_BOOTSTRAP_TOKEN` in Vercel and redeploy. The page then answers "not available".
 
 ## Labeled demo content
 
-For reviewing both dashboards without building a catalog by hand.
-
-* Off by default. It only works when `DEPLOY_ENV=staging` **and** `DEMO_CONTENT=true`. Production refuses to start with `DEMO_CONTENT` on.
-* Load it from Admin, Settings, **Demo content**, "Load demo content". Optionally enter a reviewer's email (an account that already signed up) to give that account three sample orders showing each download state: already downloaded, a new release available, and ready to download.
-* Every item is marked Demo in the admin, on product pages and on receipts, and can be excluded from revenue with the "Include demo data" switch. CSV exports mark demo rows.
-* Safe to press more than once: nothing is duplicated, even if pressed twice at the same moment.
-* Sample shoppers use `@demo.invalid` addresses with random passwords no one knows. No admin is created and no demo login exists.
-* Demo emails are recorded as "suppressed" and never sent. Demo products can only be bought with Stripe test cards.
-
-## Keeping uploads through restarts
-
-Render's free service has no persistent disk, so `STORAGE_DRIVER=local` without a disk would lose every upload on restart. The server refuses to start in that state. Use the R2 bucket (`STORAGE_DRIVER=s3`). The paid alternative is a Render disk mounted at, say, `/var/data` with `STORAGE_DRIVER=local` and `LOCAL_STORAGE_DIR=/var/data/storage`.
+* Off by default. It only works with `DEPLOY_ENV=staging` **and** `DEMO_CONTENT=true`. Production refuses to start with it on.
+* Load it from Admin, Settings, Demo content. Optionally enter a reviewer's email (an account that already signed up) to give that account three sample orders, one in each download state.
+* Everything is labeled Demo, can be excluded from revenue, and is marked in CSV exports. Pressing the button twice duplicates nothing. Sample shoppers use `@demo.invalid` addresses with random passwords nobody knows. Demo emails are never sent. Demo products can only be bought with Stripe test cards.
 
 ## Step by step
 
-1. **Neon database.** Sign up at neon.tech (free). Create a project named `nurse-love-staging`. Copy the connection string (it contains the database password; keep it private).
-2. **Cloudflare R2 bucket.** In the Cloudflare dashboard open R2 (a payment method is required to turn it on; usage within the free allowance is not charged). Create a bucket `nurse-love-staging`, keep it **private**. Create an R2 API token with "Object Read and Write" on that bucket only. Note the access key ID, secret access key and the S3 endpoint.
-3. **Render.** Sign up at render.com with GitHub and allow access to the `nurse-love-company` repository only. Choose New, Blueprint, pick the repository. Render reads `render.yaml` and asks for each "you type it" value. Fill in `DATABASE_URL` and the `S3_*` values; leave Stripe, Resend and Mux empty for now. For `APP_URL`, enter `https://nurse-love-staging.onrender.com` (if Render gives a different address, update it afterwards).
-4. **Check it runs.** Open `https://YOUR-ADDRESS/api/health`: it should say `"status":"ok"`, `"environment":"staging"`, with payments and email `not-configured`. Open the site itself: the browser asks for the staging username `nurselove` and the password from Render's Environment tab.
-5. **First admin.** Follow "First admin, securely" above, then delete `ADMIN_BOOTSTRAP_TOKEN`.
-6. **Stripe test mode.** In Stripe, stay in test mode, copy the `sk_test_` secret key into `STRIPE_SECRET_KEY`. Add a webhook endpoint `https://YOUR-ADDRESS/api/webhooks/stripe` with the events listed in the README, copy its signing secret into `STRIPE_WEBHOOK_SECRET`. Buy something with card `4242 4242 4242 4242`.
-7. **Optional: demo content.** Set `DEMO_CONTENT=true`, let it redeploy, then use the button in Admin, Settings.
-8. **Optional: Resend, Mux.** Add their keys and webhook addresses the same way.
+Each step says what it costs. Nothing has been created yet.
 
-Render redeploys automatically on every push to `main` once connected. To stop that, turn off Auto Deploy in the service settings.
+1. **Supabase project** (free plan). Create a project named `nurse-love-staging`, choose a strong database password, and pick a region near you. Do not set up Supabase Auth.
+2. **Collect from Supabase:** project URL and secret (service role) key, from Project Settings, API. Transaction pooler and Session pooler connection strings, from Connect. The CA certificate, from Database settings, SSL.
+3. **GitHub environment `staging`** with the four secrets above. Then Actions, "Run database migrations", choose `staging`. This creates the tables and the two private buckets.
+4. **Vercel project** (decide Hobby or Pro first). Import the `nurse-love-company` repository. Vercel reads `vercel.json`. Before the first deploy, add the required variables to the Production environment.
+5. **Check it:** `https://YOUR-ADDRESS/api/health` should show `"status":"ok"`, `"schema":"current"`, `"storage":"supabase"`. The site itself should ask for the staging password.
+6. **First admin**, then delete `ADMIN_BOOTSTRAP_TOKEN`.
+7. **Upload tests:** a product photo, a product PDF over 5 MB, a tutorial MP4. Publish the product file as an update, buy it with a Stripe test card, and download it once. **This confirms the large download works on Vercel.**
+8. **Stripe test mode:** add `STRIPE_SECRET_KEY` (`sk_test_`), and a webhook to `https://YOUR-ADDRESS/api/webhooks/stripe` with the events listed in the README. Add its signing secret as `STRIPE_WEBHOOK_SECRET`.
+9. **Optional:** set `DEMO_CONTENT=true` and load demo content. Later, Resend.
+
+Vercel redeploys on every push to `main` once connected. Pushes do not run migrations; run the workflow when a release adds one.

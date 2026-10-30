@@ -2,7 +2,9 @@
   Accounts and sessions use Better Auth (email and password, httpOnly session
   cookies, scrypt password hashing, built in rate limiting). Roles live on the
   user record and cannot be set by the browser: "customer" by default, "admin"
-  only through the server side admin tool (npm run admin:create).
+  only through the one time first admin setup or the server side admin tool
+  (npm run admin:create). Sessions live in the database, so they work the same
+  on one server or many serverless instances.
 */
 import { betterAuth } from 'better-auth'
 import type pg from 'pg'
@@ -17,7 +19,8 @@ export function authOptions(pool: pg.Pool) {
     secret: config.authSecret,
     trustedOrigins: [config.appUrl],
     telemetry: { enabled: false },
-    rateLimit: { enabled: !isTest, window: 60, max: 30 },
+    // Stored in the database so the limit holds across serverless instances.
+    rateLimit: { enabled: !isTest, window: 60, max: 30, storage: 'database' as const },
     user: {
       additionalFields: {
         role: { type: 'string' as const, defaultValue: 'customer', input: false },

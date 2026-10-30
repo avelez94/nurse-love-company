@@ -24,6 +24,7 @@
     "@tiptap/pm": "^3.32.1",
     "@tiptap/react": "^3.32.1",
     "@tiptap/starter-kit": "^3.32.1",
+    "@vercel/functions": "^3.10.5",
     "aws4fetch": "^1.0.20",
     "better-auth": "^1.7.14",
     "hls.js": "^1.7.4",
@@ -48,6 +49,6 @@
     "vite": "^8.3.5"
   },
   "engines": {
-    "node": ">=20.12"
+    "node": "22.x"
   }
 }

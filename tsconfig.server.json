@@ -13,6 +13,6 @@
     "esModuleInterop": true,
     "resolveJsonModule": true
   },
-  "include": ["server/**/*.ts", "shared/**/*.ts"],
+  "include": ["server/**/*.ts", "shared/**/*.ts", "api/**/*.ts", "middleware.ts"],
   "exclude": ["server/tests/**"]
 }

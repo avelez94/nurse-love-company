@@ -84,3 +84,32 @@ export const fileHeaders = (file: File, extra: Record<string, string> = {}) => (
   'x-file-name': encodeURIComponent(file.name),
   ...extra,
 })
+
+export type UploadPurpose = 'product_image' | 'product_file' | 'tutorial_thumbnail' | 'tutorial_video'
+
+/**
+ * Uploads an admin file. The server decides how: on Vercel the file goes
+ * straight to private Supabase Storage through a one path link, then the
+ * server checks it; on a normal server it is sent to the server itself.
+ */
+export async function uploadAsset<T = any>(
+  purpose: UploadPurpose,
+  targetId: string,
+  file: File,
+  opts: { imageKind?: 'gallery' | 'sample'; alt?: string; onProgress?: (fraction: number) => void; signal?: AbortSignal } = {},
+): Promise<T> {
+  const start = await api<{ mode: 'server' | 'direct'; url: string; id?: string }>('/api/admin/uploads', {
+    body: { purpose, target_id: targetId, file_name: file.name, size: file.size, type: file.type, image_kind: opts.imageKind, alt: opts.alt ?? '' },
+  })
+  if (start.mode === 'server') {
+    const headers = fileHeaders(file, purpose === 'product_image' ? { 'x-alt-text': encodeURIComponent(opts.alt ?? '') } : {})
+    return uploadFile<T>(start.url, file, { method: purpose === 'tutorial_video' ? 'PUT' : 'POST', headers, withCredentials: true, onProgress: opts.onProgress, signal: opts.signal })
+  }
+  try {
+    await uploadFile(start.url, file, { method: 'PUT', headers: { 'content-type': file.type || 'application/octet-stream', 'x-upsert': 'false' }, onProgress: opts.onProgress, signal: opts.signal })
+  } catch (err) {
+    await api(`/api/admin/uploads/${start.id}/failed`, { body: { message: errorMessage(err) } }).catch(() => {})
+    throw err
+  }
+  return api<T>(`/api/admin/uploads/${start.id}/complete`, { body: {} })
+}

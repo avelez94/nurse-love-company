@@ -1,6 +1,6 @@
 import { Eye, FileVideo, ImagePlus, Plus, Trash2, Upload } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { api, ApiError, errorMessage, fileHeaders, uploadFile } from '../../lib/api'
+import { api, ApiError, errorMessage, uploadAsset, uploadFile } from '../../lib/api'
 import { href, navigate } from '../../lib/router'
 import { toTutorial, type ApiTutorial } from '../../lib/store'
 import { useUI } from '../../lib/ui'
@@ -91,6 +91,7 @@ interface Detail {
   uploads: Array<{ id: string; provider: string; status: string; file_name: string; bytes: number | null; error: string; created_at: string }>
   productIds: string[]
   muxConfigured: boolean
+  videoUpload?: { convert: boolean; maxMb: number }
   provider: 'local' | 'mux'
 }
 
@@ -266,10 +267,12 @@ function VideoPanel({ data, reload }: { data: Detail; reload: () => void }) {
   const abort = useRef<AbortController | null>(null)
   const { showToast } = useUI()
   const useMux = data.provider === 'mux'
+  const canConvert = data.videoUpload?.convert ?? true
 
   const upload = async (file: File | undefined) => {
     if (!file) return
     setError('')
+    if (!useMux && !canConvert && file.type !== 'video/mp4') return setError('Please choose an MP4 video (H.264 video with AAC audio). This hosting plays MP4 without converting it; MOV and WebM need converting to MP4 first.')
     if (!VIDEO_TYPES.includes(file.type)) return setError('Please choose an MP4, MOV or WebM video file.')
     abort.current = new AbortController()
     setProgress(0)
@@ -281,8 +284,8 @@ function VideoPanel({ data, reload }: { data: Detail; reload: () => void }) {
         await uploadFile(created.url, file, { method: 'PUT', onProgress: setProgress, signal: abort.current.signal })
         showToast('Upload finished. Mux is preparing streaming versions; this page updates automatically.')
       } else {
-        await uploadFile(`/api/admin/tutorials/${t.id}/video`, file, { method: 'PUT', headers: fileHeaders(file), withCredentials: true, onProgress: setProgress, signal: abort.current.signal })
-        showToast('Upload finished. Processing the video now; this page updates automatically.')
+        await uploadAsset('tutorial_video', t.id, file, { onProgress: setProgress, signal: abort.current.signal })
+        showToast('Upload finished. The video is being checked; this page updates automatically.')
       }
     } catch (err) {
       const msg = errorMessage(err)
@@ -325,7 +328,14 @@ function VideoPanel({ data, reload }: { data: Detail; reload: () => void }) {
         </label>
         {progress !== null && <button type="button" className="button button--outline button--small" onClick={() => abort.current?.abort()}>Cancel upload</button>}
       </div>
-      <p className="field__hint">MP4, MOV or WebM. {useMux ? 'Uploads go straight to Mux, which creates streaming versions and thumbnails.' : 'This server makes a web friendly MP4 and a poster image. For long videos, connect Mux.'} A failed upload never changes your saved draft or a video that already works.</p>
+      <p className="field__hint">
+        {useMux
+          ? 'MP4, MOV or WebM. Uploads go straight to Mux, which creates streaming versions and thumbnails.'
+          : canConvert
+            ? 'MP4, MOV or WebM. This server makes a web friendly MP4 and a poster image. For long videos, connect Mux.'
+            : `MP4 only (H.264 video with AAC audio), up to ${data.videoUpload?.maxMb ?? 50} MB. The video plays exactly as uploaded, so export it with "optimize for web" or "fast start" turned on. For longer videos, connect Mux.`}{' '}
+        A failed upload never changes your saved draft or a video that already works.
+      </p>
       {progress !== null && <ProgressBar value={progress} label="Uploading" />}
       <FormError message={error} />
       <div className="form-stack">
@@ -417,7 +427,7 @@ function ThumbnailPanel({ tutorialId, hasCustom, preview, reload }: { tutorialId
     if (!['image/png', 'image/jpeg', 'image/webp'].includes(f.type)) return setError('Please choose a PNG, JPG or WebP image.')
     try {
       setProgress(0)
-      await uploadFile(`/api/admin/tutorials/${tutorialId}/thumbnail`, f, { headers: fileHeaders(f), withCredentials: true, onProgress: setProgress })
+      await uploadAsset('tutorial_thumbnail', tutorialId, f, { onProgress: setProgress })
       reload()
     } catch (err) {
       setError(errorMessage(err))

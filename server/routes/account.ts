@@ -173,7 +173,7 @@ accountRoutes.post('/downloads/:id/report', async (c) => {
 
 accountRoutes.post('/account/support', async (c) => {
   const user = requireUser(c)
-  rateLimit(`support:${user.id}`, 5, 3600)
+  await rateLimit(`support:${user.id}`, 5, 3600)
   const b = await jsonBody(c)
   let orderId: string | null = null
   if (b.order_number) {
@@ -192,7 +192,7 @@ accountRoutes.post('/account/support', async (c) => {
 */
 accountRoutes.post('/admin-bootstrap', async (c) => {
   const user = requireUser(c)
-  rateLimit(`bootstrap:${clientIp(c)}`, 5, 900)
+  await rateLimit(`bootstrap:${clientIp(c)}`, 5, 900)
   const expected = config.adminBootstrapToken
   if (!expected) throw new HttpError(404, 'Admin setup is not enabled.', 'not_enabled')
   const given = Buffer.from(String((await jsonBody(c)).token ?? ''))
@@ -220,7 +220,7 @@ accountRoutes.post('/cart/price', async (c) => {
 
 accountRoutes.post('/checkout', async (c) => {
   const user = requireUser(c)
-  rateLimit(`checkout:${user.id}`, 10, 60)
+  await rateLimit(`checkout:${user.id}`, 10, 60)
   const b = await jsonBody<{ items: CartLine[] }>(c)
   return c.json(await createCheckout(user, b.items ?? []))
 })

@@ -3,7 +3,11 @@ import { secureHeaders } from 'hono/secure-headers'
 import { timingSafeEqual } from 'node:crypto'
 import { auth } from './auth.js'
 import { db } from './db/pool.js'
+import { LATEST_MIGRATION } from './db/schema-version.js'
+import { drainOutbox, requeueStalled } from './email/outbox.js'
 import { config, deployEnv, integrationStatus, isProduction } from './env.js'
+import { pruneRateLimits } from './lib/rate-limit.js'
+import { cleanAbandonedUploads } from './services/uploads.js'
 import { clientIp } from './http.js'
 import { rateLimit } from './lib/rate-limit.js'
 import { originGuard, sessionMiddleware, type AppEnv } from './http.js'
@@ -15,6 +19,8 @@ import { webhookRoutes } from './routes/webhooks.js'
 
 export function createApp() {
   const app = new Hono<AppEnv>()
+  // Signed media links and direct uploads go to Supabase Storage.
+  const storageOrigin = config.storage.driver === 'supabase' && config.storage.supabase.url ? [new URL(config.storage.supabase.url).origin] : []
 
   app.use(
     '*',
@@ -24,9 +30,9 @@ export function createApp() {
         scriptSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-        imgSrc: ["'self'", 'data:', 'blob:', 'https://image.mux.com'],
-        mediaSrc: ["'self'", 'blob:', 'https://stream.mux.com'],
-        connectSrc: ["'self'", 'https://*.mux.com', 'https://storage.googleapis.com'],
+        imgSrc: ["'self'", 'data:', 'blob:', 'https://image.mux.com', ...storageOrigin],
+        mediaSrc: ["'self'", 'blob:', 'https://stream.mux.com', ...storageOrigin],
+        connectSrc: ["'self'", 'https://*.mux.com', 'https://storage.googleapis.com', ...storageOrigin],
         frameSrc: ['https://www.youtube-nocookie.com', 'https://player.vimeo.com'],
         frameAncestors: ["'none'"],
         baseUri: ["'self'"],
@@ -41,41 +47,66 @@ export function createApp() {
   // Deliberately outside the staging gate so the host can check it.
   app.get('/api/health', async (c) => {
     let database = false
+    let schema: 'current' | 'behind' | 'unknown' = 'unknown'
     try {
       await db().query('select 1')
       database = true
+      const row = await db().query<{ latest: string | null }>('select max(name) as latest from schema_migrations')
+      schema = row.rows[0]?.latest === LATEST_MIGRATION ? 'current' : 'behind'
     } catch {
-      database = false
+      // A missing schema_migrations table also means the migrations have not been run.
+      schema = database ? 'behind' : 'unknown'
     }
+    // (A misconfigured Vercel deployment never reaches this: see serverless.ts.)
     const s = integrationStatus()
+    const ok = database && schema === 'current'
     return c.json(
       {
-        status: database ? 'ok' : 'degraded',
+        status: ok ? 'ok' : 'degraded',
         environment: deployEnv,
         database,
+        schema,
         payments: s.payments.state,
         email: s.email.configured ? 'configured' : 'not configured',
         storage: s.storage.driver,
         video: s.video.provider,
+        scheduledJobs: s.scheduledJobs ? 'configured' : 'not configured',
       },
-      database ? 200 : 503,
+      ok ? 200 : 503,
       { 'cache-control': 'no-store' },
     )
   })
 
+  /*
+    Scheduled maintenance (Vercel Cron, or any scheduler that sends the
+    secret). Retries emails left behind by a stopped instance and tidies
+    expired records. Safe to run any number of times, even concurrently.
+  */
+  app.get('/api/cron/maintenance', async (c) => {
+    const given = Buffer.from(c.req.header('authorization') ?? '')
+    const want = Buffer.from(`Bearer ${config.cronSecret}`)
+    if (!config.cronSecret || given.length !== want.length || !timingSafeEqual(given, want)) return c.json({ error: 'Not authorized.' }, 401)
+    await requeueStalled()
+    await drainOutbox(100)
+    await pruneRateLimits()
+    const uploadsCleaned = await cleanAbandonedUploads()
+    return c.json({ ok: true, uploadsCleaned }, 200, { 'cache-control': 'no-store' })
+  })
+
   // Staging gate: the whole staging site, dashboards included, needs the
   // staging username and password. Only payment, email and video webhooks
-  // (which prove themselves with signatures) and the health check get through.
+  // (which prove themselves with signatures), the health check and the
+  // scheduled job (which needs its own secret) get through.
   if (deployEnv === 'staging') {
     const expected = Buffer.from(`${config.staging.accessUser}:${config.staging.accessPassword}`)
     app.use('*', async (c, next) => {
       c.header('x-robots-tag', 'noindex, nofollow')
       const path = c.req.path
-      if (path.startsWith('/api/webhooks/') || path === '/api/health') return next()
+      if (path.startsWith('/api/webhooks/') || path === '/api/health' || path === '/api/cron/maintenance') return next()
       const header = c.req.header('authorization') ?? ''
       const given = header.startsWith('Basic ') ? Buffer.from(header.slice(6), 'base64') : Buffer.alloc(0)
       if (given.length === expected.length && timingSafeEqual(given, expected)) return next()
-      if (header) rateLimit(`staging-gate:${clientIp(c)}`, 20, 600)
+      if (header) await rateLimit(`staging-gate:${clientIp(c)}`, 20, 600)
       return c.text('This is a private staging preview. Please sign in with the staging username and password.', 401, {
         'www-authenticate': 'Basic realm="Nurse Love Company staging", charset="UTF-8"',
         'cache-control': 'no-store',

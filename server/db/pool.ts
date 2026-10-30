@@ -1,4 +1,6 @@
+import { attachDatabasePool } from '@vercel/functions'
 import pg from 'pg'
+import { config, onVercel } from '../env.js'
 
 // Return bigint counts and numeric values as numbers where safe.
 pg.types.setTypeParser(20, (v) => Number(v))
@@ -6,8 +8,23 @@ pg.types.setTypeParser(1700, (v) => Number(v))
 
 let pool: pg.Pool | null = null
 
+/**
+ * With DATABASE_SSL_CA set, TLS is verified against that certificate. The
+ * sslmode in the connection string is removed then, because pg lets it
+ * override the ssl option.
+ */
+export function poolConfig(connectionString: string): pg.PoolConfig {
+  const base = { max: config.database.poolMax, idleTimeoutMillis: 10_000, connectionTimeoutMillis: 10_000 }
+  if (!config.database.sslCa) return { ...base, connectionString }
+  const url = new URL(connectionString)
+  for (const k of ['sslmode', 'sslrootcert', 'sslcert', 'sslkey', 'uselibpqcompat']) url.searchParams.delete(k)
+  return { ...base, connectionString: url.toString(), ssl: { ca: config.database.sslCa, rejectUnauthorized: true } }
+}
+
 export function initPool(connectionString: string) {
-  pool = new pg.Pool({ connectionString, max: 10 })
+  pool = new pg.Pool(poolConfig(connectionString))
+  // Lets Vercel close idle connections before an instance is suspended.
+  if (onVercel) attachDatabasePool(pool)
   return pool
 }
 

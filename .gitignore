@@ -8,3 +8,4 @@ dist-server
 .env
 .env.*
 !.env.example
+.vercel

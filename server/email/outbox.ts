@@ -4,7 +4,14 @@
   then a dispatcher claims queued rows one at a time (FOR UPDATE SKIP LOCKED)
   and sends them through Resend. A repeated request with the same key never
   creates a second email, and a row is never sent twice.
+
+  Nothing depends on a long running process. The request that queues an
+  email also sends it, kept alive after the response with waitUntil on
+  Vercel. If that instance stops mid send, the row stays in the database:
+  the scheduled job (/api/cron/maintenance) and the next queued email pick it
+  up again, and Resend's idempotency key stops a second delivery.
 */
+import { waitUntil } from '@vercel/functions'
 import { Resend } from 'resend'
 import { one, q, type Queryable } from '../db/pool.js'
 import { config } from '../env.js'
@@ -83,35 +90,51 @@ function resendSender(): Sender | null {
   }
 }
 
-let running = false
+let running: Promise<void> | null = null
 let again = false
 
+/** Sends whatever is queued, without holding up the current response. */
 export function kickDispatcher() {
   if (running) {
     again = true
     return
   }
-  running = true
-  setImmediate(async () => {
+  running = (async () => {
+    // Let the caller's transaction commit and its response go out first.
+    await new Promise((r) => setImmediate(r))
     try {
       do {
         again = false
-        while (await dispatchOne()) {
-          /* keep going */
-        }
+        await requeueStalled()
+        let sent = 0
+        // One invocation sends a bounded batch; anything left waits for the next kick or the scheduled job.
+        while (sent < 50 && (await dispatchOne())) sent++
       } while (again)
     } catch (err) {
       console.error('[email] dispatcher error', err)
     } finally {
-      running = false
+      running = null
     }
-  })
+  })()
+  // On Vercel, keeps the function alive until the batch is done. Elsewhere it does nothing.
+  waitUntil(running)
+}
+
+/**
+ * A row left in "sending" for over five minutes belongs to an instance that
+ * stopped mid send. It goes back to the queue (Resend's idempotency key stops
+ * a duplicate), or is marked failed after five attempts.
+ */
+export async function requeueStalled() {
+  await q(`update emails set status = 'failed', failed_at = now(), failure_reason = 'Sending stopped unexpectedly five times. Use Resend to try again.'
+            where status = 'sending' and claimed_at < now() - interval '5 minutes' and attempts >= 5`)
+  await q(`update emails set status = 'queued' where status = 'sending' and claimed_at < now() - interval '5 minutes'`)
 }
 
 /** Claims and sends one queued email. Returns false when the queue is empty. */
 export async function dispatchOne(): Promise<boolean> {
   const row = await one<{ id: string; to_email: string; subject: string; html: string; text_body: string; idempotency_key: string; is_demo: boolean }>(
-    `update emails set status = 'sending', attempts = attempts + 1
+    `update emails set status = 'sending', attempts = attempts + 1, claimed_at = now()
      where id = (select id from emails where status = 'queued' order by requested_at for update skip locked limit 1)
      returning id, to_email, subject, html, text_body, idempotency_key, is_demo`,
   )
@@ -148,9 +171,9 @@ export async function dispatchOne(): Promise<boolean> {
   return true
 }
 
-/** Sends everything queued, waiting for completion. Used by tests and scripts. */
-export async function drainOutbox() {
-  while (await dispatchOne()) {
-    /* keep going */
-  }
+/** Sends what is queued (up to max), waiting for completion. Used by the scheduled job, tests and scripts. */
+export async function drainOutbox(max = Infinity) {
+  let sent = 0
+  while (sent < max && (await dispatchOne())) sent++
+  return sent
 }

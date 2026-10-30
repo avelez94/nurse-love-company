@@ -49,3 +49,20 @@ export async function serveRange(c: Context, key: string, contentType: string, c
   const opened = await storage().open(key)
   return new Response(toWebBody(opened.stream), { headers: { 'content-type': contentType, 'content-length': String(total), 'accept-ranges': 'bytes', 'cache-control': cache } })
 }
+
+/**
+ * Sends media (photos, sample pages, tutorial video) the caller is allowed to
+ * see. The permission check happens before this is called, on every request.
+ * With Supabase Storage the bytes come from a short lived signed link, so
+ * large videos never pass through a size limited serverless response; once a
+ * product or tutorial is unpublished no new links are issued, and links
+ * already handed out expire within the hour.
+ */
+export async function serveMedia(c: Context, key: string, contentType: string, cache: string) {
+  const s = storage()
+  if (!s.signedUrl) return serveRange(c, key, contentType, cache)
+  const url = await s.signedUrl(key, 3600)
+  // The redirect may be cached briefly; the link it points to lasts an hour.
+  const redirectCache = cache.startsWith('public') ? 'public, max-age=300' : 'private, no-store'
+  return new Response(null, { status: 302, headers: { location: url, 'cache-control': redirectCache } })
+}

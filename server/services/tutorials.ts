@@ -442,7 +442,7 @@ export async function adminTutorial(id: string) {
   const [view] = await shape(rows, 'admin')
   const uploads = await q('select id, provider, status, file_name, content_type, bytes, error, created_at, updated_at from video_uploads where tutorial_id = $1 order by created_at desc limit 10', [id])
   const productIds = (await q<{ product_id: string }>('select product_id from tutorial_products where tutorial_id = $1', [id])).map((r) => r.product_id)
-  return { tutorial: { ...rows[0], instructions: sanitizeDoc(rows[0].instructions) }, preview: view, uploads, productIds, muxConfigured: muxConfigured(), provider: config.video.provider }
+  return { tutorial: { ...rows[0], instructions: sanitizeDoc(rows[0].instructions) }, preview: view, uploads, productIds, muxConfigured: muxConfigured(), provider: config.video.provider, videoUpload: { convert: config.storage.driver === 'local', maxMb: Math.round(config.limits.videoBytes / 1024 / 1024) } }
 }
 
 export async function adminTutorialList() {

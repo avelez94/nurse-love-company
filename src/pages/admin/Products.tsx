@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowUp, Copy, Eye, FileUp, ImagePlus, Plus, Rocket, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { api, errorMessage, fileHeaders, newKey, uploadFile } from '../../lib/api'
+import { api, errorMessage, newKey, uploadAsset } from '../../lib/api'
 import { href, navigate } from '../../lib/router'
 import { toProduct, type ApiProduct } from '../../lib/store'
 import { useUI } from '../../lib/ui'
@@ -146,6 +146,7 @@ interface Detail {
   releases: Array<{ id: string; version_id: string; notify: boolean; affected_count: number; granted_count: number; created_by: string; created_at: string }>
   affected: { items: number; customers: number }
   orderCount: number
+  fileLimitMb?: number
 }
 
 const size = (b: number) => (b > 1024 * 1024 ? `${(b / 1024 / 1024).toFixed(1)} MB` : `${Math.ceil(b / 1024)} KB`)
@@ -412,13 +413,9 @@ function Images({ productId, images, variants, reload }: { productId: string; im
         setError(`${f.name} is not a PNG, JPG or WebP image.`)
         continue
       }
-      if (f.size > 10 * 1024 * 1024) {
-        setError(`${f.name} is larger than 10 MB.`)
-        continue
-      }
       try {
         setProgress({ name: f.name, value: 0 })
-        await uploadFile(`/api/admin/products/${productId}/images?kind=${kind}`, f, { headers: fileHeaders(f, { 'x-alt-text': '' }), withCredentials: true, onProgress: (v) => setProgress({ name: f.name, value: v }) })
+        await uploadAsset('product_image', productId, f, { imageKind: kind, onProgress: (v) => setProgress({ name: f.name, value: v }) })
       } catch (err) {
         setError(`${f.name}: ${errorMessage(err)}`)
       }
@@ -519,10 +516,9 @@ function Files({ productId, data, reload }: { productId: string; data: Detail; r
   const upload = async (f: File | undefined) => {
     if (!f) return
     setError('')
-    if (f.size > 200 * 1024 * 1024) return setError('Files must be smaller than 200 MB.')
     try {
       setProgress(0)
-      await uploadFile(`/api/admin/products/${productId}/files`, f, { headers: fileHeaders(f), withCredentials: true, onProgress: setProgress })
+      await uploadAsset('product_file', productId, f, { onProgress: setProgress })
       showToast('File uploaded privately. Customers cannot see it until you publish it as an update.')
       reload()
     } catch (err) {
@@ -578,7 +574,7 @@ function Files({ productId, data, reload }: { productId: string; data: Detail; r
         <FileUp size={16} aria-hidden="true" /> Upload a new private file
         <input type="file" accept=".pdf,.zip,.png,.jpg,.jpeg,application/pdf,application/zip,image/png,image/jpeg" hidden onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = '' }} />
       </label>
-      <p className="field__hint">PDF, ZIP, PNG or JPG, up to 200 MB.</p>
+      <p className="field__hint">PDF, ZIP, PNG or JPG, up to {data.fileLimitMb ?? 200} MB.</p>
       {progress !== null && <ProgressBar value={progress} label="Uploading file" />}
       <FormError message={error} />
       {data.uploads.length > 0 && (

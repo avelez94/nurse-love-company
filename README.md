@@ -33,20 +33,21 @@ Other commands:
 | --- | --- |
 | `npm test` | Runs the server test suite against a PostgreSQL test database (see Tests) |
 | `npm run build` | Type checks everything and builds the site into `dist/` |
-| `npm start` | Runs the production server (serves the API and the built site) |
+| `npm start` | Runs the API and built site as one Node server (not used on Vercel) |
+| `npm run migrate` | Applies database migrations and sets up the storage buckets (run deliberately; see DEPLOYMENT.md) |
 | `npm run seed` | Adds the demo data again (development only) |
 | `npm run admin:create -- you@example.com` | Gives an existing account admin access |
 
 ## How it is built
 
 * **Storefront and dashboards:** React, TypeScript and Vite (`src/`). The approved design is unchanged. Admin code loads only for admins.
-* **Server:** Node with Hono (`server/`). Every endpoint checks the signed in user and role on the server; hidden buttons are never the security.
+* **Server:** Node with Hono (`server/`), run as one Vercel Function in staging and production, or as a normal Node server locally. Every endpoint checks the signed in user and role on the server; hidden buttons are never the security.
 * **Database:** PostgreSQL with SQL migrations in `server/db/migrations/`. Rules that must never break (one unused download per purchase, no duplicate grants, immutable file versions, append only audit log) are enforced by the database itself.
 * **Accounts:** Better Auth (email and password, httpOnly session cookies, scrypt password hashing, rate limited sign in). Customer and admin roles live on the server; the browser cannot set them.
 * **Payments:** Stripe Checkout. The store never sees card details. Orders become paid only from a signature verified Stripe webhook, and each webhook event is processed once.
-* **Email:** Resend, through an outbox that stores a snapshot of every email and can never send the same email twice.
-* **Private files:** S3 compatible storage (Cloudflare R2, AWS S3, Backblaze B2 or Supabase Storage) in production; a private folder in development.
-* **Tutorial video:** Mux in production (direct uploads, adaptive streaming, automatic thumbnails); local processing with ffmpeg in development. YouTube and Vimeo links also work.
+* **Email:** Resend, through an outbox that stores a snapshot of every email and can never send the same email twice. Emails are sent by the request that queues them, and a scheduled job retries anything left behind.
+* **Private files:** two private Supabase Storage buckets when hosted (purchasable files, which are only ever streamed after a redeemed download, and media, shown through short lived links when allowed). Admins upload straight to storage and the server checks each file before using it. A private folder in development.
+* **Tutorial video:** MP4 files in Supabase Storage when hosted (played as uploaded, no conversion). Mux can be connected later for streaming. Local processing with ffmpeg in development. YouTube and Vimeo links also work.
 * **Rich text:** a controlled Tiptap editor. Descriptions are stored as structured content, not HTML, and cleaned on the server on every save. Allowed: bold, italic, lists, links, two heading sizes, two font styles and two text sizes.
 
 ## The download rule
@@ -76,9 +77,9 @@ The tutorial "How to Put Together Your NP Binder" uses a short, clearly labeled 
 | --- | --- | --- |
 | Stripe payments | Not connected. Checkout says so and charges nothing. | Stripe account, test keys (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`). Live keys are refused unless `LIVE_PAYMENTS_APPROVED=true` is set after the owner approves launch. Optional: Stripe Tax for sales tax. |
 | Resend email | Not connected. Emails are logged as "not configured" and nothing is sent. | Resend account, verified sending domain, `RESEND_API_KEY`, `RESEND_FROM`, webhook secret for delivery tracking. |
-| File storage | Local private folder. | A bucket (Cloudflare R2, AWS S3, Backblaze B2 or Supabase Storage S3) and its keys. |
-| Tutorial video | Local processing (fine for short clips). | Mux account: token ID and secret, webhook secret, and a signing key for admin previews of unpublished videos. |
-| Database | Local, created automatically. | A hosted PostgreSQL database, for example Supabase or Neon (`DATABASE_URL`). |
+| File storage | Local private folder. | Supabase Storage (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`). `npm run migrate` creates the two private buckets. |
+| Tutorial video | Local processing on a computer. On Vercel: MP4 files played as uploaded (up to 50 MB on Supabase's free plan). | Optional Mux account for longer videos: token ID and secret, webhook secret, and a signing key for admin previews. |
+| Database | Local, created automatically. | A Supabase project (`DATABASE_URL`, `DATABASE_SSL_CA`). |
 | Shipping | Off. Items that ship cannot be bought yet. | Flat rate and countries in Admin, Settings, Shipping. |
 | Policies | Empty, marked "awaiting approval". | Refund, shipping, terms and privacy text from the owner, and the refund download decision. |
 | Contact details | Empty. | Contact and support email in Admin, Settings. |
@@ -100,9 +101,8 @@ Prices change, so confirm each one on the provider's own pricing page before lau
 * **Stripe:** no monthly fee on the standard plan; a percentage plus a fixed fee per successful card payment. Stripe Tax adds a per transaction fee if turned on.
 * **Resend:** free tier with a monthly email limit; paid plans by email volume.
 * **Mux:** charges by minutes of video stored, encoded and watched. A small library of short tutorials usually sits near the bottom of their usage pricing.
-* **Database:** Supabase and Neon both have free tiers that suit a launch, with paid plans for more storage and backups.
-* **File storage:** Cloudflare R2 charges for storage with no download (egress) fees; S3 charges for storage and downloads.
-* **Server:** any Node host (Render, Railway, Fly.io, a small VPS). Expect a small monthly plan. Vercel is not a good fit for this server as written, because it streams large uploads.
+* **Database and file storage:** Supabase has a free plan (with a 50 MB per file cap, and pausing after a week without activity) and a paid Pro plan recommended for the live store.
+* **Hosting:** Vercel. Its free Hobby plan is for non commercial personal use only, so the live store needs Vercel Pro (paid per team member).
 
 ## Tests
 
@@ -112,21 +112,23 @@ Server tests run against a real PostgreSQL database (default `postgres://nurselo
 npm test
 ```
 
-They cover: successful, failed, unpaid and duplicate payment events; forged webhooks; another customer's orders and files; anonymous and customer access to admin endpoints; cross site requests; first download and blocked second download; simultaneous downloads; a download link used by someone else; failed file preparation; problem reports and audited replacements; a new release granting exactly one new download per purchaser with safe retries; listing edits, email resends and password resets granting nothing; archived products keeping history and downloads; drafts staying private; rich text cleaning; mixed digital and physical orders with shipping, tracking and receipt snapshots; refunds; reporting math; Resend delivery events, bounces and suppression; video upload, processing, failed upload recovery, publishing and unpublishing; tutorials never touching downloads; and the audit log.
+They cover: successful, failed, unpaid and duplicate payment events; forged webhooks; another customer's orders and files; anonymous and customer access to admin endpoints; cross site requests; first download and blocked second download; simultaneous downloads; a download link used by someone else; failed file preparation; problem reports and audited replacements; a new release granting exactly one new download per purchaser with safe retries; listing edits, email resends and password resets granting nothing; archived products keeping history and downloads; drafts staying private; rich text cleaning; mixed digital and physical orders with shipping, tracking and receipt snapshots; refunds; reporting math; Resend delivery events, bounces and suppression; video upload, processing, failed upload recovery, publishing and unpublishing; tutorials never touching downloads; the audit log; and, through the real Vercel function entry with a local stand in for Supabase Storage: the staging password on every page, sign in and roles, direct uploads with type and size checks, private files that never get a storage link, one time downloads under simultaneous requests, version updates, signed media only for published tutorials and products, webhook signatures, and the scheduled email retry.
 
 ## Deploying
 
-A private staging preview runs on Render from `render.yaml`, with a Neon database and a Cloudflare R2 bucket. **DEPLOYMENT.md** has the step by step guide, every environment variable (required and optional), how staging access is locked, how to create the first admin securely, and the optional labeled demo content.
+The staging preview runs on **Vercel** (storefront and API) with **Supabase** (database and private file storage). **DEPLOYMENT.md** has the step by step guide, every environment variable for Vercel and GitHub (required and optional), how staging access is locked, how uploads and downloads work within Vercel's limits, the migration process, how to create the first admin securely, and the optional labeled demo content.
 
 In short:
 
-1. Set `DEPLOY_ENV` (`staging` or `production`), `APP_URL`, `DATABASE_URL`, `BETTER_AUTH_SECRET`, persistent file storage and, on staging, `STAGING_ACCESS_PASSWORD`. The server lists anything missing and refuses to start.
-2. `npm ci --include=dev && npm run build`, then `npm start`. Migrations run automatically at start up and are safe to repeat.
-3. Sign up, then claim the admin role at `/#admin-setup` with `ADMIN_BOOTSTRAP_TOKEN` (remove it afterwards), or run `npm run admin:create -- owner@example.com` on the server.
+1. Create a Supabase project, then run the "Run database migrations" GitHub Action (or `npm run migrate`). Migrations never run inside Vercel functions.
+2. Import the repository into Vercel. `vercel.json` sets the build, the API function, the daily maintenance job and security headers. Add the required variables. If any is missing, the API answers "not fully configured" and the function logs list exactly what.
+3. Sign up, then claim the admin role at `/#admin-setup` with `ADMIN_BOOTSTRAP_TOKEN` (remove it afterwards).
 4. Add the webhook addresses above in Stripe, Resend and Mux.
 5. Test a full order with a Stripe test card. Live payments are always blocked on staging.
 
-`GET /api/health` reports the database and each integration and returns 503 if the database is unreachable.
+`GET /api/health` reports the database, whether its migrations are current, and each integration. It returns 503 if the database is unreachable or behind.
+
+The earlier Render plan (`render.yaml`, Neon, Cloudflare R2) is obsolete and was removed.
 
 ## Where things live
 
@@ -135,6 +137,10 @@ server/            API server
   db/migrations/   Database schema
   services/        Business rules (entitlements.ts has the download rule)
   routes/          Public, account, admin and webhook endpoints
+  serverless.ts    The API as a Vercel Function (api/index.ts loads it)
+api/index.ts       Vercel Function entry
+middleware.ts      Staging password in front of every page on Vercel
+vercel.json        Vercel build, routing, daily job and security headers
   tests/           Automated tests
 shared/            Code used by both the browser and the server
 src/               Storefront, customer dashboard and admin dashboard

@@ -228,7 +228,7 @@ export const hashToken = (t: string) => createHash('sha256').update(t).digest('h
  * read, and issues a single use delivery token. Nothing is consumed here.
  */
 export async function prepareDownload(user: SessionUser, entitlementId: string, meta: { ip?: string; ua?: string } = {}) {
-  rateLimit(`prepare:${user.id}`, 10, 60)
+  await rateLimit(`prepare:${user.id}`, 10, 60)
   const e = await loadEntitlement(entitlementId)
   try {
     assertRedeemable(e, user)
@@ -257,7 +257,7 @@ export async function prepareDownload(user: SessionUser, entitlementId: string, 
  * simultaneous requests can never both succeed.
  */
 export async function startDelivery(user: SessionUser, token: string, meta: { ip?: string; ua?: string } = {}) {
-  rateLimit(`deliver:${user.id}`, 20, 60)
+  await rateLimit(`deliver:${user.id}`, 20, 60)
   const row = await one<{ id: string; entitlement_id: string; user_id: string; used_at: string | null; expired: boolean }>(
     `select id, entitlement_id, user_id, used_at, expires_at <= now() as expired from download_tokens where token_hash = $1`,
     [hashToken(token)],
@@ -313,7 +313,7 @@ export async function startDelivery(user: SessionUser, token: string, meta: { ip
 }
 
 export async function reportProblem(user: SessionUser, entitlementId: string, message: string) {
-  rateLimit(`report:${user.id}`, 5, 3600)
+  await rateLimit(`report:${user.id}`, 5, 3600)
   const e = await one<{ id: string; user_id: string }>('select id, user_id from entitlements where id = $1', [entitlementId])
   if (!e || e.user_id !== user.id) throw notFound('Download')
   const open = await one('select 1 from download_problem_reports where entitlement_id = $1 and status = $2', [entitlementId, 'open'])

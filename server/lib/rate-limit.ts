@@ -1,25 +1,29 @@
+import { q } from '../db/pool.js'
 import { HttpError } from './errors.js'
 
 /*
-  Simple fixed window rate limiter kept in memory. Fine for a single server.
-  When running more than one instance, move this to a shared store (Redis or
-  the database) so limits apply across instances.
+  Fixed window rate limiter stored in the database, so the limit holds across
+  every serverless instance (an in memory counter would reset per instance).
 */
-const buckets = new Map<string, { count: number; resetAt: number }>()
-
-export function rateLimit(key: string, max: number, windowSeconds: number) {
-  const now = Date.now()
-  const b = buckets.get(key)
-  if (!b || b.resetAt < now) {
-    buckets.set(key, { count: 1, resetAt: now + windowSeconds * 1000 })
-    return
-  }
-  b.count++
-  if (b.count > max) {
+export async function rateLimit(key: string, max: number, windowSeconds: number) {
+  const rows = await q<{ count: number }>(
+    `insert into rate_limits (key, count, reset_at) values ($1, 1, now() + make_interval(secs => $2))
+     on conflict (key) do update set
+       count = case when rate_limits.reset_at < now() then 1 else rate_limits.count + 1 end,
+       reset_at = case when rate_limits.reset_at < now() then excluded.reset_at else rate_limits.reset_at end
+     returning count`,
+    [key, windowSeconds],
+  )
+  if ((rows[0]?.count ?? 0) > max) {
     throw new HttpError(429, 'Too many requests. Please wait a minute and try again.', 'rate_limited')
   }
 }
 
-export function resetRateLimits() {
-  buckets.clear()
+/** Removes expired windows. Called by the scheduled maintenance job. */
+export async function pruneRateLimits() {
+  await q('delete from rate_limits where reset_at < now()')
+}
+
+export async function resetRateLimits() {
+  await q('delete from rate_limits')
 }

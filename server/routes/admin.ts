@@ -6,9 +6,9 @@ import { demoSummary, seedDemoContent } from '../seed.js'
 import { adminOnly, clientIp, jsonBody, requireAdmin, type AppEnv } from '../http.js'
 import { audit } from '../lib/audit.js'
 import { badRequest, notFound } from '../lib/errors.js'
-import { imageSize } from '../lib/files.js'
-import { serveRange } from '../lib/stream.js'
+import { serveMedia } from '../lib/stream.js'
 import { receiveUpload } from '../lib/upload.js'
+import { abandonUpload, attachUpload, completeUpload, startUpload } from '../services/uploads.js'
 import { bool, email as emailField, int, isoDate, oneOf, str, uuid } from '../lib/validate.js'
 import { previewProduct } from '../services/catalog.js'
 import { customerDetail, listAdmins, listCustomers, saveCustomerNotes, setAdmin } from '../services/customers.js'
@@ -24,7 +24,6 @@ import {
   captionText,
   createMuxUpload,
   createTutorial,
-  processLocalVideo,
   recordUploadFailure,
   recordUploadStart,
   setCaption,
@@ -111,31 +110,48 @@ adminRoutes.post('/admin/products/:id/images', async (c) => {
   if (!(await one('select 1 from products where id = $1', [id]))) throw notFound('Product')
   const kind = oneOf(c.req.query('kind'), 'Image type', ['gallery', 'sample'] as const, 'gallery')
   const f = await receiveUpload(c, 'image', `product-images/${id}`, config.limits.imageBytes)
-  const size = imageSize(f.head)
   const alt = str(decodeURIComponent(c.req.header('x-alt-text') ?? ''), 'Alt text', { optional: true, max: 250 })
-  const row = await one(
-    `insert into product_images (product_id, kind, storage_key, content_type, width, height, alt, sort_order)
-     values ($1,$2,$3,$4,$5,$6,$7,(select coalesce(max(sort_order),-1)+1 from product_images where product_id = $1 and kind = $2)) returning id, kind, alt, width, height, sort_order, variant_id`,
-    [id, kind, f.key, f.contentType, size?.width ?? null, size?.height ?? null, alt],
-  )
-  await audit({ actor, action: 'product.image_uploaded', entityType: 'product', entityId: id, summary: `Uploaded ${kind === 'sample' ? 'a sample page image' : 'a product photo'} (${f.fileName})`, ip: ip(c) })
-  return c.json(row, 201)
+  return c.json(await attachUpload(actor, 'product_image', id, f, { imageKind: kind, alt }, ip(c)), 201)
 })
 
 /** Private product file upload. Stays unreleased (no customer access) until "Publish digital product update". */
 adminRoutes.post('/admin/products/:id/files', async (c) => {
   const actor = requireAdmin(c)
   const id = uuid(c.req.param('id'))
-  const p = await one<{ type: string; title: string }>('select type, title from products where id = $1', [id])
+  const p = await one<{ type: string }>('select type from products where id = $1', [id])
   if (!p) throw notFound('Product')
   if (p.type !== 'digital') throw badRequest('Only digital products have downloadable files.')
   const f = await receiveUpload(c, 'product-file', `product-files/${id}`, config.limits.productFileBytes)
-  const row = await one(
-    `insert into product_file_uploads (product_id, storage_key, file_name, content_type, file_size, sha256, uploaded_by) values ($1,$2,$3,$4,$5,$6,$7) returning id, file_name, content_type, file_size, created_at`,
-    [id, f.key, f.fileName, f.contentType, f.size, f.sha256, actor.email],
+  return c.json(await attachUpload(actor, 'product_file', id, f, {}, ip(c)), 201)
+})
+
+/*
+  Direct uploads (Supabase Storage on Vercel). Step 1 returns a one path
+  upload link, or the server endpoint above when storage has no direct
+  uploads. Step 2 checks the stored file and attaches it.
+*/
+adminRoutes.post('/admin/uploads', async (c) => {
+  const b = await jsonBody(c)
+  const purpose = oneOf(b.purpose, 'Upload type', ['product_image', 'product_file', 'tutorial_thumbnail', 'tutorial_video'] as const)
+  return c.json(
+    await startUpload(requireAdmin(c), {
+      purpose,
+      targetId: uuid(String(b.target_id ?? '')),
+      fileName: str(b.file_name, 'File name', { max: 200 }),
+      size: Number(b.size),
+      type: String(b.type ?? '').slice(0, 100),
+      imageKind: oneOf(b.image_kind, 'Image type', ['gallery', 'sample'] as const, 'gallery'),
+      alt: str(b.alt, 'Alt text', { optional: true, max: 250 }),
+    }),
+    201,
   )
-  await audit({ actor, action: 'product.file_uploaded', entityType: 'product', entityId: id, summary: `Uploaded private file ${f.fileName} for ${p.title} (not released yet)`, ip: ip(c) })
-  return c.json(row, 201)
+})
+adminRoutes.post('/admin/uploads/:id/complete', async (c) => c.json(await completeUpload(requireAdmin(c), uuid(c.req.param('id')), ip(c)), 201))
+adminRoutes.post('/admin/uploads/:id/failed', async (c) => {
+  requireAdmin(c)
+  const msg = str((await jsonBody(c)).message, 'Message', { optional: true, max: 300 }) || 'The upload did not finish.'
+  await abandonUpload(uuid(c.req.param('id')), msg)
+  return c.json({ ok: true })
 })
 
 adminRoutes.get('/admin/products/:id/release-impact', async (c) => c.json(await countAffectedPurchasers(uuid(c.req.param('id')))))
@@ -405,9 +421,7 @@ adminRoutes.post('/admin/tutorials/:id/thumbnail', async (c) => {
   const id = uuid(c.req.param('id'))
   if (!(await one('select 1 from tutorials where id = $1', [id]))) throw notFound('Tutorial')
   const f = await receiveUpload(c, 'image', `tutorial-thumbnails/${id}`, config.limits.imageBytes)
-  await q('update tutorials set thumbnail_key = $2, thumbnail_type = $3, updated_at = now() where id = $1', [id, f.key, f.contentType])
-  await audit({ actor, action: 'tutorial.thumbnail_uploaded', entityType: 'tutorial', entityId: id, summary: `Uploaded a thumbnail (${f.fileName})`, ip: ip(c) })
-  return c.json({ ok: true })
+  return c.json(await attachUpload(actor, 'tutorial_thumbnail', id, f, {}, ip(c)))
 })
 adminRoutes.delete('/admin/tutorials/:id/thumbnail', async (c) => {
   requireAdmin(c)
@@ -430,10 +444,7 @@ adminRoutes.put('/admin/tutorials/:id/video', async (c) => {
     await recordUploadFailure(id, uploadId, (err as Error).message)
     throw err
   }
-  await q(`update video_uploads set status = 'uploaded', bytes = $2, updated_at = now() where id = $1`, [uploadId, f.size])
-  await audit({ actor, action: 'tutorial.video_uploaded', entityType: 'tutorial', entityId: id, summary: `Uploaded video ${f.fileName}`, ip: ip(c) })
-  void processLocalVideo(id, uploadId, f.key, f.contentType)
-  return c.json({ uploadId, status: 'processing' }, 202)
+  return c.json(await attachUpload(actor, 'tutorial_video', id, f, { videoUploadId: uploadId }, ip(c)), 202)
 })
 
 adminRoutes.post('/admin/tutorials/:id/video/mux-upload', async (c) => {
@@ -452,7 +463,7 @@ adminRoutes.post('/admin/tutorials/:id/video/uploads/:uploadId/failed', async (c
 for (const kind of ['video', 'poster', 'thumbnail'] as const) {
   adminRoutes.get(`/admin/tutorials/:id/preview/${kind}`, async (c) => {
     const m = await tutorialMedia({ id: uuid(c.req.param('id')) }, kind, 'admin')
-    return serveRange(c, m.key, m.type, 'private, no-store')
+    return serveMedia(c, m.key, m.type, 'private, no-store')
   })
 }
 adminRoutes.get('/admin/tutorials/:id/preview/captions/:lang', async (c) => c.body(await captionText({ id: uuid(c.req.param('id')) }, c.req.param('lang'), 'admin'), 200, { 'content-type': 'text/vtt; charset=utf-8', 'cache-control': 'private, no-store' }))

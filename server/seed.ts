@@ -132,16 +132,19 @@ export interface SeedResult {
  */
 export async function seedDemoContent(opts: { reviewerEmail?: string | null; actor?: SessionUser | null }): Promise<SeedResult> {
   if (!demoAllowed()) throw badRequest('Demo content is switched off. It is only available on staging with DEMO_CONTENT=true.')
+  // A transaction level lock held by an open transaction works through
+  // Supabase's transaction pooler too (session locks would not).
   const lockClient = await db().connect()
   try {
-    await lockClient.query('select pg_advisory_lock(727002)')
+    await lockClient.query('begin')
+    await lockClient.query('select pg_advisory_xact_lock(727002)')
     const result = await run(opts)
     if (opts.actor) {
       await audit({ actor: opts.actor, action: 'demo.loaded', entityType: 'demo', summary: `Loaded labeled demo content: ${result.productsCreated} products, ${result.ordersCreated + result.reviewerOrdersCreated} orders and ${result.tutorialsCreated} tutorials added${opts.reviewerEmail ? `, demo orders for ${opts.reviewerEmail}` : ''}. Nothing already present was duplicated.` })
     }
     return result
   } finally {
-    await lockClient.query('select pg_advisory_unlock(727002)').catch(() => {})
+    await lockClient.query('commit').catch(() => {})
     lockClient.release()
   }
 }

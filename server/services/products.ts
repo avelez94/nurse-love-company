@@ -3,6 +3,7 @@
   images, typos) only change the products table and never touch product
   versions or entitlements. New downloads come only from publishRelease().
 */
+import { config } from '../env.js'
 import type { SessionUser } from '../auth.js'
 import { one, q, tx } from '../db/pool.js'
 import { audit } from '../lib/audit.js'
@@ -234,5 +235,5 @@ export async function adminProductDetail(id: string) {
     countAffectedPurchasers(id),
   ])
   const orders = await one<{ n: number }>('select count(distinct order_id)::int as n from order_items where product_id = $1', [id])
-  return { product: p, images, variants, versions, uploads, releases, affected, orderCount: orders?.n ?? 0 }
+  return { product: p, images, variants, versions, uploads, releases, affected, orderCount: orders?.n ?? 0, fileLimitMb: Math.round(config.limits.productFileBytes / 1024 / 1024) }
 }

@@ -12,7 +12,7 @@ import { storage } from '../lib/storage.js'
 import { buildSamplePlannerPdf } from '../../shared/samplePdf.js'
 
 export const TEST_DB = process.env.TEST_DATABASE_URL ?? 'postgres://nurselove:nurselove-local@localhost:5432/nurselove_test'
-export const ORIGIN = 'http://localhost:5173'
+export const ORIGIN = process.env.APP_URL ?? 'http://localhost:5173'
 
 /** On staging tests, every request passes the access gate unless told otherwise. */
 export const GATE = process.env.DEPLOY_ENV === 'staging' ? `Basic ${Buffer.from(`${process.env.STAGING_ACCESS_USER ?? 'nurselove'}:${process.env.STAGING_ACCESS_PASSWORD}`).toString('base64')}` : null
@@ -31,7 +31,7 @@ export async function setup() {
   await q(`truncate ${tables.map((t) => `"${t.tablename}"`).join(', ')} restart identity cascade`)
   await q(`set session_replication_role = origin`)
   await rm('.data/test-storage', { recursive: true, force: true })
-  resetRateLimits()
+  await resetRateLimits()
   setSender(null)
 }
 

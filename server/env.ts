@@ -11,8 +11,13 @@ if (process.env.NODE_ENV !== 'test' && existsSync('.env') && typeof process.load
 
 const e = process.env
 
+/** Numeric setting; an empty value (as CI systems pass for unset variables) means "use the default". */
+const num = (v: string | undefined, fallback: number) => (v && v.trim() ? Number(v) : fallback)
+
 export const isProduction = e.NODE_ENV === 'production'
 export const isTest = e.NODE_ENV === 'test'
+/** Running as Vercel Functions (Vercel sets VERCEL=1). No persistent disk, no long running process. */
+export const onVercel = Boolean(e.VERCEL)
 
 /**
  * Which deployment this is. Production mode (NODE_ENV=production) defaults to
@@ -38,9 +43,17 @@ function devSecret(): string {
 }
 
 export const config = {
-  port: Number(e.PORT ?? 8787),
+  port: num(e.PORT, 8787),
   appUrl: (e.APP_URL ?? 'http://localhost:5173').replace(/\/$/, ''),
   databaseUrl: e.DATABASE_URL ?? '',
+  database: {
+    /** Optional CA certificate (PEM) for verified TLS, for example Supabase's downloadable certificate. */
+    sslCa: (e.DATABASE_SSL_CA ?? '').replace(/\\n/g, '\n'),
+    /** Connections per instance. Serverless instances keep this small and use Supabase's pooler. */
+    poolMax: num(e.DB_POOL_MAX, onVercel ? 3 : 10),
+  },
+  /** Vercel Cron sends this as a Bearer token. Protects the scheduled maintenance endpoint. */
+  cronSecret: e.CRON_SECRET ?? '',
   // Hosted deployments must set this; deploymentProblems() stops the server if not.
   authSecret: e.BETTER_AUTH_SECRET ?? (isProduction ? '' : devSecret()),
 
@@ -58,7 +71,7 @@ export const config = {
   },
 
   storage: {
-    driver: (e.STORAGE_DRIVER ?? 'local') as 'local' | 's3',
+    driver: (e.STORAGE_DRIVER ?? 'local') as 'local' | 's3' | 'supabase',
     localDir: e.LOCAL_STORAGE_DIR ?? '.data/storage',
     s3: {
       endpoint: e.S3_ENDPOINT ?? '',
@@ -66,6 +79,15 @@ export const config = {
       region: e.S3_REGION ?? 'auto',
       accessKeyId: e.S3_ACCESS_KEY_ID ?? '',
       secretAccessKey: e.S3_SECRET_ACCESS_KEY ?? '',
+    },
+    /** Supabase Storage. The service role key never leaves the server. */
+    supabase: {
+      url: (e.SUPABASE_URL ?? '').replace(/\/$/, ''),
+      serviceRoleKey: e.SUPABASE_SERVICE_ROLE_KEY ?? '',
+      /** Private bucket for purchasable files. The server never signs URLs for it. */
+      filesBucket: e.SUPABASE_FILES_BUCKET ?? 'product-files',
+      /** Private bucket for photos, samples and tutorial media, shown through short lived signed links when allowed. */
+      mediaBucket: e.SUPABASE_MEDIA_BUCKET ?? 'media',
     },
   },
 
@@ -92,10 +114,11 @@ export const config = {
   /** One time token that lets the first signed in account become admin. */
   adminBootstrapToken: e.ADMIN_BOOTSTRAP_TOKEN ?? '',
 
+  // Supabase's free plan caps every stored file at 50 MB, so those are the defaults there.
   limits: {
-    productFileBytes: Number(e.MAX_PRODUCT_FILE_MB ?? 200) * 1024 * 1024,
-    imageBytes: Number(e.MAX_IMAGE_MB ?? 10) * 1024 * 1024,
-    videoBytes: Number(e.MAX_VIDEO_MB ?? 2048) * 1024 * 1024,
+    productFileBytes: num(e.MAX_PRODUCT_FILE_MB, e.STORAGE_DRIVER === 'supabase' ? 50 : 200) * 1024 * 1024,
+    imageBytes: num(e.MAX_IMAGE_MB, 10) * 1024 * 1024,
+    videoBytes: num(e.MAX_VIDEO_MB, e.STORAGE_DRIVER === 'supabase' ? 50 : 2048) * 1024 * 1024,
     captionBytes: 512 * 1024,
   },
 
@@ -131,11 +154,21 @@ export function deploymentProblems(): string[] {
   if (!config.databaseUrl) p.push('DATABASE_URL is required.')
   if (!e.BETTER_AUTH_SECRET || e.BETTER_AUTH_SECRET.length < 32) p.push('BETTER_AUTH_SECRET must be set to a random value of at least 32 characters.')
   if (!/^https:\/\//.test(config.appUrl)) p.push('APP_URL must be the https address of this deployment.')
-  if (config.storage.driver === 'local' && !(e.LOCAL_STORAGE_DIR && e.LOCAL_STORAGE_DIR.startsWith('/'))) {
-    p.push('Uploaded files would be lost on restart. Use STORAGE_DRIVER=s3, or STORAGE_DRIVER=local with LOCAL_STORAGE_DIR set to an absolute path on a persistent disk.')
+  if (onVercel) {
+    // Vercel has no persistent disk and caps request bodies, so files must go straight to Supabase Storage.
+    if (config.storage.driver !== 'supabase') p.push('STORAGE_DRIVER must be supabase on Vercel. Its local disk is temporary and request bodies are too small for uploads through the server.')
+    if (config.cronSecret.length < 16) p.push('CRON_SECRET must be set (at least 16 random characters) so the scheduled email retry job can run.')
+  } else if (config.storage.driver === 'local' && !(e.LOCAL_STORAGE_DIR && e.LOCAL_STORAGE_DIR.startsWith('/'))) {
+    p.push('Uploaded files would be lost on restart. Use STORAGE_DRIVER=supabase, or STORAGE_DRIVER=local with LOCAL_STORAGE_DIR set to an absolute path on a persistent disk.')
   }
   if (config.storage.driver === 's3') {
     for (const k of ['S3_ENDPOINT', 'S3_BUCKET', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY']) if (!e[k]) p.push(`${k} is required when STORAGE_DRIVER=s3.`)
+  }
+  if (config.storage.driver === 'supabase') {
+    // The automated tests use a local stand in for Supabase on plain http; real deployments need https.
+    const testStandIn = isTest && /^http:\/\/127\.0\.0\.1:\d+$/.test(config.storage.supabase.url)
+    if (!/^https:\/\//.test(config.storage.supabase.url) && !testStandIn) p.push('SUPABASE_URL must be your Supabase project address (https://YOUR-PROJECT.supabase.co).')
+    if (!config.storage.supabase.serviceRoleKey) p.push('SUPABASE_SERVICE_ROLE_KEY is required when STORAGE_DRIVER=supabase.')
   }
   if (deployEnv === 'staging' && config.staging.accessPassword.length < 16) p.push('STAGING_ACCESS_PASSWORD must be set (at least 16 characters) so the staging site is not open to the public.')
   if (deployEnv === 'production' && config.demoContent) p.push('DEMO_CONTENT=true is only allowed on staging. Remove it from production.')
@@ -150,7 +183,13 @@ export function integrationStatus() {
     demoContent: demoAllowed(),
     payments: { state: paymentsState(), webhook: Boolean(config.stripe.webhookSecret) },
     email: { configured: Boolean(config.resend.apiKey && config.resend.from), webhook: Boolean(config.resend.webhookSecret) },
-    storage: { driver: config.storage.driver, configured: config.storage.driver === 'local' || Boolean(config.storage.s3.bucket && config.storage.s3.accessKeyId) },
+    storage: {
+      driver: config.storage.driver,
+      configured:
+        config.storage.driver === 'local' ||
+        (config.storage.driver === 's3' ? Boolean(config.storage.s3.bucket && config.storage.s3.accessKeyId) : Boolean(config.storage.supabase.url && config.storage.supabase.serviceRoleKey)),
+    },
+    scheduledJobs: Boolean(config.cronSecret),
     video: {
       provider: config.video.provider,
       configured: config.video.provider === 'local' || Boolean(config.video.mux.tokenId && config.video.mux.tokenSecret),

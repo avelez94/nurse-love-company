@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { integrationStatus } from '../env.js'
 import type { AppEnv } from '../http.js'
 import { notFound } from '../lib/errors.js'
-import { serveRange } from '../lib/stream.js'
+import { serveMedia } from '../lib/stream.js'
 import { imageVisibility, publicCatalog, publicProduct } from '../services/catalog.js'
 import { getSettings } from '../services/settings.js'
 import { captionText, publicTutorial, publicTutorials, tutorialMedia } from '../services/tutorials.js'
@@ -31,7 +31,7 @@ publicRoutes.get('/media/:id', async (c) => {
   const img = await imageVisibility(c.req.param('id'))
   const user = c.get('user')
   if (!img || (!img.public && user?.role !== 'admin')) throw notFound('Image')
-  return serveRange(c, img.storage_key, img.content_type, img.public ? 'public, max-age=3600' : 'private, no-store')
+  return serveMedia(c, img.storage_key, img.content_type, img.public ? 'public, max-age=3600' : 'private, no-store')
 })
 
 publicRoutes.get('/status', (c) => {
@@ -52,7 +52,7 @@ for (const kind of ['video', 'poster', 'thumbnail'] as const) {
   publicRoutes.get(`/tutorials/:slug/${kind}`, async (c) => {
     // Short cache so an unpublished tutorial stops playing quickly.
     const m = await tutorialMedia({ slug: c.req.param('slug') }, kind, 'public')
-    return serveRange(c, m.key, m.type, 'public, max-age=60')
+    return serveMedia(c, m.key, m.type, 'public, max-age=60')
   })
 }
 publicRoutes.get('/tutorials/:slug/captions/:lang', async (c) => {

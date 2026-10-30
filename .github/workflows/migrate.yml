@@ -1,0 +1,41 @@
+# Applies database migrations and sets up the private storage buckets.
+# Runs only when someone presses "Run workflow" in the Actions tab; never on push.
+# Each GitHub environment (staging, production) holds its own secrets, so a
+# staging run can never touch production data.
+name: Run database migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Which database to migrate
+        type: choice
+        options: [staging, production]
+        default: staging
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    concurrency: migrate-${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run migrate
+        env:
+          DEPLOY_ENV: ${{ inputs.environment }}
+          # Supabase "Session pooler" connection string (port 5432).
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_SSL_CA: ${{ secrets.DATABASE_SSL_CA }}
+          STORAGE_DRIVER: supabase
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          MAX_PRODUCT_FILE_MB: ${{ vars.MAX_PRODUCT_FILE_MB }}
+          MAX_VIDEO_MB: ${{ vars.MAX_VIDEO_MB }}

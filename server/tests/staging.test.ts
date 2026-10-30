@@ -3,7 +3,8 @@ import './staging-env.js'
 import assert from 'node:assert/strict'
 import { after, beforeEach, describe, it } from 'node:test'
 import { db } from '../db/pool.js'
-import { migrate } from '../db/migrate.js'
+import { latestMigration, migrate } from '../db/migrate.js'
+import { LATEST_MIGRATION } from '../db/schema-version.js'
 import { deploymentProblems } from '../env.js'
 import { api, app, drainOutbox, one, q, setSender, setup, signUp, teardown } from './helpers.js'
 
@@ -153,6 +154,11 @@ describe('migrations', () => {
     await Promise.all([migrate(db()), migrate(db())])
     await migrate(db())
     const applied = await q<{ name: string }>('select name from schema_migrations order by name')
-    assert.deepEqual(applied.map((r) => r.name), ['001_core.sql', '002_demo_keys.sql'])
+    assert.deepEqual(applied.map((r) => r.name), ['001_core.sql', '002_demo_keys.sql', '003_serverless.sql'])
+    // The health check compares the database with this constant, so it must name the newest file.
+    assert.equal(LATEST_MIGRATION, latestMigration())
+    // Supabase's Data API must not see store tables: every public table has row level security on.
+    const open = await q(`select tablename from pg_tables where schemaname = 'public' and not rowsecurity`)
+    assert.deepEqual(open, [])
   })
 })
