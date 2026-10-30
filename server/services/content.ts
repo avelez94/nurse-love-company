@@ -7,8 +7,10 @@ import type { SessionUser } from '../auth.js'
 import { one, q } from '../db/pool.js'
 import { audit } from '../lib/audit.js'
 import { badRequest, notFound } from '../lib/errors.js'
-import { str } from '../lib/validate.js'
+import { str, uuid } from '../lib/validate.js'
+import { PUBLIC_WHERE } from './catalog.js'
 import { linkField } from './marketing.js'
+import { isPlaceholderUrl, showNurseKin, STORY_STARTERS, type StoryFeature } from '../../shared/story.js'
 import { applyConditions, normalizeFaq, publishedSnapshot, starterFaq, type FaqContent, type PublicFaq } from '../../shared/faq.js'
 
 export const STORY_UPLOAD_TARGET = '00000000-0000-0000-0000-0000005707e5'
@@ -20,18 +22,47 @@ export interface Story {
   portraitKey: string | null
   portraitType: string | null
   portraitAlt: string
+  greeting: string
+  /** The short founder introduction. */
   introduction: string
+  storeHeading: string
+  storeIntro: string
+  features: StoryFeature[]
+  shopLabel: string
+  shopLink: string
+  closingNote: string
+  signature: string
+  favoritesEnabled: boolean
+  favoriteIds: string[]
+  /** The longer story sections, optional and kept even when hidden. */
+  showFullStory: boolean
   background: string
   whyCreated: string
   process: string
   whoWeSupport: string
+  /** The earlier closing message; shown only while the closing message is empty. */
   closing: string
   nurseKinText: string
   nurseKinUrl: string
   homeExcerpt: string
 }
 
-const blank: Story = { founderName: '', professionalTitle: '', credentials: '', portraitKey: null, portraitType: null, portraitAlt: '', introduction: '', background: '', whyCreated: '', process: '', whoWeSupport: '', closing: '', nurseKinText: '', nurseKinUrl: '', homeExcerpt: '' }
+// Content published before the redesign has none of the newer fields, so they read as empty
+// (and its longer sections stay visible, as they were).
+const blank: Story = {
+  founderName: '', professionalTitle: '', credentials: '', portraitKey: null, portraitType: null, portraitAlt: '', greeting: '', introduction: '',
+  storeHeading: '', storeIntro: '', features: [], shopLabel: '', shopLink: '', closingNote: '', signature: '', favoritesEnabled: false, favoriteIds: [],
+  showFullStory: true, background: '', whyCreated: '', process: '', whoWeSupport: '', closing: '', nurseKinText: '', nurseKinUrl: '', homeExcerpt: '',
+}
+
+const STARTER_KEYS = ['greeting', 'storeHeading', 'storeIntro', 'features', 'shopLabel', 'shopLink', 'closingNote', 'signature'] as const
+
+/** The draft as the editor sees it: starter wording only where a field was never saved. */
+function draftOf(saved: Partial<Story>): Story {
+  const starters: Partial<Story> = {}
+  for (const k of STARTER_KEYS) if (!(k in saved)) Object.assign(starters, { [k]: structuredClone(STORY_STARTERS[k]) })
+  return { ...blank, ...starters, ...saved }
+}
 
 const text = (v: unknown, field: string, max: number) =>
   str(v, field, { optional: true, max })
@@ -42,44 +73,77 @@ const text = (v: unknown, field: string, max: number) =>
 
 async function row() {
   await q(`insert into site_content (key) values ('our_story') on conflict (key) do nothing`)
-  return (await one<{ draft: Partial<Story>; published: Story | null; published_at: string | null; updated_at: string }>(`select draft, published, published_at, updated_at from site_content where key = 'our_story'`))!
+  return (await one<{ draft: Partial<Story>; published: Partial<Story> | null; published_at: string | null; updated_at: string }>(`select draft, published, published_at, updated_at from site_content where key = 'our_story'`))!
 }
+
+const stable = (s: Story) => JSON.stringify(Object.keys(s).sort().map((k) => [k, s[k as keyof Story]]))
 
 export function storyProblems(s: Story) {
   const p: string[] = []
   if (!s.founderName) p.push('Add the founder name.')
-  if (!s.introduction) p.push('Add the introduction.')
+  if (!s.introduction) p.push('Add the founder introduction.')
   if (!s.homeExcerpt) p.push('Add the short home page introduction.')
   if (!s.portraitKey) p.push('Add a portrait.')
   if (s.portraitKey && !s.portraitAlt) p.push('Describe the portrait (alt text).')
   if (s.nurseKinText && !s.nurseKinUrl) p.push('Add the Nurse Kin link, or remove the Nurse Kin text.')
+  if (s.nurseKinUrl && isPlaceholderUrl(s.nurseKinUrl)) p.push('Replace the placeholder Nurse Kin link with the real address, or clear the Nurse Kin link and text.')
   return p
 }
 
 export async function adminStory() {
   const r = await row()
-  const draft = { ...blank, ...r.draft }
-  return { draft, published: r.published, publishedAt: r.published_at, unpublishedChanges: JSON.stringify(draft) !== JSON.stringify(r.published), problems: storyProblems(draft), uploadTarget: STORY_UPLOAD_TARGET }
+  const draft = draftOf(r.draft)
+  const published = r.published ? { ...blank, ...r.published } : null
+  return { draft, published, publishedAt: r.published_at, unpublishedChanges: !published || stable(draft) !== stable(published), problems: storyProblems(draft), uploadTarget: STORY_UPLOAD_TARGET }
 }
 
+function features(v: unknown): StoryFeature[] {
+  if (!Array.isArray(v)) throw badRequest('Feature cards must be a list.')
+  if (v.length > 3) throw badRequest('Keep to three feature cards.')
+  return v.map((f, i) => ({ heading: text(f?.heading, `Feature card ${i + 1} heading`, 60), text: text(f?.text, `Feature card ${i + 1} description`, 200) }))
+}
+
+async function favoriteIds(v: unknown) {
+  if (!Array.isArray(v)) throw badRequest('Favorites must be a list.')
+  const ids = [...new Set(v.map((x) => uuid(x, 'favorite product')))]
+  if (ids.length > 3) throw badRequest('Choose up to three favorites.')
+  const found = await q<{ id: string }>(`select id from products where id = any($1) and archived_at is null`, [ids])
+  if (found.length !== ids.length) throw badRequest('One of the chosen favorites is no longer in the store.')
+  return ids
+}
+
+/** Saves the fields sent; a field left out of the request keeps its saved value. */
 export async function saveStoryDraft(actor: SessionUser, b: Record<string, unknown>) {
   const r = await row()
-  const current = { ...blank, ...r.draft }
+  const current = draftOf(r.draft)
+  const has = (k: keyof Story) => k in b
+  const t = (k: keyof Story, label: string, max: number) => (has(k) ? text(b[k], label, max) : (current[k] as string))
   const draft: Story = {
     ...current,
-    founderName: text(b.founderName, 'Founder name', 80),
-    professionalTitle: text(b.professionalTitle, 'Professional title', 120),
-    credentials: text(b.credentials, 'Credentials', 200),
-    portraitAlt: text(b.portraitAlt, 'Portrait description', 200),
-    introduction: text(b.introduction, 'Introduction', 1500),
-    background: text(b.background, 'Nursing background', 3000),
-    whyCreated: text(b.whyCreated, 'Why she created Nurse Love Company', 3000),
-    process: text(b.process, 'How resources are made and reviewed', 3000),
-    whoWeSupport: text(b.whoWeSupport, 'Who she hopes to support', 2000),
-    closing: text(b.closing, 'Closing message', 1500),
-    nurseKinText: text(b.nurseKinText, 'Nurse Kin description', 600),
-    nurseKinUrl: linkField(b.nurseKinUrl, 'Nurse Kin link', { httpsOnly: true }),
-    homeExcerpt: text(b.homeExcerpt, 'Home page introduction', 400),
+    founderName: t('founderName', 'Founder name', 80),
+    professionalTitle: t('professionalTitle', 'Professional title', 120),
+    credentials: t('credentials', 'Credentials', 200),
+    portraitAlt: t('portraitAlt', 'Portrait description', 200),
+    greeting: t('greeting', 'Speech bubble greeting', 140),
+    introduction: t('introduction', 'Founder introduction', 1500),
+    storeHeading: t('storeHeading', 'Store heading', 120),
+    storeIntro: t('storeIntro', 'Store introduction', 1500),
+    features: has('features') ? features(b.features) : current.features,
+    shopLabel: t('shopLabel', 'Shop button label', 40),
+    shopLink: has('shopLink') ? linkField(b.shopLink, 'Shop button destination') : current.shopLink,
+    closingNote: t('closingNote', 'Closing message', 600),
+    signature: t('signature', 'Signature', 80),
+    favoritesEnabled: has('favoritesEnabled') ? b.favoritesEnabled === true : current.favoritesEnabled,
+    favoriteIds: has('favoriteIds') ? await favoriteIds(b.favoriteIds) : current.favoriteIds,
+    showFullStory: has('showFullStory') ? b.showFullStory === true : current.showFullStory,
+    background: t('background', 'Nursing background', 3000),
+    whyCreated: t('whyCreated', 'Why she created Nurse Love Company', 3000),
+    process: t('process', 'How resources are made and reviewed', 3000),
+    whoWeSupport: t('whoWeSupport', 'Who she hopes to support', 2000),
+    closing: t('closing', 'Earlier closing message', 1500),
+    nurseKinText: t('nurseKinText', 'Nurse Kin description', 600),
+    nurseKinUrl: has('nurseKinUrl') ? linkField(b.nurseKinUrl, 'Nurse Kin link', { httpsOnly: true }) : current.nurseKinUrl,
+    homeExcerpt: t('homeExcerpt', 'Home page introduction', 400),
   }
   if (draft.homeExcerpt.split(/[.!?](\s|$)/).filter((x) => x && x.trim()).length > 4) throw badRequest('Keep the home page introduction to two or three sentences.')
   await q(`update site_content set draft = $1, updated_by = $2, updated_at = now() where key = 'our_story'`, [JSON.stringify(draft), actor.email])
@@ -88,17 +152,18 @@ export async function saveStoryDraft(actor: SessionUser, b: Record<string, unkno
 
 export async function setStoryPortrait(key: string, type: string) {
   const r = await row()
-  const draft = { ...blank, ...r.draft, portraitKey: key, portraitType: type }
+  const draft = { ...r.draft, portraitKey: key, portraitType: type }
   await q(`update site_content set draft = $1, updated_at = now() where key = 'our_story'`, [JSON.stringify(draft)])
 }
 
 export async function publishStory(actor: SessionUser, action: 'publish' | 'unpublish', ip?: string) {
   const r = await row()
-  const draft = { ...blank, ...r.draft }
+  const draft = draftOf(r.draft)
   if (action === 'publish') {
     const problems = storyProblems(draft)
     if (problems.length) throw badRequest(`Our Story is not ready to publish. ${problems.join(' ')}`)
-    await q(`update site_content set published = draft, published_at = now(), updated_by = $1, updated_at = now() where key = 'our_story'`, [actor.email])
+    // What she previewed is what goes live, starter wording included.
+    await q(`update site_content set draft = $1, published = $1, published_at = now(), updated_by = $2, updated_at = now() where key = 'our_story'`, [JSON.stringify(draft), actor.email])
   } else {
     await q(`update site_content set published = null, updated_by = $1, updated_at = now() where key = 'our_story'`, [actor.email])
   }
@@ -110,13 +175,20 @@ export async function publishStory(actor: SessionUser, action: 'publish' | 'unpu
 export async function publicStory() {
   const r = await row()
   if (!r.published) return null
-  const { portraitKey, portraitType, ...rest } = { ...blank, ...r.published }
-  return { ...rest, portraitUrl: portraitKey ? `/api/content/our-story/portrait?v=${encodeURIComponent(r.published_at ?? '')}` : null }
+  const { portraitKey, portraitType, favoriteIds, favoritesEnabled, ...rest } = { ...blank, ...r.published }
+  // Favorites that are no longer for sale simply drop out, keeping her order.
+  const live = favoritesEnabled && favoriteIds.length ? (await q<{ id: string }>(`select p.id from products p where p.id = any($1) and ${PUBLIC_WHERE}`, [favoriteIds])).map((x) => x.id) : []
+  return {
+    ...rest,
+    ...(showNurseKin(rest) ? {} : { nurseKinText: '', nurseKinUrl: '' }),
+    favoriteIds: favoriteIds.filter((id) => live.includes(id)),
+    portraitUrl: portraitKey ? `/api/content/our-story/portrait?v=${encodeURIComponent(r.published_at ?? '')}` : null,
+  }
 }
 
 export async function storyPortrait(which: 'published' | 'draft') {
   const r = await row()
-  const s = which === 'published' ? r.published : { ...blank, ...r.draft }
+  const s = which === 'published' ? r.published : r.draft
   if (!s?.portraitKey) throw notFound('Portrait')
   return { key: s.portraitKey, type: s.portraitType ?? 'image/jpeg' }
 }

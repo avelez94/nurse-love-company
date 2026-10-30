@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { StoryFeature } from '../../shared/story'
 
 /** The published Our Story content. Null until the owner publishes it (or if the store server is unavailable). */
 export interface PublicStory {
@@ -7,7 +8,18 @@ export interface PublicStory {
   credentials: string
   portraitUrl: string | null
   portraitAlt: string
+  greeting: string
   introduction: string
+  storeHeading: string
+  storeIntro: string
+  features: StoryFeature[]
+  shopLabel: string
+  shopLink: string
+  closingNote: string
+  signature: string
+  /** Favorites still for sale, in her order. Empty when the section is off. */
+  favoriteIds: string[]
+  showFullStory: boolean
   background: string
   whyCreated: string
   process: string

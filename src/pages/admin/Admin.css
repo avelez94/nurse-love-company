@@ -608,11 +608,41 @@
   gap: var(--space-3);
   padding: var(--space-4);
   border-radius: var(--radius-md);
+  background: var(--blush);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.story-ed__preview-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: space-between;
+  align-items: start;
+  margin-bottom: var(--space-3);
+}
+.story-ed__preview-bar .segmented {
+  display: flex;
+  gap: var(--space-2);
+}
+/* A page sized window, scaled to fit: the story lays itself out by its own width, as on the site. */
+.story-ed__frame-wrap {
+  overflow: hidden;
+}
+.story-ed__frame {
+  max-width: none;
+  margin-inline: auto;
+  transform-origin: top left;
   background: var(--ivory);
   border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
 }
-.story-ed__preview .founder__inner {
+.story-ed__frame .founder__inner {
   max-width: none;
+}
+.story-ed__more summary {
+  cursor: pointer;
+  padding-block: var(--space-2);
 }
 
 /* Email automations */

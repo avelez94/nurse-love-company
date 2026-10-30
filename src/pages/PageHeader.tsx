@@ -7,7 +7,7 @@ export interface Crumb {
   route?: string
 }
 
-export function PageHeader({ title, intro, crumbs, children, eyebrow }: { title: string; intro?: ReactNode; crumbs?: Crumb[]; children?: ReactNode; eyebrow?: string }) {
+export function PageHeader({ title, titleAccent, intro, crumbs, children, eyebrow }: { title: string; titleAccent?: ReactNode; intro?: ReactNode; crumbs?: Crumb[]; children?: ReactNode; eyebrow?: string }) {
   return (
     <header className="page-header">
       <div className="container">
@@ -23,7 +23,10 @@ export function PageHeader({ title, intro, crumbs, children, eyebrow }: { title:
           </nav>
         )}
         {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-        <h1 className="page-header__title">{title}</h1>
+        <h1 className="page-header__title">
+          {title}
+          {titleAccent}
+        </h1>
         {intro && <div className="page-header__intro">{intro}</div>}
         {children}
       </div>

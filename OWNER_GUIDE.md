@@ -98,9 +98,18 @@ The product page shows the average and count from **published** reviews only, th
 
 # Our Story
 
-Content, **Our Story**. The page is titled "Meet the nurse behind the love". Fill in your own words; empty sections are left out. Required before publishing: your name, a portrait with a short description, the introduction, and the home page introduction (two or three sentences). Optional: title, credentials, nursing background, why you started, how resources are made and reviewed, who you hope to support, a closing message, and a Nurse Kin paragraph with its link.
+Content, **Our Story**. The page is titled "Meet the nurse behind the love" and reads like a little handwritten welcome: your portrait with a strip of gingham tape and a speech bubble, an introduction to the store, three small cards, and a signed closing note. Empty sections are left out.
 
-The preview shows the home page introduction and the full page. **Publish** makes both live; the home page introduction appears between "A little extra cute" and The Freebie Corner. Later edits stay in the draft until you publish again.
+The editor has four groups:
+
+* **About the founder**: public display name, optional title and credentials, portrait and its description, the speech bubble greeting, and a short introduction. No employers, dates or private details are needed.
+* **About the store**: the heading, the store introduction, the three card headings and descriptions, and the shop button label and destination (for example `#shop`).
+* **Closing and extras**: the closing message and signature, up to three favorite products (shown only when you turn the section on, and only while they are published and for sale), and Nurse Kin (shown only with your description and the real Nurse Kin address; placeholder addresses such as example.com are never shown and block publishing).
+* **Homepage introduction**: the two or three sentences shown with your portrait between "A little extra cute" and The Freebie Corner. Under **More of her story (optional)** are the longer sections (nursing background, why you started, how resources are made, who you hope to support, and an earlier closing message). They are kept even while hidden; the checkbox decides whether they appear under "More of my story".
+
+Fields you have never saved start with suggested wording for you to review. Nothing reaches visitors until you press **Publish**, and what you previewed is exactly what goes live. Required before publishing: your name, a portrait with a short description, the founder introduction, and the home page introduction.
+
+The preview lays the page out at a real desktop, tablet or phone width and scales it to fit, so it matches the public page. Later edits stay in the draft until you publish again; **Unpublish** takes the page back to the general text.
 
 # Product previews ("Peek inside")
 

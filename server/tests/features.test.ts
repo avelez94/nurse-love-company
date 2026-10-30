@@ -268,6 +268,56 @@ describe('Our Story', () => {
     await api('/api/admin/content/our-story/unpublish', { session: a, method: 'POST' })
     assert.equal((await api('/api/content/our-story')).data.story, null)
   })
+
+  it('starter wording fills only never saved fields; favorites and Nurse Kin show only when real', async () => {
+    const a = await admin()
+    // Content saved before the redesign (no newer fields), published as it was.
+    const old = { founderName: 'Owner Name', introduction: 'Her intro.', homeExcerpt: 'Short.', portraitKey: 'content/our-story/x', portraitType: 'image/jpeg', portraitAlt: 'Portrait', closing: 'Her own closing.', background: 'Her background.', nurseKinText: 'About Kin.', nurseKinUrl: 'https://example.com/' }
+    await q(`insert into site_content (key, draft, published, published_at) values ('our_story', $1, $1, now())`, [JSON.stringify(old)])
+    const pub = (await api('/api/content/our-story')).data.story
+    assert.equal(pub.greeting, '', 'no starter wording reaches visitors')
+    assert.equal(pub.background, 'Her background.')
+    assert.equal(pub.showFullStory, true, 'longer sections published earlier stay visible')
+    assert.deepEqual([pub.nurseKinText, pub.nurseKinUrl], ['', ''], 'placeholder Nurse Kin link is never shown')
+
+    const ed = (await api('/api/admin/content/our-story', { session: a })).data
+    assert.match(ed.draft.greeting, /^Hi, I’m Lada!/)
+    assert.equal(ed.draft.features.length, 3)
+    assert.equal(ed.draft.closing, 'Her own closing.', 'earlier closing kept')
+    assert.equal(ed.draft.background, 'Her background.')
+    assert.ok(ed.problems.some((p: string) => /placeholder Nurse Kin/.test(p)))
+    assert.ok(!/—|–/.test(JSON.stringify(ed.draft)), 'starter wording has no dashes')
+    assert.equal(ed.unpublishedChanges, true)
+
+    // Saving one field keeps the rest; clearing the greeting keeps it cleared.
+    const saved = await api('/api/admin/content/our-story', { session: a, method: 'PUT', body: { greeting: '' } })
+    assert.equal(saved.status, 200, JSON.stringify(saved.data))
+    assert.equal(saved.data.draft.greeting, '')
+    assert.equal(saved.data.draft.introduction, 'Her intro.')
+    assert.equal(saved.data.draft.storeHeading, 'A little shop. A lot of nurse love.')
+    assert.equal((await api('/api/admin/content/our-story', { session: a, method: 'PUT', body: { shopLink: 'javascript:alert(1)' } })).status, 400)
+    assert.equal((await api('/api/admin/content/our-story', { session: a, method: 'PUT', body: { favoriteIds: ['not-an-id'] } })).status, 400)
+
+    // Favorites: up to three, only published products for sale, in her order.
+    const p1 = await digitalProduct('fav-one')
+    const p2 = await digitalProduct('fav-two')
+    const draftOnly = await digitalProduct('fav-draft')
+    await q(`update products set status = 'draft' where id = $1`, [draftOnly])
+    assert.equal((await api('/api/admin/content/our-story', { session: a, method: 'PUT', body: { favoriteIds: [p1, p2, draftOnly, p1] } })).status, 200, 'duplicates collapse')
+    await api('/api/admin/content/our-story', { session: a, method: 'PUT', body: { nurseKinUrl: '', nurseKinText: '' } })
+    assert.equal((await api('/api/admin/content/our-story/publish', { session: a, method: 'POST' })).status, 200)
+    let story = (await api('/api/content/our-story')).data.story
+    assert.deepEqual(story.favoriteIds, [], 'hidden until enabled')
+    assert.equal(story.storeHeading, 'A little shop. A lot of nurse love.', 'previewed starter wording goes live on publish')
+    await api('/api/admin/content/our-story', { session: a, method: 'PUT', body: { favoritesEnabled: true, favoriteIds: [p2, draftOnly, p1] } })
+    await api('/api/admin/content/our-story/publish', { session: a, method: 'POST' })
+    story = (await api('/api/content/our-story')).data.story
+    assert.deepEqual(story.favoriteIds, [p2, p1], 'unpublished favorite hidden')
+    assert.equal('favoritesEnabled' in story, false)
+    await q(`update products set active = false where id = $1`, [p2])
+    assert.deepEqual((await api('/api/content/our-story')).data.story.favoriteIds, [p1], 'unavailable favorite drops out')
+    assert.equal((await api('/api/admin/content/our-story', { session: a, method: 'PUT', body: { favoriteIds: [p1, p2, draftOnly, await digitalProduct('fav-four')] } })).status, 400)
+  })
 })
 
 /* ---------- Product previews ---------- */

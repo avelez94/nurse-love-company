@@ -565,7 +565,10 @@
   }
 }
 
-/* Founder introduction (only after the owner publishes Our Story) */
+/* Founder introduction (only after the owner publishes Our Story). Sized by its own width so the admin preview matches. */
+.founder {
+  container: founder / inline-size;
+}
 .founder__inner {
   display: flex;
   align-items: center;
@@ -599,7 +602,7 @@
   font-weight: 400;
   font-size: var(--text-xl);
 }
-@media (max-width: 640px) {
+@container founder (max-width: 640px) {
   .founder__inner {
     flex-direction: column;
     align-items: flex-start;

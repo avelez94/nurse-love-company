@@ -1,0 +1,373 @@
+/*
+  Our Story: a little handwritten welcome. Ivory paper, blush borders, one
+  strip of pink gingham tape and a speech bubble. Layout follows the width
+  of the story itself (a container query), so the admin preview matches the
+  public page at any size.
+*/
+.os-page {
+  padding-block: var(--space-6) var(--space-8);
+}
+.os-heading-heart {
+  display: inline-block;
+  width: 0.95em;
+  height: 0.86em;
+  margin-left: 0.3em;
+  vertical-align: -0.02em;
+  fill: none;
+  stroke: var(--raspberry);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform: rotate(8deg);
+}
+.os-subtitle {
+  font-size: var(--text-lg);
+  color: var(--burgundy-soft);
+}
+
+.os {
+  --gingham: repeating-linear-gradient(0deg, rgb(246 201 214 / 0.7) 0 6px, transparent 6px 12px), repeating-linear-gradient(90deg, rgb(246 201 214 / 0.7) 0 6px, transparent 6px 12px);
+  container: os / inline-size;
+  display: grid;
+  gap: var(--space-7);
+  line-height: 1.65;
+}
+.os p {
+  margin: 0;
+}
+
+/* Founder and store introduction */
+.os-intro {
+  display: grid;
+  gap: var(--space-6);
+  align-items: start;
+}
+.os-founder {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+.os-founder__text {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 60ch;
+}
+.os-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--text-2xl);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.os-role {
+  color: var(--burgundy-soft);
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+/* Portrait with gingham tape and the greeting */
+.os-photo {
+  display: grid;
+  justify-items: start;
+}
+.os-frame {
+  position: relative;
+  margin: 0;
+  width: min(100%, 300px);
+  padding: 10px;
+  border-radius: var(--radius-lg);
+  background: var(--white);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+}
+.os-frame img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+}
+.os-tape {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  width: 104px;
+  height: 26px;
+  translate: -50% 0;
+  rotate: -4deg;
+  background: var(--gingham), var(--blush);
+  border-radius: 3px;
+  box-shadow: 0 2px 4px rgb(var(--shadow-color) / 0.1);
+  opacity: 0.95;
+}
+.os .os-bubble {
+  position: relative;
+  z-index: 1;
+  max-width: 260px;
+  margin: -22px 0 0 28px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--ivory);
+  border: 1px solid var(--pink-deep);
+  box-shadow: var(--shadow-sm);
+  color: var(--burgundy);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  animation: os-hello var(--dur-section) var(--ease-out) 240ms both;
+}
+/* The tail: a small turned square sharing the bubble's border. Points up at the portrait. */
+.os-bubble::before {
+  content: '';
+  position: absolute;
+  top: -7px;
+  left: 30px;
+  width: 12px;
+  height: 12px;
+  background: var(--ivory);
+  border-top: 1px solid var(--pink-deep);
+  border-left: 1px solid var(--pink-deep);
+  rotate: 45deg;
+}
+@keyframes os-hello {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* About the store: a note card with a stitched edge */
+.os-store {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+  min-width: 0;
+  padding: var(--space-6);
+  border-radius: var(--radius-lg);
+  background: var(--white);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  outline: 1px dashed var(--pink-deep);
+  outline-offset: -10px;
+}
+.os-store__title {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--text-xl);
+  line-height: 1.2;
+  color: var(--burgundy);
+}
+.os-store p:last-of-type {
+  color: var(--burgundy);
+  font-weight: 600;
+}
+.os-store__cta {
+  margin-top: var(--space-2);
+}
+
+/* Feature cards */
+.os-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.os-feature {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  padding: var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--white);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+.os-feature:hover {
+  transform: translateY(var(--lift));
+  box-shadow: var(--shadow-md);
+}
+.os-feature__icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--blush);
+  border: 1px solid var(--pink-deep);
+  color: var(--raspberry-dark);
+}
+.os-feature__title {
+  margin: var(--space-1) 0 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--text-lg);
+  color: var(--burgundy);
+}
+.os-feature p {
+  color: var(--burgundy-soft);
+}
+
+.os-section-title {
+  margin: 0 0 var(--space-4);
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--text-xl);
+}
+
+/* Optional longer story */
+.os-more__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: var(--space-4);
+}
+.os-more__card {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  padding: var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--white);
+  border: 1px solid var(--border);
+}
+.os-more__heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--text-lg);
+  color: var(--raspberry-dark);
+}
+
+/* Closing note: ivory notepaper with a gingham band */
+.os-note {
+  position: relative;
+  display: grid;
+  gap: var(--space-3);
+  justify-items: center;
+  width: min(100%, 640px);
+  margin-inline: auto;
+  padding: var(--space-7) var(--space-6) var(--space-6);
+  border-radius: var(--radius-lg);
+  background: var(--ivory);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  text-align: center;
+  overflow: hidden;
+}
+.os-note::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 12px;
+  background: var(--gingham), var(--blush);
+  border-bottom: 1px solid var(--pink-deep);
+}
+.os-note__text {
+  font-size: var(--text-lg);
+  white-space: pre-line;
+}
+.os .os-signature {
+  margin-top: var(--space-2);
+  font-family: var(--font-script);
+  font-size: clamp(1.6rem, 1.3rem + 1vw, 2rem);
+  line-height: 1.25;
+  color: var(--burgundy);
+  white-space: pre-line;
+}
+.os-signature__heart {
+  display: inline-block;
+  width: 0.7em;
+  height: 0.7em;
+  margin-left: 0.25em;
+  vertical-align: 0.05em;
+  fill: none;
+  stroke: var(--raspberry);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  animation: os-draw 900ms var(--ease-out) 500ms both;
+}
+@keyframes os-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+
+/* Nurse Kin: small, near the bottom */
+.os-kin {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+  width: min(100%, 640px);
+  margin-inline: auto;
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--blush);
+  border: 1px solid var(--pink-deep);
+  font-size: var(--text-sm);
+}
+.os-kin__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--text-lg);
+}
+
+/* Wider stories: bubble beside the portrait, founder and store side by side */
+@container os (min-width: 560px) {
+  .os-photo:has(.os-bubble) {
+    grid-template-columns: minmax(0, 300px) minmax(140px, 230px);
+    align-items: end;
+  }
+  .os .os-bubble {
+    margin: 0 0 var(--space-7) -26px;
+  }
+  .os-bubble::before {
+    top: auto;
+    bottom: 18px;
+    left: -7px;
+    border-top: 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--pink-deep);
+  }
+}
+@container os (min-width: 900px) {
+  .os-intro {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: var(--space-7);
+  }
+  .os-store {
+    margin-top: var(--space-6);
+  }
+  /* Without the store card, the founder spreads across the row. */
+  .os-intro--solo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .os-intro--solo .os-founder {
+    grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-7);
+  }
+  .os-intro--solo .os-founder:has(.os-bubble) {
+    grid-template-columns: minmax(0, 520px) minmax(0, 1fr);
+  }
+}
+@container os (max-width: 520px) {
+  .os-store,
+  .os-note {
+    padding-inline: var(--space-4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .os .os-bubble,
+  .os-signature__heart {
+    animation: none;
+  }
+}
