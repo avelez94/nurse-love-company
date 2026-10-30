@@ -20,6 +20,7 @@ import { Product } from './pages/Product'
 import { Shop } from './pages/Shop'
 import { Tutorials, TutorialWatch } from './pages/Tutorials'
 import { Freebies, Help, NotFound, Story } from './pages/Simple'
+import { ServerUnavailablePage } from './components/Unavailable'
 
 // The admin dashboard (and its rich text editor) loads only for admins.
 const AdminApp = lazy(() => import('./pages/admin/AdminApp'))
@@ -61,6 +62,12 @@ function useTitle(route: Route): string {
 }
 
 function Page({ route }: { route: Route }) {
+  const { status } = useStore()
+  // Accounts, checkout and dashboards need the store server; say so instead of offering forms that cannot work.
+  if (status === 'offline' && (route.name === 'auth' || route.name === 'account' || route.name === 'checkout' || route.name === 'admin')) {
+    const title = route.name === 'checkout' ? 'Checkout is not available yet' : route.name === 'admin' ? 'Store admin is not available yet' : 'Accounts are not available yet'
+    return <ServerUnavailablePage title={title}>This preview is for reviewing the design. Signing in, accounts, checkout and the store dashboards turn on once the store is connected.</ServerUnavailablePage>
+  }
   switch (route.name) {
     case 'home':
       return <Home />
@@ -111,7 +118,7 @@ function OfflineBanner() {
   if (status !== 'offline') return null
   return (
     <p className="offline-banner" role="status">
-      Design preview: the store server is not connected, so example products are shown and accounts and checkout are unavailable.
+      Design preview. The store is not connected yet, so products, tutorials, accounts and checkout are switched off.
     </p>
   )
 }
@@ -123,6 +130,7 @@ function Shell() {
   const first = useRef(true)
   const key = JSON.stringify(route)
   const title = useTitle(route)
+  const { status } = useStore()
 
   useEffect(() => {
     document.title = title
@@ -138,7 +146,7 @@ function Shell() {
     main.current?.focus({ preventScroll: true })
   }, [key])
 
-  if (route.name === 'admin') {
+  if (route.name === 'admin' && status !== 'offline') {
     return (
       <Suspense fallback={<Loading label="Loading store admin..." />}>
         <AdminApp view={route.view} param={route.param} />

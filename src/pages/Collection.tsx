@@ -4,12 +4,13 @@ import { useStore } from '../lib/store'
 import { DigitalLabel } from '../components/Labels'
 import { ProductCard } from '../components/ProductCard'
 import { href } from '../lib/router'
+import { ServerUnavailable } from '../components/Unavailable'
 import { PageHeader } from './PageHeader'
 
 export function Collection({ id }: { id: 'nurse-inserts' | 'np-inserts' }) {
   const category = getCategory(id)
   const other = getCategory(id === 'nurse-inserts' ? 'np-inserts' : 'nurse-inserts')
-  const { productsIn } = useStore()
+  const { productsIn, status } = useStore()
   const list = productsIn(id)
   return (
     <>
@@ -25,12 +26,18 @@ export function Collection({ id }: { id: 'nurse-inserts' | 'np-inserts' }) {
         }
       />
       <section className="container shop" aria-label={`${category.title} resources`}>
-        <p className="shop__count">{list.length} {list.length === 1 ? 'resource' : 'resources'}</p>
-        <div className="product-grid">
-          {list.map((p, i) => (
-            <ProductCard key={p.id} product={p} style={{ animationDelay: `${i * 40}ms` }} />
-          ))}
-        </div>
+        {status === 'offline' && list.length === 0 ? (
+          <ServerUnavailable title="Products are on their way">This preview is not connected to the store yet, so there are no products to show. They will appear here once it is.</ServerUnavailable>
+        ) : (
+          <>
+            <p className="shop__count">{list.length} {list.length === 1 ? 'resource' : 'resources'}</p>
+            <div className="product-grid">
+              {list.map((p, i) => (
+                <ProductCard key={p.id} product={p} style={{ animationDelay: `${i * 40}ms` }} />
+              ))}
+            </div>
+          </>
+        )}
         <div className="collection-next">
           <a className="arrow-link" href={href(other.route)}>
             Explore {other.title} <ArrowRight className="arrow" aria-hidden="true" size={18} />

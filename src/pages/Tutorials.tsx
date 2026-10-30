@@ -1,3 +1,4 @@
+import { ServerUnavailable, ServerUnavailablePage } from '../components/Unavailable'
 import { ArrowRight, Info, PlayCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { Tutorial, TutorialCategoryId } from '../data/types'
@@ -99,9 +100,11 @@ export function Tutorials() {
           )}
         </div>
         <p className="shop__count" aria-live="polite">
-          {status === 'loading' ? 'Loading tutorials...' : filter === 'all' ? `${tutorials.length} ${tutorials.length === 1 ? 'tutorial' : 'tutorials'}` : `${list.length} ${list.length === 1 ? 'tutorial' : 'tutorials'} in ${getTutorialCategory(filter).title}`}
+          {status === 'loading' ? 'Loading tutorials...' : status === 'offline' && tutorials.length === 0 ? '' : filter === 'all' ? `${tutorials.length} ${tutorials.length === 1 ? 'tutorial' : 'tutorials'}` : `${list.length} ${list.length === 1 ? 'tutorial' : 'tutorials'} in ${getTutorialCategory(filter).title}`}
         </p>
-        {list.length > 0 ? (
+        {status === 'offline' && tutorials.length === 0 ? (
+          <ServerUnavailable title="Tutorials are on their way">This preview is not connected to the store yet, so there are no tutorials to show. They will appear here once it is.</ServerUnavailable>
+        ) : list.length > 0 ? (
           <div className="tutorial-grid" key={filter}>
             {list.map((t, i) => (
               <TutorialCard key={t.id} tutorial={t} style={{ animationDelay: `${i * 50}ms` }} />
@@ -159,6 +162,7 @@ export function TutorialWatch({ slug }: { slug: string }) {
   const { getTutorial, tutorials, products, status } = useStore()
   const tutorial = getTutorial(slug)
   if (!tutorial && status === 'loading') return <div className="container page-loading" role="status">Loading tutorial...</div>
+  if (!tutorial && status === 'offline') return <ServerUnavailablePage title="This tutorial is not available yet" />
   if (!tutorial) return <NotFound />
   const category = getTutorialCategory(tutorial.category)
   const transcript = tutorial.transcript ?? tutorial.captions.flatMap((c) => (c.vtt ? captionText(c.vtt) : []))

@@ -1,3 +1,4 @@
+import { ServerUnavailablePage } from '../components/Unavailable'
 import { ArrowRight, Check, ShoppingBag } from 'lucide-react'
 import { useState } from 'react'
 import { getCategory } from '../data/catalog'
@@ -29,6 +30,7 @@ export function Product({ slug }: { slug: string }) {
   const { getProduct, status } = useStore()
   const product = getProduct(slug)
   if (!product && status === 'loading') return <div className="container page-loading" role="status">Loading product...</div>
+  if (!product && status === 'offline') return <ServerUnavailablePage title="This product is not available yet" />
   if (!product) return <NotFound />
   return <ProductView product={product} key={product.id} />
 }

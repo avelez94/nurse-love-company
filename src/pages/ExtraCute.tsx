@@ -1,3 +1,4 @@
+import { ServerUnavailable } from '../components/Unavailable'
 import { categories } from '../data/catalog'
 import { useStore } from '../lib/store'
 import { site } from '../data/site'
@@ -18,7 +19,7 @@ const tabs: Array<{ id: Tab; label: string; route: string }> = [
 
 /* Physical merchandise. Kept separate from digital downloads. */
 export function ExtraCute({ tab }: { tab: Tab }) {
-  const { productsIn } = useStore()
+  const { productsIn, status } = useStore()
   const category = tab === 'all' ? null : categories.find((c) => c.id === tab)
   const list = tab === 'all' ? productsIn('apparel', 'accessories', 'pens', 'other').filter((p) => p.type === 'physical') : productsIn(tab as CategoryId)
   return (
@@ -41,8 +42,10 @@ export function ExtraCute({ tab }: { tab: Tab }) {
             </a>
           ))}
         </nav>
-        <p className="shop__count">{list.length} {list.length === 1 ? 'item' : 'items'}</p>
-        {list.length > 0 ? (
+        {status !== 'offline' && <p className="shop__count">{list.length} {list.length === 1 ? 'item' : 'items'}</p>}
+        {status === 'offline' && list.length === 0 ? (
+          <ServerUnavailable title="Items are on their way">This preview is not connected to the store yet, so there are no items to show. They will appear here once it is.</ServerUnavailable>
+        ) : list.length > 0 ? (
           <div className="product-grid" key={tab}>
             {list.map((p, i) => (
               <ProductCard key={p.id} product={p} style={{ animationDelay: `${i * 40}ms` }} />

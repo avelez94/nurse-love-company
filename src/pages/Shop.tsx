@@ -1,3 +1,4 @@
+import { ServerUnavailable } from '../components/Unavailable'
 import { Search, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { categories } from '../data/catalog'
@@ -76,9 +77,11 @@ export function Shop() {
           </div>
         </div>
         <p className="shop__count" aria-live="polite">
-          {status === 'loading' ? 'Loading resources...' : `Showing ${results.length} of ${all.length} resources`}
+          {status === 'loading' ? 'Loading resources...' : status === 'offline' && all.length === 0 ? '' : `Showing ${results.length} of ${all.length} resources`}
         </p>
-        {results.length > 0 ? (
+        {status === 'offline' && all.length === 0 ? (
+          <ServerUnavailable title="Products are on their way">This preview is not connected to the store yet, so there are no products to show. They will appear here once it is.</ServerUnavailable>
+        ) : results.length > 0 ? (
           <div className="product-grid" key={selected.join() + query}>
             {results.map((p, i) => (
               <ProductCard key={p.id} product={p} style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }} />

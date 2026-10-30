@@ -9,7 +9,7 @@ export function Footer() {
   const { status, payments } = useStore()
   const notice =
     status === 'offline'
-      ? site.prototypeNotice
+      ? 'Design preview. The store is not connected yet, so nothing can be purchased.'
       : payments === 'live'
         ? null
         : payments === 'test'

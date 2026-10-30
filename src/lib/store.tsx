@@ -7,8 +7,10 @@ import { api } from './api'
 
 /*
   Live catalog from the store API. If the API cannot be reached (for example
-  the static design preview), the bundled example catalog is shown instead and
-  the page says so.
+  the design preview before the database is connected), lists stay empty and
+  pages show that the store is not connected, rather than standing in other
+  content. Only the single page "artifact" design build uses the bundled
+  example catalog.
 */
 
 interface ApiImage {
@@ -189,8 +191,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setEnvironment(st.environment ?? 'unknown')
       setStatus('live')
     } catch {
-      setProducts(exampleProducts)
-      setTutorials(exampleTutorials)
+      const artifact = import.meta.env.MODE === 'artifact'
+      setProducts(artifact ? exampleProducts : [])
+      setTutorials(artifact ? exampleTutorials : [])
       setStatus('offline')
     }
   }, [])
