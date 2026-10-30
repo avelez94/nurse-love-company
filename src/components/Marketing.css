@@ -1,0 +1,310 @@
+/*
+  Owner managed banners and the Nurse Kin popup. Four preset themes in the
+  brand palette (no purple), calm entrance, no marquees or flashing.
+  Text colors meet WCAG AA contrast on each background.
+*/
+.promo-theme--blush {
+  --promo-bg: var(--blush);
+  --promo-fg: var(--burgundy);
+  --promo-muted: var(--burgundy-soft);
+  --promo-border: var(--pink-deep);
+  --promo-btn-bg: var(--raspberry);
+  --promo-btn-fg: var(--white);
+  --promo-code-bg: var(--white);
+}
+.promo-theme--raspberry {
+  --promo-bg: var(--raspberry);
+  --promo-fg: var(--white);
+  --promo-muted: #fff4f7;
+  --promo-border: var(--raspberry-dark);
+  --promo-btn-bg: var(--white);
+  --promo-btn-fg: var(--raspberry-dark);
+  --promo-code-bg: var(--raspberry-dark);
+}
+.promo-theme--ivory {
+  --promo-bg: var(--ivory);
+  --promo-fg: var(--burgundy);
+  --promo-muted: var(--burgundy-soft);
+  --promo-border: var(--border);
+  --promo-btn-bg: var(--burgundy);
+  --promo-btn-fg: var(--white);
+  --promo-code-bg: var(--blush);
+}
+.promo-theme--sage {
+  --promo-bg: #e7efe4;
+  --promo-fg: #1f3a2a;
+  --promo-muted: #34503f;
+  --promo-border: #c9d9c3;
+  --promo-btn-bg: #2d5a41;
+  --promo-btn-fg: var(--white);
+  --promo-code-bg: var(--white);
+}
+
+/* ---------- Announcement bar ---------- */
+.promo-bar {
+  position: relative;
+  background: var(--promo-bg);
+  color: var(--promo-fg);
+  border-bottom: 1px solid var(--promo-border);
+  padding: 6px calc(var(--gutter-r) + 40px) 6px calc(var(--gutter) + 40px);
+  text-align: center;
+  animation: promo-in var(--dur-section) var(--ease-out) both;
+}
+.promo-bar__text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3em 0.7em;
+  min-height: 24px;
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+.promo-bar__code {
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--promo-code-bg);
+  border: 1px dashed var(--promo-border);
+}
+.promo-bar__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  min-height: 24px;
+}
+.promo-bar__fine {
+  font-size: var(--text-xs);
+  color: var(--promo-muted);
+  margin-top: 2px;
+}
+.promo-bar__close {
+  position: absolute;
+  top: 50%;
+  right: max(4px, var(--gutter-r) - 12px);
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.promo-bar__close:focus-visible,
+.promo__close:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+/* ---------- Strip and image banners ---------- */
+.promo-slot {
+  margin-block: var(--space-6);
+}
+.promo-wrap {
+  container-type: inline-size;
+}
+.promo {
+  position: relative;
+  display: grid;
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-5) var(--space-6);
+  border-radius: var(--radius-lg);
+  background: var(--promo-bg);
+  color: var(--promo-fg);
+  border: 1px solid var(--promo-border);
+  box-shadow: var(--shadow-sm);
+  animation: promo-in var(--dur-section) var(--ease-out) both;
+}
+.promo--has-image {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: var(--space-5);
+}
+.promo__media img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+}
+.promo__copy {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+  padding-right: 32px;
+}
+.promo--strip .promo__copy {
+  justify-items: center;
+  text-align: center;
+  padding-inline: 32px;
+}
+.promo__headline {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 400;
+  line-height: 1.15;
+  color: inherit;
+}
+.promo__icon {
+  display: inline-block;
+  vertical-align: -0.1em;
+  margin-right: 0.35em;
+}
+.promo__body {
+  color: var(--promo-muted);
+  max-width: 60ch;
+  white-space: pre-line;
+}
+.promo__coupon {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--promo-muted);
+}
+.promo__code {
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  border: 1.5px dashed var(--promo-border);
+  background: var(--promo-code-bg);
+  color: var(--promo-fg);
+}
+.promo__button {
+  --btn-bg: var(--promo-btn-bg);
+  --btn-fg: var(--promo-btn-fg);
+  --btn-border: var(--promo-btn-bg);
+}
+.promo__close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+@container (max-width: 560px) {
+  .promo {
+    padding: var(--space-5) var(--space-4);
+  }
+  .promo--has-image {
+    grid-template-columns: 1fr;
+  }
+  .promo__copy {
+    padding-right: 0;
+  }
+  .promo--strip .promo__copy {
+    padding-inline: 0;
+    padding-top: var(--space-4);
+  }
+  .promo--image .promo__copy {
+    padding-top: 0;
+  }
+  .promo__button {
+    width: 100%;
+  }
+}
+
+@keyframes promo-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .promo,
+  .promo-bar {
+    animation: none;
+  }
+}
+
+/* ---------- Nurse Kin popup ---------- */
+.nk-popup .dialog__panel {
+  max-width: 460px;
+  background: var(--promo-bg);
+  color: var(--promo-fg);
+  border: 1px solid var(--promo-border);
+}
+.nk-popup .dialog__title,
+.nk-popup .dialog__close {
+  color: var(--promo-fg);
+}
+.nk-popup__body {
+  display: grid;
+  gap: var(--space-3);
+}
+.nk-popup__image {
+  max-width: 120px;
+  max-height: 120px;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+}
+.nk-popup__text {
+  color: var(--promo-muted);
+  white-space: pre-line;
+}
+.nk-popup__preview-note {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  color: var(--burgundy);
+  border: 1px dashed var(--pink-deep);
+}
+.nk-popup__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+.nk-popup__cta {
+  --btn-bg: var(--promo-btn-bg);
+  --btn-fg: var(--promo-btn-fg);
+  --btn-border: var(--promo-btn-bg);
+}
+@media (max-width: 480px) {
+  .nk-popup__actions .button {
+    width: 100%;
+  }
+}
+
+/* Static admin preview of the popup panel. */
+.nk-card {
+  container-type: inline-size;
+}
+.nk-card .dialog__panel {
+  position: static;
+  transform: none;
+  opacity: 1;
+  margin: 0 auto;
+  width: 100%;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+@container (max-width: 480px) {
+  .nk-card .nk-popup__actions .button {
+    width: 100%;
+  }
+}
+
+/* On image banners the close button can sit over the photo: give it a solid backing. */
+.promo--has-image .promo__close {
+  background: var(--promo-bg);
+  box-shadow: var(--shadow-sm);
+}

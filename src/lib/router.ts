@@ -39,6 +39,9 @@ export type AdminView =
   | 'settings'
   | 'audit'
   | 'support'
+  | 'marketing'
+  | 'banner'
+  | 'popup'
 
 const accountViews: Record<string, AccountView> = { account: 'overview', 'account-orders': 'orders', 'account-downloads': 'downloads', 'account-settings': 'settings', 'account-support': 'support' }
 const adminViews: Record<string, AdminView> = {
@@ -52,6 +55,8 @@ const adminViews: Record<string, AdminView> = {
   'admin-settings': 'settings',
   'admin-audit': 'audit',
   'admin-support': 'support',
+  'admin-marketing': 'marketing',
+  'admin-nurse-kin': 'popup',
 }
 const adminDetail: Array<[string, AdminView]> = [
   ['admin-product-', 'product'],
@@ -59,6 +64,7 @@ const adminDetail: Array<[string, AdminView]> = [
   ['admin-customer-', 'customer'],
   ['admin-email-', 'email'],
   ['admin-tutorial-', 'tutorial'],
+  ['admin-banner-', 'banner'],
 ]
 
 export function parseHash(raw: string): Route {

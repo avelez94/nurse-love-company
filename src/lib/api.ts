@@ -85,7 +85,7 @@ export const fileHeaders = (file: File, extra: Record<string, string> = {}) => (
   ...extra,
 })
 
-export type UploadPurpose = 'product_image' | 'product_file' | 'tutorial_thumbnail' | 'tutorial_video'
+export type UploadPurpose = 'product_image' | 'product_file' | 'tutorial_thumbnail' | 'tutorial_video' | 'banner_image' | 'popup_image'
 
 /**
  * Uploads an admin file. The server decides how: on Vercel the file goes

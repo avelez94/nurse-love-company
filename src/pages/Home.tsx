@@ -6,6 +6,7 @@ import { Heart, Tablet } from '../components/illustrations/Objects'
 import { InsertPage } from '../components/illustrations/InsertPage'
 import { PageCluster } from '../components/illustrations/PageCluster'
 import { DigitalLabel, ShipsLabel } from '../components/Labels'
+import { BannerSlot } from '../components/Marketing'
 import { ProductArt } from '../components/ProductArt'
 import { href } from '../lib/router'
 import { useReveal } from '../lib/useReveal'
@@ -194,9 +195,11 @@ export function Home() {
   return (
     <>
       <Hero />
+      <BannerSlot placement="below_hero" />
       <Benefits />
       <Collections />
       <ExtraCute />
+      <BannerSlot placement="above_freebies" />
       <FreebieCorner />
     </>
   )

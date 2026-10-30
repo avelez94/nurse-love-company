@@ -10,6 +10,9 @@ Today the account email cannot be changed on the site ("contact support"). Plann
 
 Until then, an email can be corrected directly in the Supabase database on request, recorded in the audit log.
 
+## Nurse Kin popup: waiting for the owner
+Built and ready (Marketing, Nurse Kin popup), kept as a draft. Needs the real Nurse Kin address, the approved description, a button label and optionally a logo before it can be published. No sale or popup has been published.
+
 ## Also open
 * **Show password button on Sign in and Reset password** (sign up already has it). Offered, not yet requested.
 * **Large downloads on Vercel:** confirm a product file over 5 MB downloads completely (see DEPLOYMENT.md, "The strict download rule on Vercel"). If it is cut short, plan chunked delivery; never a reusable storage link.

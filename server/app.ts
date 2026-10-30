@@ -7,6 +7,7 @@ import { LATEST_MIGRATION } from './db/schema-version.js'
 import { drainOutbox, requeueStalled } from './email/outbox.js'
 import { config, deployEnv, integrationStatus, isProduction } from './env.js'
 import { pruneRateLimits } from './lib/rate-limit.js'
+import { recheckCoupons } from './services/marketing.js'
 import { cleanAbandonedUploads } from './services/uploads.js'
 import { clientIp } from './http.js'
 import { rateLimit } from './lib/rate-limit.js'
@@ -14,6 +15,7 @@ import { originGuard, sessionMiddleware, type AppEnv } from './http.js'
 import { HttpError } from './lib/errors.js'
 import { accountRoutes } from './routes/account.js'
 import { adminRoutes } from './routes/admin.js'
+import { marketingRoutes } from './routes/marketing.js'
 import { publicRoutes } from './routes/public.js'
 import { webhookRoutes } from './routes/webhooks.js'
 
@@ -90,7 +92,8 @@ export function createApp() {
     await drainOutbox(100)
     await pruneRateLimits()
     const uploadsCleaned = await cleanAbandonedUploads()
-    return c.json({ ok: true, uploadsCleaned }, 200, { 'cache-control': 'no-store' })
+    const couponBannersStopped = await recheckCoupons()
+    return c.json({ ok: true, uploadsCleaned, couponBannersStopped }, 200, { 'cache-control': 'no-store' })
   })
 
   // Staging gate: the whole staging site, dashboards included, needs the
@@ -134,6 +137,7 @@ export function createApp() {
   app.route('/api', webhookRoutes)
   app.route('/api', publicRoutes)
   app.route('/api', accountRoutes)
+  app.route('/api', marketingRoutes)
   app.route('/api', adminRoutes)
 
   app.notFound((c) => (c.req.path.startsWith('/api/') ? c.json({ error: 'Not found.', code: 'not_found' }, 404) : c.text('Not found', 404)))

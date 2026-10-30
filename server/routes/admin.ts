@@ -132,7 +132,7 @@ adminRoutes.post('/admin/products/:id/files', async (c) => {
 */
 adminRoutes.post('/admin/uploads', async (c) => {
   const b = await jsonBody(c)
-  const purpose = oneOf(b.purpose, 'Upload type', ['product_image', 'product_file', 'tutorial_thumbnail', 'tutorial_video'] as const)
+  const purpose = oneOf(b.purpose, 'Upload type', ['product_image', 'product_file', 'tutorial_thumbnail', 'tutorial_video', 'banner_image', 'popup_image'] as const)
   return c.json(
     await startUpload(requireAdmin(c), {
       purpose,

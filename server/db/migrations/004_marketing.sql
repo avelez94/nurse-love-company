@@ -1,0 +1,87 @@
+-- Marketing: owner managed banners and the Nurse Kin popup.
+-- Copy is plain text with preset themes (no HTML). Times are stored as
+-- timestamptz (UTC); the admin enters them in their own timezone.
+
+create table if not exists marketing_banners (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  style text not null check (style in ('announcement','strip','image')),
+  placement text not null check (placement in ('top','below_hero','above_freebies')),
+  check ((style = 'announcement') = (placement = 'top')),
+  headline text not null default '',
+  body text not null default '',
+  button_label text not null default '',
+  link text not null default '',
+  image_key text,
+  image_type text,
+  image_alt text not null default '',
+  theme text not null default 'blush' check (theme in ('blush','raspberry','ivory','sage')),
+  icon text not null default 'none' check (icon in ('none','heart','sparkles','gift','download','truck','star','tag')),
+  -- A coupon code is only ever shown after it was checked against a real,
+  -- active Stripe promotion code. The offer text comes from Stripe's terms.
+  coupon_code text not null default '',
+  coupon_offer text not null default '',
+  coupon_expires_at timestamptz,
+  coupon_checked_at timestamptz,
+  active boolean not null default true,
+  status text not null default 'draft' check (status in ('draft','published','archived')),
+  starts_at timestamptz,
+  ends_at timestamptz,
+  check (ends_at is null or starts_at is null or ends_at > starts_at),
+  priority integer not null default 10 check (priority between 1 and 100),
+  pages text[] not null default '{all}',
+  dismissible boolean not null default true,
+  -- Raising this shows the banner again to visitors who closed it.
+  dismiss_version integer not null default 1,
+  published_at timestamptz,
+  created_by text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists marketing_banners_live_idx on marketing_banners(placement, priority) where status = 'published';
+
+-- Single row: the Nurse Kin popup. Stays a draft until the owner supplies
+-- the real destination and approved copy.
+create table if not exists marketing_popup (
+  id text primary key default 'nurse_kin' check (id = 'nurse_kin'),
+  enabled boolean not null default false,
+  status text not null default 'draft' check (status in ('draft','published')),
+  headline text not null default '',
+  body text not null default '',
+  cta_label text not null default '',
+  url text not null default '',
+  image_key text,
+  image_type text,
+  image_alt text not null default '',
+  theme text not null default 'blush' check (theme in ('blush','raspberry','ivory','sage')),
+  delay_seconds integer not null default 30 check (delay_seconds between 10 and 300),
+  scroll_percent integer not null default 50 check (scroll_percent = 0 or scroll_percent between 20 and 90),
+  suppress_days integer not null default 7 check (suppress_days between 1 and 90),
+  pages text[] not null default '{home,shop,collections,extra,freebies,tutorials,story}',
+  starts_at timestamptz,
+  ends_at timestamptz,
+  check (ends_at is null or starts_at is null or ends_at > starts_at),
+  -- Raising this lets the popup show again in browsers that closed or clicked it.
+  campaign_version integer not null default 1,
+  published_at timestamptz,
+  updated_by text,
+  updated_at timestamptz not null default now()
+);
+insert into marketing_popup (id) values ('nurse_kin') on conflict (id) do nothing;
+
+-- Aggregate counts only: no visitor identifiers are stored.
+create table if not exists marketing_stats (
+  kind text not null check (kind in ('banner','popup')),
+  item_id text not null,
+  version integer not null,
+  day date not null,
+  views integer not null default 0,
+  clicks integer not null default 0,
+  dismissals integer not null default 0,
+  primary key (kind, item_id, version, day)
+);
+
+-- Banner and popup images go through the same checked direct uploads.
+alter table storage_uploads drop constraint if exists storage_uploads_purpose_check;
+alter table storage_uploads add constraint storage_uploads_purpose_check
+  check (purpose in ('product_image','product_file','tutorial_thumbnail','tutorial_video','banner_image','popup_image'));

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { after, before, beforeEach, describe, it } from 'node:test'
 import { buildSamplePlannerPdf } from '../../shared/samplePdf.js'
+import { LATEST_MIGRATION } from '../db/schema-version.js'
 import { FakeSupabase } from './fake-supabase.js'
 import Stripe from 'stripe'
 import { Webhook } from 'svix'
@@ -93,11 +94,11 @@ describe('Vercel entry and staging access', () => {
     assert.equal(health.data.scheduledJobs, 'configured')
 
     // A database whose migrations were not run says so.
-    await q(`delete from schema_migrations where name = '003_serverless.sql'`)
+    await q(`delete from schema_migrations where name = $1`, [LATEST_MIGRATION])
     const behind = await call('/api/health', { gate: false })
     assert.equal(behind.status, 503)
     assert.equal(behind.data.schema, 'behind')
-    await q(`insert into schema_migrations (name) values ('003_serverless.sql')`)
+    await q(`insert into schema_migrations (name) values ($1)`, [LATEST_MIGRATION])
 
     // The API refuses anything without the staging password.
     assert.equal((await call('/api/account/me', { gate: false })).status, 401)

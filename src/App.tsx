@@ -21,6 +21,8 @@ import { Shop } from './pages/Shop'
 import { Tutorials, TutorialWatch } from './pages/Tutorials'
 import { Freebies, Help, NotFound, Story } from './pages/Simple'
 import { ServerUnavailablePage } from './components/Unavailable'
+import { NurseKinPopup } from './components/Marketing'
+import { MarketingProvider } from './lib/marketing'
 
 // The admin dashboard (and its rich text editor) loads only for admins.
 const AdminApp = lazy(() => import('./pages/admin/AdminApp'))
@@ -169,6 +171,7 @@ function Shell() {
       <BackToTop />
       <ToastHost />
       <Overlays />
+      <NurseKinPopup />
     </>
   )
 }
@@ -179,7 +182,9 @@ export function App() {
       <SessionProvider>
         <StoreProvider>
           <CartProvider>
-            <Shell />
+            <MarketingProvider>
+              <Shell />
+            </MarketingProvider>
           </CartProvider>
         </StoreProvider>
       </SessionProvider>

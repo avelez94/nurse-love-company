@@ -1,3 +1,4 @@
+import { HeaderAnnouncement } from './Marketing'
 import { Menu, Search, ShoppingBag, User } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { site } from '../data/site'
@@ -6,7 +7,6 @@ import { useSession } from '../lib/session'
 import { href, type Route } from '../lib/router'
 import { useUI } from '../lib/ui'
 import { Dialog } from './Dialog'
-import { Heart } from './illustrations/Objects'
 import { Wordmark } from './Wordmark'
 import './Header.css'
 
@@ -37,13 +37,7 @@ export function Header({ route }: { route: Route }) {
 
   return (
     <>
-      <div className="announcement">
-        <p className="announcement__text">
-          <Heart className="announcement__heart" />
-          {site.statement}
-          <Heart className="announcement__heart" />
-        </p>
-      </div>
+      <HeaderAnnouncement route={route} />
       <header className="site-header">
         <div className="container site-header__inner">
           <button type="button" className="icon-button site-header__menu" aria-label="Open menu" onClick={() => open({ kind: 'menu' })}>

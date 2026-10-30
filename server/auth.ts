@@ -50,6 +50,8 @@ export function authOptions(pool: pg.Pool) {
     advanced: {
       useSecureCookies: isProduction,
       cookiePrefix: 'nlc',
+      // Vercel sets these to the visitor's address, so sign in limits apply per visitor.
+      ipAddress: { ipAddressHeaders: ['x-real-ip', 'x-forwarded-for'] },
     },
   }
 }

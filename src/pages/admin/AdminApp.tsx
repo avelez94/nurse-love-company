@@ -1,4 +1,4 @@
-import { BarChart3, ClipboardList, ExternalLink, FileVideo, LifeBuoy, LogOut, Mail, Menu, Package, ScrollText, Settings as SettingsIcon, UserRound, Users, X } from 'lucide-react'
+import { BarChart3, ClipboardList, ExternalLink, FileVideo, LifeBuoy, LogOut, Mail, Megaphone, Menu, Package, ScrollText, Settings as SettingsIcon, UserRound, Users, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { href, navigate, type AdminView } from '../../lib/router'
 import { useSession } from '../../lib/session'
@@ -6,6 +6,7 @@ import { Wordmark } from '../../components/Wordmark'
 import { Loading } from '../../components/ui'
 import { rememberReturn } from '../Auth'
 import { Audit } from './Audit'
+import { BannerEditor, Banners, PopupEditor } from './Marketing'
 import { CustomerDetail, Customers } from './Customers'
 import { EmailDetail, Emails, Templates } from './Emails'
 import { OrderDetail, Orders } from './Orders'
@@ -22,6 +23,7 @@ const nav: Array<{ view: AdminView; label: string; route: string; icon: typeof B
   { view: 'products', label: 'Products', route: 'admin-products', icon: Package, match: ['products', 'product'] },
   { view: 'customers', label: 'Customers', route: 'admin-customers', icon: Users, match: ['customers', 'customer'] },
   { view: 'tutorials', label: 'Tutorials', route: 'admin-tutorials', icon: FileVideo, match: ['tutorials', 'tutorial'] },
+  { view: 'marketing', label: 'Marketing', route: 'admin-marketing', icon: Megaphone, match: ['marketing', 'banner', 'popup'] },
   { view: 'emails', label: 'Email center', route: 'admin-emails', icon: Mail, match: ['emails', 'email', 'templates'] },
   { view: 'support', label: 'Support', route: 'admin-support', icon: LifeBuoy, match: ['support'] },
   { view: 'settings', label: 'Settings', route: 'admin-settings', icon: SettingsIcon, match: ['settings'] },
@@ -109,6 +111,9 @@ export default function AdminApp({ view, param }: { view: AdminView; param?: str
           {view === 'tutorials' && <TutorialsAdmin />}
           {view === 'tutorial' && <TutorialEditor id={param ?? 'new'} />}
           {view === 'support' && <SupportPage />}
+          {view === 'marketing' && <Banners />}
+          {view === 'banner' && <BannerEditor id={param ?? 'new'} />}
+          {view === 'popup' && <PopupEditor />}
           {view === 'settings' && <SettingsPage />}
           {view === 'audit' && <Audit />}
         </main>

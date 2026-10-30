@@ -359,3 +359,78 @@
     padding-inline: var(--gutter) var(--gutter-r);
   }
 }
+
+/* ---------- Marketing ---------- */
+.mk-editor {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  align-items: start;
+  margin-bottom: var(--space-5);
+}
+.mk-pages {
+  display: grid;
+  gap: var(--space-2);
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.mk-previews {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+.mk-preview {
+  margin: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.mk-preview figcaption {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+}
+.mk-preview__screen {
+  background: var(--ivory);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) 0;
+  overflow: hidden;
+}
+.mk-preview--desktop .mk-preview__screen > .promo-wrap,
+.mk-preview--desktop .mk-preview__screen > .nk-card {
+  padding-inline: var(--space-4);
+}
+.mk-preview--phone .mk-preview__screen {
+  width: 100%;
+  max-width: 375px;
+}
+.mk-preview--phone .mk-preview__screen > .promo-wrap,
+.mk-preview--phone .mk-preview__screen > .nk-card {
+  padding-inline: 16px;
+}
+.mk-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+}
+.mk-stats div {
+  background: var(--ivory);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+}
+.mk-stats dt {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}
+.mk-stats dd {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--burgundy);
+}

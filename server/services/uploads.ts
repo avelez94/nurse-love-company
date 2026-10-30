@@ -18,15 +18,18 @@ import { badRequest, HttpError, notFound } from '../lib/errors.js'
 import { allowed, imageSize, safeFileName, type Kind } from '../lib/files.js'
 import { storage } from '../lib/storage.js'
 import { checkStoredUpload, type UploadedFile } from '../lib/upload.js'
+import { attachMarketingImage, POPUP_UPLOAD_TARGET } from './marketing.js'
 import { processLocalVideo, recordUploadFailure, recordUploadStart } from './tutorials.js'
 
-export type Purpose = 'product_image' | 'product_file' | 'tutorial_thumbnail' | 'tutorial_video'
+export type Purpose = 'product_image' | 'product_file' | 'tutorial_thumbnail' | 'tutorial_video' | 'banner_image' | 'popup_image'
 
 const rules: Record<Purpose, { kind: Kind; limit: () => number; prefix: (id: string) => string; serverUrl: (id: string, imageKind: string) => string }> = {
   product_image: { kind: 'image', limit: () => config.limits.imageBytes, prefix: (id) => `product-images/${id}`, serverUrl: (id, k) => `/api/admin/products/${id}/images?kind=${k}` },
   product_file: { kind: 'product-file', limit: () => config.limits.productFileBytes, prefix: (id) => `product-files/${id}`, serverUrl: (id) => `/api/admin/products/${id}/files` },
   tutorial_thumbnail: { kind: 'image', limit: () => config.limits.imageBytes, prefix: (id) => `tutorial-thumbnails/${id}`, serverUrl: (id) => `/api/admin/tutorials/${id}/thumbnail` },
   tutorial_video: { kind: 'video', limit: () => config.limits.videoBytes, prefix: (id) => `tutorial-videos/${id}`, serverUrl: (id) => `/api/admin/tutorials/${id}/video` },
+  banner_image: { kind: 'image', limit: () => config.limits.imageBytes, prefix: (id) => `marketing/banners/${id}`, serverUrl: (id) => `/api/admin/marketing/banners/${id}/image` },
+  popup_image: { kind: 'image', limit: () => config.limits.imageBytes, prefix: () => 'marketing/popup', serverUrl: () => '/api/admin/marketing/popup/image' },
 }
 
 const extensions: Record<string, string[]> = {
@@ -56,7 +59,13 @@ export interface UploadRequest {
 }
 
 async function checkTarget(r: UploadRequest) {
-  if (r.purpose === 'product_image' || r.purpose === 'product_file') {
+  if (r.purpose === 'banner_image') {
+    const b = await one<{ style: string }>('select style from marketing_banners where id = $1', [r.targetId])
+    if (!b) throw notFound('Banner')
+    if (b.style !== 'image') throw badRequest('Only image and text banners have an image.')
+  } else if (r.purpose === 'popup_image') {
+    if (r.targetId !== POPUP_UPLOAD_TARGET) throw badRequest('Invalid popup upload.')
+  } else if (r.purpose === 'product_image' || r.purpose === 'product_file') {
     const p = await one<{ type: string }>('select type from products where id = $1', [r.targetId])
     if (!p) throw notFound('Product')
     if (r.purpose === 'product_file' && p.type !== 'digital') throw badRequest('Only digital products have downloadable files.')
@@ -180,6 +189,11 @@ export async function attachUpload(
     )
     await audit({ actor, action: 'product.file_uploaded', entityType: 'product', entityId: targetId, summary: `Uploaded private file ${f.fileName} for ${p?.title ?? 'a product'} (not released yet)`, ip })
     return row
+  }
+  if (purpose === 'banner_image' || purpose === 'popup_image') {
+    await attachMarketingImage(purpose === 'banner_image' ? 'banner' : 'popup', targetId, f.key, f.contentType)
+    await audit({ actor, action: `marketing.${purpose}_uploaded`, entityType: purpose === 'banner_image' ? 'banner' : 'popup', entityId: targetId, summary: `Uploaded a ${purpose === 'banner_image' ? 'banner' : 'Nurse Kin popup'} image (${f.fileName})`, ip })
+    return { ok: true }
   }
   if (purpose === 'tutorial_thumbnail') {
     await q('update tutorials set thumbnail_key = $2, thumbnail_type = $3, updated_at = now() where id = $1', [targetId, f.key, f.contentType])
