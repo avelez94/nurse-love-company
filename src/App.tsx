@@ -12,6 +12,7 @@ import { SessionProvider } from './lib/session'
 import { StoreProvider, useStore } from './lib/store'
 import { UIProvider, useUI } from './lib/ui'
 import { AccountArea, CheckoutResult } from './pages/account/Account'
+import { EmailPreferences } from './pages/EmailPreferences'
 import { AdminSetup, ForgotPassword, ResetPassword, SignIn, SignUp } from './pages/Auth'
 import { Collection } from './pages/Collection'
 import { ExtraCute } from './pages/ExtraCute'
@@ -58,6 +59,8 @@ function useTitle(route: Route): string {
       return `My account | ${site.name}`
     case 'admin':
       return `Store admin | ${site.name}`
+    case 'email-preferences':
+      return `Email preferences | ${site.name}`
     case 'not-found':
       return `Page not found | ${site.name}`
   }
@@ -103,6 +106,8 @@ function Page({ route }: { route: Route }) {
       return <AccountArea view={route.view} param={route.param} />
     case 'admin':
       return null
+    case 'email-preferences':
+      return <EmailPreferences token={route.token} />
     case 'not-found':
       return <NotFound />
   }

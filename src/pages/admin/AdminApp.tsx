@@ -10,6 +10,7 @@ import { BannerEditor, Banners, PopupEditor } from './Marketing'
 import { CustomerDetail, Customers } from './Customers'
 import { EmailDetail, Emails, Templates } from './Emails'
 import { OrderDetail, Orders } from './Orders'
+import { Automations } from './Automations'
 import { QuizEditor, Quizzes } from './Quizzes'
 import { ReviewsAdmin } from './Reviews'
 import { StoryEditor } from './Story'
@@ -42,6 +43,7 @@ const nav: NavItem[] = [
     match: ['marketing', 'banner'],
     children: [
       { label: 'Resource Quiz', route: 'admin-quizzes', match: ['quizzes', 'quiz'] },
+      { label: 'Email Automations', route: 'admin-email-automations', match: ['automations'] },
       { label: 'Nurse Kin', route: 'admin-nurse-kin', match: ['popup'] },
     ],
   },
@@ -151,6 +153,7 @@ export default function AdminApp({ view, param }: { view: AdminView; param?: str
           {view === 'quiz' && param && <QuizEditor id={param} />}
           {view === 'reviews' && <ReviewsAdmin />}
           {view === 'story' && <StoryEditor />}
+          {view === 'automations' && <Automations />}
           {view === 'settings' && <SettingsPage />}
           {view === 'audit' && <Audit />}
         </main>

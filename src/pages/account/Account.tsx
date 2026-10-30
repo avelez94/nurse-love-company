@@ -31,7 +31,7 @@ export function AccountArea({ view, param }: { view: AccountView; param?: string
   }, [loading, user])
   if (loading || !user) return <div className="container"><Loading /></div>
 
-  const active = view === 'order' ? 'orders' : view
+  const active = view === 'order' || view === 'review' ? 'orders' : view
   return (
     <div className="container account">
       <header className="account__head">
@@ -67,6 +67,7 @@ export function AccountArea({ view, param }: { view: AccountView; param?: string
         {view === 'overview' && <Overview />}
         {view === 'orders' && <Orders />}
         {view === 'order' && param && <OrderDetail number={param} />}
+        {view === 'review' && param && <ReviewFromLink productId={param} />}
         {view === 'downloads' && <Downloads />}
         {view === 'settings' && <Settings />}
         {view === 'support' && <Support />}
@@ -114,6 +115,34 @@ function Overview() {
         <TutorialHelpLink category="np-inserts" />
       </div>
     </div>
+  )
+}
+
+/** Opened from a review request email: that product's review form. */
+function ReviewFromLink({ productId }: { productId: string }) {
+  const { data, loading, error, reload } = useReviewables()
+  const [closed, setClosed] = useState(false)
+  if (loading && !data) return <Loading label="Loading your review..." />
+  if (error) return <FormError message={error} />
+  const item = data?.purchases.find((p) => p.product_id === productId) ?? null
+  if (!item) {
+    return (
+      <Notice>
+        This product is not available to review from this account. Reviews can be written for purchases that were not refunded. <a href={href('account-orders')}>See your orders</a>.
+      </Notice>
+    )
+  }
+  return (
+    <>
+      <div className="panel">
+        <h2 className="panel__title">Review {item.title}</h2>
+        <p>Thank you for sharing your honest thoughts. All feedback is welcome.</p>
+        <button type="button" className="button button--small" onClick={() => setClosed(false)}>
+          {reviewLabel(item)}
+        </button>
+      </div>
+      <ReviewDialog item={closed ? null : item} onClose={() => setClosed(true)} onSaved={reload} />
+    </>
   )
 }
 
@@ -464,7 +493,7 @@ function ReportDialog({ item, onClose, onDone }: { item: DownloadCard | null; on
 
 interface Me {
   user: { id: string; name: string; email: string }
-  preferences: { order_updates: boolean; product_updates: boolean; marketing: boolean }
+  preferences: { order_updates: boolean; product_updates: boolean; marketing: boolean; download_reminders: boolean; review_requests: boolean }
   addresses: Array<{ id: string; name: string; line1: string; line2: string; city: string; region: string; postal_code: string; country: string; phone: string; is_default: boolean }>
 }
 
@@ -472,13 +501,13 @@ function Settings() {
   const { data, loading, reload } = useApiData<Me>('/api/account/me')
   const { refresh } = useSession()
   const [name, setName] = useState('')
-  const [prefs, setPrefs] = useState({ order_updates: true, product_updates: true, marketing: false })
+  const [prefs, setPrefs] = useState({ order_updates: true, product_updates: true, marketing: false, download_reminders: true, review_requests: true })
   const [saved, setSaved] = useState('')
   const [error, setError] = useState('')
   useEffect(() => {
     if (data) {
       setName(data.user.name)
-      setPrefs(data.preferences)
+      setPrefs((p) => ({ ...p, ...data.preferences }))
     }
   }, [data])
   if (loading || !data) return <Loading />
@@ -501,6 +530,8 @@ function Settings() {
         <TextInput label="Account email" value={data.user.email} onChange={() => {}} disabled hint="To change your account email, contact support." />
         <Checkbox label="Order and shipping updates" checked={prefs.order_updates} onChange={(v) => setPrefs({ ...prefs, order_updates: v })} hint="Receipts and download emails are always sent." />
         <Checkbox label="Product update emails" checked={prefs.product_updates} onChange={(v) => setPrefs({ ...prefs, product_updates: v })} hint="When a new version of something you bought is released." />
+        <Checkbox label="Download reminders" checked={prefs.download_reminders} onChange={(v) => setPrefs({ ...prefs, download_reminders: v })} hint="One reminder if a digital purchase is still waiting to be downloaded." />
+        <Checkbox label="Review requests" checked={prefs.review_requests} onChange={(v) => setPrefs({ ...prefs, review_requests: v })} hint="One email asking for your honest review of something you bought." />
         <Checkbox label="News and new products" checked={prefs.marketing} onChange={(v) => setPrefs({ ...prefs, marketing: v })} hint="Off unless you turn it on." />
         <FormError message={error} />
         <div className="button-row">

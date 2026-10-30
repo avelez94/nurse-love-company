@@ -15,7 +15,7 @@ import { waitUntil } from '@vercel/functions'
 import { Resend } from 'resend'
 import { one, q, type Queryable } from '../db/pool.js'
 import { config } from '../env.js'
-import { defaultTemplates, renderEmail, templateInfo, type EmailType, type TemplateText } from './templates.js'
+import { AUTOMATION_TYPES, defaultTemplates, renderEmail, templateInfo, type EmailType, type TemplateText } from './templates.js'
 
 export interface QueueEmailInput {
   type: EmailType
@@ -30,6 +30,10 @@ export interface QueueEmailInput {
   resentFromId?: string | null
   resentBy?: string | null
   footerNote?: string
+  items?: Array<{ title: string; imageUrl?: string | null; url?: string }>
+  preference?: { url: string; text: string }
+  /** For admin test sends, for example "[Test] ". */
+  subjectPrefix?: string
 }
 
 export async function loadTemplate(type: EmailType, client?: Queryable): Promise<TemplateText> {
@@ -40,6 +44,7 @@ export async function loadTemplate(type: EmailType, client?: Queryable): Promise
 /** Links in emails always point at the signed in account area, never at files. */
 export function accountUrl(kind: string, vars: Record<string, string>): string {
   if (kind === 'reset') return vars.url
+  if (kind === 'none') return ''
   if (kind === 'downloads') return `${config.appUrl}/#account-downloads`
   if (kind === 'order' && vars.order_number) return `${config.appUrl}/#account-order-${encodeURIComponent(vars.order_number)}`
   return `${config.appUrl}/#account`
@@ -55,7 +60,10 @@ export async function queueEmail(input: QueueEmailInput, client?: Queryable): Pr
     rows: input.rows,
     buttonUrl: accountUrl(templateInfo[input.type].buttonPath, vars),
     footerNote: input.footerNote,
+    items: input.items,
+    preference: input.preference,
   })
+  if (input.subjectPrefix) rendered.subject = `${input.subjectPrefix}${rendered.subject}`
   const inserted = await one<{ id: string }>(
     `insert into emails (type, to_email, subject, html, text_body, related_user_id, related_order_id, related_release_id, idempotency_key, is_demo, resent_from_id, resent_by)
      values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
@@ -129,6 +137,8 @@ export async function requeueStalled() {
   await q(`update emails set status = 'failed', failed_at = now(), failure_reason = 'Sending stopped unexpectedly five times. Use Resend to try again.'
             where status = 'sending' and claimed_at < now() - interval '5 minutes' and attempts >= 5`)
   await q(`update emails set status = 'queued' where status = 'sending' and claimed_at < now() - interval '5 minutes'`)
+  // Automation emails get up to three tries after a temporary sending failure (Resend's idempotency key stops duplicates).
+  await q(`update emails set status = 'queued', failure_reason = '' where status = 'failed' and type = any($1) and attempts < 3 and failed_at < now() - interval '10 minutes'`, [AUTOMATION_TYPES])
 }
 
 /** Claims and sends one queued email. Returns false when the queue is empty. */

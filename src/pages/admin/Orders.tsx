@@ -1,11 +1,23 @@
 import { Download, PackageCheck, RotateCcw } from 'lucide-react'
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api, errorMessage, newKey } from '../../lib/api'
 import { href } from '../../lib/router'
 import { useUI } from '../../lib/ui'
 import { Dialog } from '../../components/Dialog'
 import { Checkbox, Confirm, dateTime, Empty, FormError, Loading, money, MoneyInput, Notice, Pill, Select, TextArea, TextInput, useApiData } from '../../components/ui'
 import { PageTitle } from './AdminApp'
+import { formatIn } from './Automations'
+import { DeliveryDialog } from './DeliveryDialog'
+
+interface AutomationJob {
+  id: string
+  kind: string
+  product_title: string
+  display_status: string
+  display_reason: string
+  due_at: string | null
+  email_id: string | null
+}
 
 interface OrderRow {
   id: string
@@ -117,7 +129,7 @@ interface OrderDetailData {
   order: Record<string, any>
   items: Item[]
   refunds: Array<{ id: string; amount_cents: number; reason: string; status: string; stripe_refund_id: string | null; created_by: string; created_at: string; failure_reason: string }>
-  shipments: Array<{ id: string; carrier: string; tracking_number: string; tracking_url: string; status: string; shipped_at: string; created_by: string }>
+  shipments: Array<{ id: string; carrier: string; tracking_number: string; tracking_url: string; status: string; shipped_at: string; created_by: string; delivered_at: string | null; delivery_source: string; delivery_note: string; problem: string; items: Array<{ order_item_id: string; quantity: number }> }>
   notes: Array<{ id: string; body: string; author_email: string; created_at: string }>
   updates: Array<{ id: string; message: string; customer_visible: boolean; created_by: string; created_at: string }>
   entitlements: Array<{ id: string; order_item_id: string; status: string; source: string; reason: string; granted_by: string | null; granted_at: string; redeemed_at: string | null; version_number: number }>
@@ -138,6 +150,12 @@ export function OrderDetail({ id }: { id: string }) {
   const [refundOpen, setRefundOpen] = useState(false)
   const [replacement, setReplacement] = useState<Item | null>(null)
   const [actionError, setActionError] = useState('')
+  const [delivery, setDelivery] = useState<{ id: string; label: string; delivered_at?: string | null } | null>(null)
+  const [problemFor, setProblemFor] = useState<string | null>(null)
+  const [problem, setProblem] = useState('')
+  const automations = useApiData<{ jobs: AutomationJob[] }>(`/api/admin/automations/jobs?order=${id}`)
+  const overview = useApiData<{ timezone: string }>('/api/admin/automations')
+  const tz = overview.data?.timezone || undefined
 
   if (loading && !data) return <Loading />
   if (error) return <FormError message={error} />
@@ -249,30 +267,62 @@ export function OrderDetail({ id }: { id: string }) {
               <>
                 <p><strong>Ship to:</strong> {addressText(o.shipping_address)}</p>
                 {data.shipments.map((s) => (
-                  <div key={s.id} className="status-line">
-                    <Pill value={s.status} />
-                    {s.carrier || 'Carrier not set'} • {s.tracking_number || 'no tracking number'}
-                    {s.tracking_url && <a href={s.tracking_url} target="_blank" rel="noopener noreferrer">Track</a>}
-                    <span className="muted">{dateTime(s.shipped_at)}</span>
-                    <select
-                      className="input"
-                      style={{ width: 'auto' }}
-                      aria-label="Update shipment status"
-                      value={s.status}
-                      onChange={async (e) => {
-                        try {
-                          await api(`/api/admin/shipments/${s.id}`, { method: 'PATCH', body: { status: e.target.value } })
-                          showToast('Shipment updated. The customer sees the update in their order.')
-                          reload()
-                        } catch (err) {
-                          setActionError(errorMessage(err))
-                        }
-                      }}
-                    >
-                      {['label_created', 'shipped', 'in_transit', 'delivered', 'exception'].map((st) => (
-                        <option key={st} value={st}>{st.replace('_', ' ')}</option>
-                      ))}
-                    </select>
+                  <div key={s.id} className="shipment">
+                    <div className="status-line">
+                      <Pill value={s.status} />
+                      {s.carrier || 'Carrier not set'} • {s.tracking_number || 'no tracking number'}
+                      {s.tracking_url && <a href={s.tracking_url} target="_blank" rel="noopener noreferrer">Track</a>}
+                      <span className="muted">Shipped {formatIn(s.shipped_at, tz)}</span>
+                    </div>
+                    {s.items.length > 0 && (
+                      <p className="muted">Contains: {s.items.map((it) => `${data.items.find((x) => x.id === it.order_item_id)?.title_snapshot ?? 'item'} × ${it.quantity}`).join(', ')}</p>
+                    )}
+                    {s.status === 'delivered' ? (
+                      <p>
+                        <strong>Delivered {formatIn(s.delivered_at, tz)}</strong>{' '}
+                        <span className="muted">
+                          ({s.delivery_source === 'admin' ? `recorded by the store: ${s.delivery_note}` : `confirmed by ${s.delivery_source || 'tracking'}`})
+                        </span>
+                      </p>
+                    ) : (
+                      <p className="muted">Not confirmed as delivered. Shipped and estimated dates do not count for review requests.</p>
+                    )}
+                    {s.status === 'exception' && s.problem && <Notice tone="warn">Delivery problem: {s.problem}</Notice>}
+                    <div className="button-row">
+                      {s.status !== 'delivered' && (
+                        <select
+                          className="input"
+                          style={{ width: 'auto' }}
+                          aria-label="Update shipment status"
+                          value={s.status}
+                          onChange={async (e) => {
+                            if (e.target.value === 'exception') {
+                              setProblem('')
+                              setProblemFor(s.id)
+                              return
+                            }
+                            try {
+                              await api(`/api/admin/shipments/${s.id}`, { method: 'PATCH', body: { status: e.target.value } })
+                              showToast('Shipment updated. The customer sees the update in their order.')
+                              reload()
+                            } catch (err) {
+                              setActionError(errorMessage(err))
+                            }
+                          }}
+                        >
+                          {['label_created', 'shipped', 'in_transit', 'exception'].map((st) => (
+                            <option key={st} value={st}>{st === 'exception' ? 'delivery problem' : st.replace('_', ' ')}</option>
+                          ))}
+                        </select>
+                      )}
+                      <button
+                        type="button"
+                        className="button button--outline button--small"
+                        onClick={() => setDelivery({ id: s.id, label: `${o.order_number}: ${s.carrier || 'shipment'} ${s.tracking_number}`.trim(), delivered_at: s.delivered_at })}
+                      >
+                        {s.status === 'delivered' ? 'Correct delivery date' : 'Record confirmed delivery'}
+                      </button>
+                    </div>
                   </div>
                 ))}
                 {paid && (
@@ -407,14 +457,68 @@ export function OrderDetail({ id }: { id: string }) {
         </div>
       </div>
 
-      <ShipmentDialog open={shipOpen} onClose={() => setShipOpen(false)} orderId={id} onDone={reload} />
+      <section className="panel">
+        <h2 className="panel__title">Download reminders and review requests</h2>
+        {!automations.data?.jobs.length ? (
+          <p className="muted">None for this order.</p>
+        ) : (
+          <ul className="plain-list">
+            {automations.data.jobs.map((j) => (
+              <li key={j.id}>
+                <strong>{j.product_title}</strong>: {j.kind.replace('_', ' ').replace('physical_review', 'physical review').replace('digital_review', 'digital review')}{' '}
+                <Pill value={j.display_status} /> {j.due_at ? `due ${formatIn(j.due_at, tz)}` : 'waiting for confirmed delivery'}
+                {j.display_reason && <span className="muted"> · {j.display_reason}</span>}
+                {j.email_id && (
+                  <>
+                    {' '}
+                    <a href={href(`admin-email-${j.email_id}`)}>Email log</a>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        <a className="arrow-link" href={href('admin-email-automations')}>Email Automations</a>
+      </section>
+
+      <DeliveryDialog shipment={delivery} timeZone={tz} onClose={() => setDelivery(null)} onDone={() => { reload(); automations.reload() }} />
+      <Dialog open={Boolean(problemFor)} onClose={() => setProblemFor(null)} title="Delivery problem">
+        <form
+          className="form-stack"
+          onSubmit={async (e) => {
+            e.preventDefault()
+            try {
+              await api(`/api/admin/shipments/${problemFor}`, { method: 'PATCH', body: { status: 'exception', problem } })
+              showToast('Saved. Review requests for these items are held until it is delivered.')
+              setProblemFor(null)
+              reload()
+              automations.reload()
+            } catch (err) {
+              setActionError(errorMessage(err))
+              setProblemFor(null)
+            }
+          }}
+        >
+          <TextInput label="What went wrong?" value={problem} onChange={setProblem} maxLength={300} required hint='For example "Returned to sender" or "Lost in transit".' />
+          <button type="submit" className="button button--small" disabled={problem.trim().length < 3}>Save</button>
+        </form>
+      </Dialog>
+      <ShipmentDialog open={shipOpen} onClose={() => setShipOpen(false)} orderId={id} items={data.items} shipments={data.shipments} onDone={reload} />
       <RefundDialog open={refundOpen} onClose={() => setRefundOpen(false)} order={o} items={data.items} onDone={reload} />
       <ReplacementDialog item={replacement} onClose={() => setReplacement(null)} onDone={reload} />
     </>
   )
 }
 
-function ShipmentDialog({ open, onClose, orderId, onDone }: { open: boolean; onClose: () => void; orderId: string; onDone: () => void }) {
+function ShipmentDialog({ open, onClose, orderId, items, shipments, onDone }: { open: boolean; onClose: () => void; orderId: string; items: Item[]; shipments: OrderDetailData['shipments']; onDone: () => void }) {
+  const physicalItems = items.filter((i) => i.product_type === 'physical')
+  const shippedQty = (itemId: string) => shipments.reduce((n, s) => n + (s.items.find((x) => x.order_item_id === itemId)?.quantity ?? 0), 0)
+  const remaining = (i: Item) => Math.max(0, i.quantity - shippedQty(i.id))
+  const [qty, setQty] = useState<Record<string, number>>({})
+  useEffect(() => {
+    if (open) setQty(Object.fromEntries(physicalItems.map((i) => [i.id, remaining(i)])))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
   const [carrier, setCarrier] = useState('')
   const [tracking, setTracking] = useState('')
   const [url, setUrl] = useState('')
@@ -428,7 +532,10 @@ function ShipmentDialog({ open, onClose, orderId, onDone }: { open: boolean; onC
     setBusy(true)
     setError('')
     try {
-      await api(`/api/admin/orders/${orderId}/shipments`, { body: { carrier, tracking_number: tracking, tracking_url: url, notify, partial, status: 'shipped' } })
+      const chosen = Object.entries(qty).filter(([, n]) => n > 0).map(([order_item_id, quantity]) => ({ order_item_id, quantity }))
+      if (!chosen.length) throw new Error('Choose at least one item in this shipment.')
+      const all = physicalItems.every((i) => (qty[i.id] ?? 0) >= remaining(i))
+      await api(`/api/admin/orders/${orderId}/shipments`, { body: { carrier, tracking_number: tracking, tracking_url: url, notify, partial: partial || !all, status: 'shipped', items: chosen } })
       showToast(notify ? 'Marked as shipped. A shipping email was queued.' : 'Marked as shipped.')
       onClose()
       onDone()
@@ -444,6 +551,27 @@ function ShipmentDialog({ open, onClose, orderId, onDone }: { open: boolean; onC
         <TextInput label="Carrier" value={carrier} onChange={setCarrier} placeholder="USPS, UPS, FedEx" maxLength={60} />
         <TextInput label="Tracking number" value={tracking} onChange={setTracking} maxLength={100} />
         <TextInput label="Tracking link (optional)" value={url} onChange={setUrl} placeholder="https://" maxLength={500} />
+        <fieldset className="ship-items">
+          <legend className="field__label">Items in this shipment</legend>
+          {physicalItems.map((i) => (
+            <label key={i.id} className="ship-items__row">
+              <span>
+                {i.title_snapshot}
+                {i.variant_snapshot && <span className="muted"> ({i.variant_snapshot})</span>}
+              </span>
+              <input
+                className="input"
+                type="number"
+                min={0}
+                max={remaining(i)}
+                value={qty[i.id] ?? 0}
+                onChange={(e) => setQty({ ...qty, [i.id]: Math.max(0, Math.min(remaining(i), Number(e.target.value) || 0)) })}
+                aria-label={`Quantity of ${i.title_snapshot} in this shipment`}
+              />
+            </label>
+          ))}
+          <span className="field__hint">Split shipments get their own delivery date, and each item's review request counts from its own shipment.</span>
+        </fieldset>
         <Checkbox label="This shipment is only part of the order" checked={partial} onChange={setPartial} />
         <Checkbox label="Email the customer a shipping confirmation" checked={notify} onChange={setNotify} />
         <FormError message={error} />

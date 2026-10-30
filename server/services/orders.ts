@@ -12,6 +12,8 @@ import type { PoolClient } from 'pg'
 import type { SessionUser } from '../auth.js'
 import { one, q, tx } from '../db/pool.js'
 import { kickDispatcher, queueEmail } from '../email/outbox.js'
+import { scheduleForPaidOrder } from './automations.js'
+import { assignShipmentItems } from './delivery.js'
 import { config, paymentsState } from '../env.js'
 import { audit } from '../lib/audit.js'
 import { badRequest, conflict, HttpError, notFound } from '../lib/errors.js'
@@ -250,6 +252,8 @@ async function markPaid(session: Stripe.Checkout.Session) {
     }
 
     await grantPurchaseEntitlements(order.id, client)
+    // Download reminders and review requests, for automations switched on right now.
+    await scheduleForPaidOrder(order.id, client)
     await q(`insert into order_updates (order_id, message, created_by) values ($1,'Payment received. Thank you for your order!','system')`, [order.id], client)
 
     const name = session.customer_details?.name || order.customer_name
@@ -422,18 +426,25 @@ export async function requestRefund(actor: SessionUser, orderId: string, r: Refu
   }
 }
 
-export async function addShipment(actor: SessionUser, orderId: string, input: { carrier: string; tracking_number: string; tracking_url: string; status: string; notify: boolean; partial: boolean }, ip?: string) {
+export async function addShipment(
+  actor: SessionUser,
+  orderId: string,
+  input: { carrier: string; tracking_number: string; tracking_url: string; status: string; notify: boolean; partial: boolean; items?: Array<{ order_item_id: string; quantity: number }> },
+  ip?: string,
+) {
   const result = await tx(async (client) => {
     const order = await one<{ id: string; order_number: string; email: string; customer_name: string; user_id: string | null; status: string; is_demo: boolean }>('select * from orders where id = $1 for update', [orderId], client)
     if (!order) throw notFound('Order')
     if (!['paid', 'partially_refunded'].includes(order.status)) throw badRequest('Only paid orders can be fulfilled.')
     const hasPhysical = await one('select 1 from order_items where order_id = $1 and product_type = $2', [orderId, 'physical'], client)
     if (!hasPhysical) throw badRequest('This order has no items that ship.')
+    if (input.status === 'delivered') throw badRequest('Add the shipment first, then use "Record confirmed delivery" with the delivery date.')
     const sh = await one<{ id: string }>(
-      `insert into shipments (order_id, carrier, tracking_number, tracking_url, status, shipped_at, created_by) values ($1,$2,$3,$4,$5, now(), $6) returning id`,
+      `insert into shipments (order_id, carrier, tracking_number, tracking_url, status, shipped_at, status_at, created_by) values ($1,$2,$3,$4,$5, now(), now(), $6) returning id`,
       [orderId, input.carrier, input.tracking_number, input.tracking_url, input.status, actor.email],
       client,
     )
+    await assignShipmentItems(client, orderId, sh!.id, input.items ?? [])
     await q(`update orders set fulfillment_status = $2, updated_at = now() where id = $1`, [orderId, input.partial ? 'partially_fulfilled' : 'fulfilled'], client)
     await q(`insert into order_updates (order_id, message, created_by) values ($1,$2,$3)`, [orderId, `Shipped${input.carrier ? ` with ${input.carrier}` : ''}${input.tracking_number ? `. Tracking number ${input.tracking_number}` : ''}.`, actor.email], client)
     if (input.notify) {

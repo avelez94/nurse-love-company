@@ -105,7 +105,7 @@ Limits that matter here:
 ## Background work
 
 * **Email:** a queued email is sent by the same request that created it, kept alive with `waitUntil`. If an instance stops mid send, the row stays in the database. The next queued email, or the scheduled job, sends it again with the same Resend idempotency key, so it is never delivered twice. After five stalled attempts it is marked failed and shows in the email center. Demo emails are recorded as "suppressed" and never sent. All logs, resends and webhooks are unchanged.
-* **Scheduled job:** `vercel.json` runs `/api/cron/maintenance` once a day, which is the most often Vercel's free Hobby plan allows. On Pro you can run it more often. For more frequent retries on the free plan, Supabase Cron (with its `pg_net` extension) can call the same address every few minutes with the `Authorization: Bearer CRON_SECRET` header.
+* **Scheduled job:** `vercel.json` runs `/api/cron/maintenance` every hour (at 17 minutes past), which the Pro plan allows. Besides retrying emails, it sends due download reminders and review requests. Precision: an automation email becomes due at its exact time and goes out on the next hourly run, so up to about an hour later. After downtime, overdue emails go out on the next run, still rechecked. (On the free Hobby plan Vercel only allows a daily job; Supabase Cron with `pg_net` can call the same address with the `Authorization: Bearer CRON_SECRET` header instead.)
 * **Tutorial videos** are checked when the upload completes. There is no background processing on Vercel.
 
 ## Migrations
@@ -143,6 +143,7 @@ The store keeps its own accounts (Better Auth). That is secure and needs no chan
 | `BETTER_AUTH_SECRET` | Required | 64 random characters, for example from `openssl rand -hex 32`. Changing it signs everyone out |
 | `STAGING_ACCESS_PASSWORD` | Required | 24 or more random characters. Share it privately with reviewers |
 | `CRON_SECRET` | Required | 32 or more random characters. Vercel Cron sends it automatically |
+| `DELIVERY_WEBHOOK_SECRET` | Optional | Only once Printful or carrier tracking is connected: signs delivery events sent to `/api/webhooks/delivery` (see `server/routes/automations.ts`). Until then, delivery dates are recorded by the owner |
 | `STORAGE_DRIVER` | Required | `supabase` |
 | `SUPABASE_URL` | Required | `https://YOUR-PROJECT.supabase.co` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Required | The project's secret key (the `service_role` key, or the newer "secret" key). Mark it **Sensitive** in Vercel. It never reaches the browser |

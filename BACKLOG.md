@@ -18,6 +18,8 @@ Built and ready, nothing published:
 * **Product previews**: selected sample page images, what's included lists, optional walkthrough tutorials.
 
 ## Not built
+* **Printful fulfillment and tracking connection.** The store accepts signed delivery events at `/api/webhooks/delivery` (shape documented in `server/routes/automations.ts`); a Printful adapter that translates Printful's shipment webhooks into that shape, plus `DELIVERY_WEBHOOK_SECRET`, is still to be built. Until then, delivery dates are recorded by the owner.
+* **List-Unsubscribe email header** for the automation emails (the footer link already works).
 * **Generating previews from the PDF automatically.** Previews are uploaded by hand for now (screenshots or exports), which keeps the owner in control of exactly which pages are shown.
 
 ## Also open

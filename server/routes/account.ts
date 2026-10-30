@@ -17,9 +17,9 @@ export const accountRoutes = new Hono<AppEnv>()
 
 accountRoutes.get('/account/me', async (c) => {
   const user = requireUser(c)
-  const prefs = await one(`select order_updates, product_updates, marketing from customer_profiles where user_id = $1`, [user.id])
+  const prefs = await one(`select order_updates, product_updates, marketing, download_reminders, review_requests from customer_profiles where user_id = $1`, [user.id])
   const addresses = await q(`select id, name, line1, line2, city, region, postal_code, country, phone, is_default from addresses where user_id = $1 order by is_default desc, created_at`, [user.id])
-  return c.json({ user, preferences: prefs ?? { order_updates: true, product_updates: true, marketing: false }, addresses })
+  return c.json({ user, preferences: prefs ?? { order_updates: true, product_updates: true, marketing: false, download_reminders: true, review_requests: true }, addresses })
 })
 
 accountRoutes.patch('/account/profile', async (c) => {
@@ -28,9 +28,17 @@ accountRoutes.patch('/account/profile', async (c) => {
   const name = str(b.name, 'Name', { min: 1, max: 100 })
   await q('update "user" set name = $2, "updatedAt" = now() where id = $1', [user.id, name])
   await q(
-    `insert into customer_profiles (user_id, order_updates, product_updates, marketing) values ($1,$2,$3,$4)
-     on conflict (user_id) do update set order_updates = excluded.order_updates, product_updates = excluded.product_updates, marketing = excluded.marketing, updated_at = now()`,
-    [user.id, b.order_updates === undefined ? true : bool(b.order_updates), b.product_updates === undefined ? true : bool(b.product_updates), bool(b.marketing)],
+    `insert into customer_profiles (user_id, order_updates, product_updates, marketing, download_reminders, review_requests) values ($1,$2,$3,$4,$5,$6)
+     on conflict (user_id) do update set order_updates = excluded.order_updates, product_updates = excluded.product_updates, marketing = excluded.marketing,
+       download_reminders = excluded.download_reminders, review_requests = excluded.review_requests, updated_at = now()`,
+    [
+      user.id,
+      b.order_updates === undefined ? true : bool(b.order_updates),
+      b.product_updates === undefined ? true : bool(b.product_updates),
+      bool(b.marketing),
+      b.download_reminders === undefined ? true : bool(b.download_reminders),
+      b.review_requests === undefined ? true : bool(b.review_requests),
+    ],
   )
   return c.json({ ok: true })
 })

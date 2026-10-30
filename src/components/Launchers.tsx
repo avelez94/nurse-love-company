@@ -244,7 +244,7 @@ export function NurseKinCard({ popup, preview, titleId, onClick }: { popup: Publ
 
 /* ---------- Launchers ---------- */
 
-const HIDDEN_ROUTES: Array<Route['name']> = ['auth', 'checkout', 'account', 'admin']
+const HIDDEN_ROUTES: Array<Route['name']> = ['auth', 'checkout', 'account', 'admin', 'email-preferences']
 const focusables = (root: HTMLElement) => Array.from(root.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])')).filter((el) => el.offsetParent !== null)
 
 export function FloatingLaunchers() {

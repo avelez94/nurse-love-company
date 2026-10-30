@@ -102,7 +102,7 @@ export function ProductView({ product, preview = false }: { product: ProductReco
             {product.samplePages.length > 0 && (
               <button type="button" className="button button--outline" onClick={() => open({ kind: 'peek', product })} aria-haspopup="dialog">
                 <BookOpen aria-hidden="true" size={18} />
-                View a sample
+                Peek inside
               </button>
             )}
           </div>

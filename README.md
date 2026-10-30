@@ -122,7 +122,7 @@ The staging preview runs on **Vercel** (storefront and API) with **Supabase** (d
 In short:
 
 1. Create a Supabase project, then paste `supabase/setup.sql` into its SQL Editor and run it once. Migrations never run inside Vercel functions.
-2. Import the repository into Vercel. `vercel.json` sets the build, the API function, the daily maintenance job and security headers. Add the required variables. If any is missing, the API answers "not fully configured" and the function logs list exactly what.
+2. Import the repository into Vercel. `vercel.json` sets the build, the API function, the hourly maintenance job (email retries, download reminders and review requests) and security headers. Add the required variables. If any is missing, the API answers "not fully configured" and the function logs list exactly what.
 3. Sign up, then claim the admin role at `/#admin-setup` with `ADMIN_BOOTSTRAP_TOKEN` (remove it afterwards).
 4. Add the webhook addresses above in Stripe, Resend and Mux.
 5. Test a full order with a Stripe test card. Live payments are always blocked on staging.
@@ -133,7 +133,7 @@ The earlier Render plan (`render.yaml`, Neon, Cloudflare R2) is obsolete and was
 
 ## Marketing, reviews and content
 
-Owner managed announcement bars, promotional strips and image banners; a resource quiz and a Nurse Kin invitation, opened from two small buttons in the corner (never automatically); verified purchase reviews with moderation; the Our Story page; and watermarked, owner approved sample previews on product pages. See **OWNER_GUIDE.md**. A banner never creates a discount: coupon codes are shown only after they are checked against a real Stripe promotion code.
+Owner managed announcement bars, promotional strips and image banners; a resource quiz and a Nurse Kin invitation, opened from two small buttons in the corner (never automatically); verified purchase reviews with moderation; the Our Story page; watermarked, owner approved sample previews on product pages; and email automations (a download reminder and review requests, all off by default). See **OWNER_GUIDE.md**. See **OWNER_GUIDE.md**. A banner never creates a discount: coupon codes are shown only after they are checked against a real Stripe promotion code.
 
 ## Where things live
 
@@ -145,7 +145,7 @@ server/            API server
   serverless.ts    The API as a Vercel Function (api/index.ts loads it)
 api/index.ts       Vercel Function entry
 middleware.ts      Staging password in front of every page on Vercel
-vercel.json        Vercel build, routing, daily job and security headers
+vercel.json        Vercel build, routing, hourly job and security headers
   tests/           Automated tests
 shared/            Code used by both the browser and the server
 src/               Storefront, customer dashboard and admin dashboard

@@ -470,7 +470,7 @@ function QuickView({ product, onClose }: { product: Product | null; onClose: () 
 
 function PeekDialog({ product, start, onClose }: { product: Product | null; start?: number; onClose: () => void }) {
   return (
-    <Dialog open={Boolean(product)} onClose={onClose} title={product ? `Sample: ${product.title}` : 'Sample'} className="peek-dialog">
+    <Dialog open={Boolean(product)} onClose={onClose} title={product ? `Peek inside: ${product.title}` : 'Peek inside'} className="peek-dialog">
       {product && (
         <>
           <div className="peek-dialog__labels">

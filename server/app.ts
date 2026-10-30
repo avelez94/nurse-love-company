@@ -19,6 +19,8 @@ import { marketingRoutes } from './routes/marketing.js'
 import { featureRoutes } from './routes/features.js'
 import { publicRoutes } from './routes/public.js'
 import { webhookRoutes } from './routes/webhooks.js'
+import { automationRoutes } from './routes/automations.js'
+import { runAutomations } from './services/automations.js'
 
 export function createApp() {
   const app = new Hono<AppEnv>()
@@ -90,11 +92,12 @@ export function createApp() {
     const want = Buffer.from(`Bearer ${config.cronSecret}`)
     if (!config.cronSecret || given.length !== want.length || !timingSafeEqual(given, want)) return c.json({ error: 'Not authorized.' }, 401)
     await requeueStalled()
+    const automations = await runAutomations()
     await drainOutbox(100)
     await pruneRateLimits()
     const uploadsCleaned = await cleanAbandonedUploads()
     const couponBannersStopped = await recheckCoupons()
-    return c.json({ ok: true, uploadsCleaned, couponBannersStopped }, 200, { 'cache-control': 'no-store' })
+    return c.json({ ok: true, uploadsCleaned, couponBannersStopped, automations }, 200, { 'cache-control': 'no-store' })
   })
 
   // Staging gate: the whole staging site, dashboards included, needs the
@@ -136,6 +139,7 @@ export function createApp() {
   })
 
   app.route('/api', webhookRoutes)
+  app.route('/api', automationRoutes)
   app.route('/api', publicRoutes)
   app.route('/api', accountRoutes)
   app.route('/api', marketingRoutes)

@@ -2,7 +2,7 @@
 
 Banners, the resource quiz, the Nurse Kin button, reviews, Our Story and product previews. Nothing you create is visible to visitors until you press **Publish**.
 
-After this update is deployed, run `supabase/updates/005_quiz_reviews_story_previews.sql` once in the Supabase SQL Editor (paste the whole file, click Run).
+After each update is deployed, run the new files in `supabase/updates/` once, in order, in the Supabase SQL Editor (paste the whole file, click Run): `005_quiz_reviews_story_previews.sql`, then `006_email_automations.sql`.
 
 # Banners
 
@@ -102,15 +102,52 @@ Content, **Our Story**. The page is titled "Meet the nurse behind the love". Fil
 
 The preview shows the home page introduction and the full page. **Publish** makes both live; the home page introduction appears between "A little extra cute" and The Freebie Corner. Later edits stay in the draft until you publish again.
 
-# Product previews ("View a sample")
+# Product previews ("Peek inside")
 
 Products, open a product, **Sample previews**.
 
 * **Add sample pages** or **Add close up details**: upload PNG, JPG or WebP images of a few selected pages or cropped areas (screenshots or exports). Do not upload the whole resource.
 * Each image is reduced to preview size and stamped with "PREVIEW · Nurse Love Company" built into the picture itself. The original upload is discarded.
 * Each preview waits for you to press **Approve**. **Hide** takes it down again.
-* Approved previews appear behind the **View a sample** button, with a "Sample" tag, enlarge, previous and next, and a note that only selected pages are shown. With no approved previews, the button is hidden.
+* Approved previews appear behind the **Peek inside** button, with a "Sample" tag, enlarge, previous and next, and a note that only selected pages are shown. With no approved previews, the button is hidden.
 * **What's included:** one item per line, shown as a list on the product page.
 * **Walkthrough video:** pick a tutorial; the link shows only while that tutorial is published.
 
 Your paid PDF is never used for previews and never shown. Viewing previews does not affect anyone's downloads. Nobody can promise images cannot be copied, so only upload what you are happy to share.
+
+# Email automations
+
+Marketing, **Email Automations**. Three emails, each **off** until you switch it on. Only purchases made while an automation is on are scheduled, so earlier customers are never emailed.
+
+| Email | Sent | Starts from |
+|---|---|---|
+| Download reminder | 3 days after (you can change it) | the confirmed payment |
+| Digital review request | 7 days after | the confirmed payment |
+| Physical review request | 14 days after | the **confirmed delivery** of the shipment holding the item |
+
+**Edit the emails:** open **Edit the email** in each section. Plain text with `{{name}}` (first name) and `{{order_number}}`. Product names, pictures, a Leave a review button per product, the one download note and the unsubscribe link are added automatically. **Preview** shows it with sample details; **Send a test** sends the saved email to any address you type, without touching any customer, schedule, review or download.
+
+**Timing:** change the number of days and press **Save delay**. It applies to future purchases. To move emails that are already scheduled, press **Reschedule pending emails** on purpose. Emails go out on the hourly run after they become due. Choose the **store timezone** at the top so dates read the same for everyone.
+
+**Switching off** holds every pending email. Switching back on sends nothing by surprise: you will see the held emails with **Resume held emails** (overdue ones go out on the next run) or **Cancel held emails**.
+
+**Inspect:** the table at the bottom lists every email: scheduled, held, sent, skipped, failed or canceled, with the scheduled date, when it was handed to email, and why it was skipped or held. It links to the customer, order, product and the Email center log. **Cancel** stops a scheduled or held email.
+
+Everything is checked again right before sending. An email is skipped for items already downloaded (reminders), products already reviewed, refunded, canceled or disputed orders, demo orders, customers who turned that email off, and addresses that bounced. Each customer gets at most one review request per product, ever, and at most one reminder per purchased item. Reminders never use, grant or reset a download, and their links only open My downloads or the review form (after signing in if needed).
+
+**Customers** can turn off download reminders and review requests separately in their account, or from the link at the bottom of those emails. Receipts and account emails are not affected.
+
+## Physical items and delivery (Printful)
+
+Printful tracking is **not connected yet**. Until it is, physical review requests wait as **Held: waiting for a confirmed delivery**. When you know an item was delivered (for example on the Printful or carrier tracking page):
+
+1. Open the order (Orders, or **Record delivery** in the automations table).
+2. Under the shipment, press **Record confirmed delivery**, enter the date and time it was delivered and a reason such as "USPS tracking shows delivered", and save.
+
+The review request is then scheduled 14 days after that date. This is saved to the audit log; **Correct delivery date** fixes a mistake, also with a reason. "Shipped", "fulfilled" and estimated dates never count.
+
+When adding a shipment, choose which items (and how many) are in the box. Split shipments each get their own delivery date, and each item's review request counts from its own shipment. Items delivered together go in one email.
+
+If something goes wrong, set the shipment to **delivery problem** and describe it. Review requests for those items are held with that reason until it is delivered. Requests held with no delivery 21 days after shipping are flagged in the table so you can check on them.
+
+Once Printful or carrier tracking is connected, delivery events will update shipments automatically (repeated or out of order events are ignored safely, and a delivered shipment never moves backwards).

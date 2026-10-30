@@ -8,7 +8,8 @@ import { audit } from '../lib/audit.js'
   here; they live in server environment variables.
 */
 export interface Settings {
-  store: { name: string; contact_email: string; support_email: string; phone: string; mailing_address: string }
+  /** timezone: IANA name used to show dates in the admin (empty: each admin's own browser timezone). */
+  store: { name: string; contact_email: string; support_email: string; phone: string; mailing_address: string; timezone: string }
   homepage: { featured_product_ids: string[] }
   freebies: { items: Array<{ id: string; title: string; summary: string; published: boolean }> }
   shipping: { configured: boolean; flat_rate_cents: number | null; free_over_cents: number | null; countries: string[]; note: string }
@@ -27,7 +28,7 @@ export interface Settings {
 }
 
 export const defaultSettings: Settings = {
-  store: { name: 'Nurse Love Company', contact_email: '', support_email: '', phone: '', mailing_address: '' },
+  store: { name: 'Nurse Love Company', contact_email: '', support_email: '', phone: '', mailing_address: '', timezone: '' },
   homepage: { featured_product_ids: [] },
   freebies: { items: [] },
   shipping: { configured: false, flat_rate_cents: null, free_over_cents: null, countries: ['US'], note: '' },

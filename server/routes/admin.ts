@@ -15,6 +15,7 @@ import { customerDetail, listAdmins, listCustomers, saveCustomerNotes, setAdmin 
 import { emailDetail, listEmails, listTemplates, removeSuppression, resendEmail, saveTemplate } from '../services/emails.js'
 import { countAffectedPurchasers, grantReplacement, publishRelease } from '../services/entitlements.js'
 import { addShipment, requestRefund } from '../services/orders.js'
+import { recordDelivery, setShipmentStatus } from '../services/delivery.js'
 import { adminProductDetail, adminProductList, approveImage, createProduct, deleteImage, duplicateProduct, saveVariants, setProductState, updateImages, updateProduct } from '../services/products.js'
 import { ordersCsv, revenueReport, salesCsv } from '../services/reports.js'
 import { defaultSettings, getSettings, setSetting, type Settings } from '../services/settings.js'
@@ -215,7 +216,7 @@ adminRoutes.get('/admin/orders/:id', async (c) => {
   const [items, refunds, shipments, notes, updates, entitlements, events, emails, payments] = await Promise.all([
     q('select * from order_items where order_id = $1 order by product_type, title_snapshot', [id]),
     q('select * from refunds where order_id = $1 order by created_at', [id]),
-    q('select * from shipments where order_id = $1 order by created_at', [id]),
+    q(`select s.*, coalesce((select json_agg(json_build_object('order_item_id', si.order_item_id, 'quantity', si.quantity)) from shipment_items si where si.shipment_id = s.id), '[]') as items from shipments s where s.order_id = $1 order by s.created_at`, [id]),
     q('select * from order_notes where order_id = $1 order by created_at', [id]),
     q('select * from order_updates where order_id = $1 order by created_at', [id]),
     q(
@@ -262,9 +263,10 @@ adminRoutes.post('/admin/orders/:id/shipments', async (c) => {
       carrier: str(b.carrier, 'Carrier', { optional: true, max: 60 }),
       tracking_number: str(b.tracking_number, 'Tracking number', { optional: true, max: 100 }),
       tracking_url,
-      status: oneOf(b.status, 'Shipment status', ['label_created', 'shipped', 'in_transit', 'delivered', 'exception'] as const, 'shipped'),
+      status: oneOf(b.status, 'Shipment status', ['label_created', 'shipped', 'in_transit'] as const, 'shipped'),
       notify: bool(b.notify),
       partial: bool(b.partial),
+      items: Array.isArray(b.items) ? (b.items as Array<Record<string, unknown>>).map((it) => ({ order_item_id: uuid(it.order_item_id), quantity: Number(it.quantity) })) : [],
     },
     ip(c),
   )
@@ -272,14 +274,16 @@ adminRoutes.post('/admin/orders/:id/shipments', async (c) => {
 })
 
 adminRoutes.patch('/admin/shipments/:id', async (c) => {
-  const actor = requireAdmin(c)
   const b = await jsonBody(c)
   const status = oneOf(b.status, 'Shipment status', ['label_created', 'shipped', 'in_transit', 'delivered', 'exception'] as const)
-  const row = await one<{ order_id: string }>(`update shipments set status = $2, delivered_at = case when $2 = 'delivered' then now() else delivered_at end where id = $1 returning order_id`, [uuid(c.req.param('id')), status])
-  if (!row) throw notFound('Shipment')
-  await q(`insert into order_updates (order_id, message, created_by) values ($1,$2,$3)`, [row.order_id, `Shipment status: ${status.replace('_', ' ')}.`, actor.email])
-  await audit({ actor, action: 'order.shipment_updated', entityType: 'order', entityId: row.order_id, summary: `Shipment marked ${status.replace('_', ' ')}`, ip: ip(c) })
+  await setShipmentStatus(requireAdmin(c), uuid(c.req.param('id')), status, b.problem, ip(c))
   return c.json({ ok: true })
+})
+
+/** The owner records a confirmed delivery date (with a reason) when tracking cannot supply it. */
+adminRoutes.post('/admin/shipments/:id/delivery', async (c) => {
+  const b = await jsonBody(c)
+  return c.json(await recordDelivery(requireAdmin(c), uuid(c.req.param('id')), b.delivered_at, b.reason, ip(c)))
 })
 
 adminRoutes.patch('/admin/orders/:id/fulfillment', async (c) => {
@@ -507,6 +511,13 @@ adminRoutes.put('/admin/settings/:section', async (c) => {
     next.refund_download_policy = oneOf(next.refund_download_policy, 'Refund download policy', ['revoke_unredeemed', 'keep'] as const)
     next.status = oneOf(next.status, 'Policy status', ['awaiting_approval', 'approved'] as const)
     next.digital_repurchase = 'block'
+  }
+  if (section === 'store' && next.timezone) {
+    try {
+      new Intl.DateTimeFormat('en-US', { timeZone: String(next.timezone) })
+    } catch {
+      throw badRequest('That timezone is not recognized.')
+    }
   }
   if (section === 'homepage') next.featured_product_ids = (next.featured_product_ids as unknown[]).slice(0, 12).map((x) => uuid(x, 'product'))
   if (section === 'shipping') next.countries = (next.countries as unknown[]).slice(0, 50).map((x) => str(x, 'Country', { min: 2, max: 2 }).toUpperCase())

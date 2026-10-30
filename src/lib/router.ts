@@ -20,9 +20,10 @@ export type Route =
   | { name: 'checkout'; result: 'success' | 'canceled' }
   | { name: 'account'; view: AccountView; param?: string }
   | { name: 'admin'; view: AdminView; param?: string }
+  | { name: 'email-preferences'; token: string }
   | { name: 'not-found'; hash: string }
 
-export type AccountView = 'overview' | 'orders' | 'order' | 'downloads' | 'settings' | 'support'
+export type AccountView = 'overview' | 'orders' | 'order' | 'downloads' | 'settings' | 'support' | 'review'
 export type AdminView =
   | 'overview'
   | 'products'
@@ -46,6 +47,7 @@ export type AdminView =
   | 'quiz'
   | 'reviews'
   | 'story'
+  | 'automations'
 
 const accountViews: Record<string, AccountView> = { account: 'overview', 'account-orders': 'orders', 'account-downloads': 'downloads', 'account-settings': 'settings', 'account-support': 'support' }
 const adminViews: Record<string, AdminView> = {
@@ -64,6 +66,7 @@ const adminViews: Record<string, AdminView> = {
   'admin-quizzes': 'quizzes',
   'admin-reviews': 'reviews',
   'admin-our-story': 'story',
+  'admin-email-automations': 'automations',
 }
 const adminDetail: Array<[string, AdminView]> = [
   ['admin-product-', 'product'],
@@ -81,6 +84,9 @@ export function parseHash(raw: string): Route {
   const params = new URLSearchParams(query)
   if (hash in accountViews) return { name: 'account', view: accountViews[hash] }
   if (hash.startsWith('account-order-')) return { name: 'account', view: 'order', param: hash.slice('account-order-'.length) }
+  // From review request emails: opens that product's review form (after sign in if needed).
+  if (hash.startsWith('account-review-')) return { name: 'account', view: 'review', param: hash.slice('account-review-'.length) }
+  if (hash === 'email-preferences') return { name: 'email-preferences', token: params.get('t') ?? '' }
   if (hash in adminViews) return { name: 'admin', view: adminViews[hash] }
   for (const [prefix, view] of adminDetail) if (hash.startsWith(prefix)) return { name: 'admin', view, param: hash.slice(prefix.length) }
   switch (hash) {

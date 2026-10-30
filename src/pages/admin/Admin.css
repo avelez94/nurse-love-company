@@ -614,3 +614,71 @@
 .story-ed__preview .founder__inner {
   max-width: none;
 }
+
+/* Email automations */
+.auto-panel .mk-stats {
+  margin: 0;
+}
+.auto-delay {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 520px;
+}
+.auto-template summary {
+  cursor: pointer;
+  font-weight: 700;
+  padding-block: var(--space-2);
+}
+.auto-preview {
+  display: grid;
+  gap: var(--space-2);
+}
+.auto-preview__frame {
+  width: 100%;
+  min-height: 520px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--white);
+}
+.auto-test {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 520px;
+  justify-items: start;
+}
+.auto-test .field {
+  width: 100%;
+}
+
+/* Shipments and delivery */
+.shipment {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+.shipment p {
+  margin: 0;
+}
+.ship-items {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.ship-items__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.ship-items__row .input {
+  width: 80px;
+}
+.plain-list {
+  margin: 0 0 var(--space-3);
+  padding-left: 1.2em;
+  display: grid;
+  gap: var(--space-2);
+}

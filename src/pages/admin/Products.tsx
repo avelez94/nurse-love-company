@@ -518,7 +518,7 @@ function Images({ productId, images, variants, reload }: { productId: string; im
 }
 
 /**
- * Sample pages and close up details for "View a sample". Each upload is
+ * Sample pages and close up details for "Peek inside". Each upload is
  * flattened with a PREVIEW watermark on the server, then waits for the
  * owner's approval. These are separate images: the paid file is never used
  * or shown here.
@@ -591,13 +591,13 @@ function Previews({ productId, images, reload }: { productId: string; images: De
       </div>
       <p className="muted">
         Upload a few selected pages or cropped details (screenshots or exports), not the whole resource. Each image is stamped with a PREVIEW watermark built into the picture, then waits for your
-        approval. Approved previews appear behind the “View a sample” button. Your paid file is never shown. Products can also be published with no previews at all.
+        approval. Approved previews appear behind the “Peek inside” button. Your paid file is never shown. Products can also be published with no previews at all.
       </p>
       {progress && <ProgressBar value={progress.value} label={`Uploading and watermarking ${progress.name}`} />}
       <FormError message={error} />
       {waiting > 0 && <Notice tone="warn">{waiting} preview{waiting === 1 ? ' is' : 's are'} waiting for your approval and not shown yet.</Notice>}
       {!list.length ? (
-        <p className="muted">No previews. The “View a sample” button is hidden for this product.</p>
+        <p className="muted">No previews. The “Peek inside” button is hidden for this product.</p>
       ) : (
         <div className="image-grid">
           {list.map((img, i) => (

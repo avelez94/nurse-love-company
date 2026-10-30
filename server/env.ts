@@ -54,6 +54,8 @@ export const config = {
   },
   /** Vercel Cron sends this as a Bearer token. Protects the scheduled maintenance endpoint. */
   cronSecret: e.CRON_SECRET ?? '',
+  /** Shared secret for delivery tracking events from a future Printful or carrier connection. */
+  deliveryWebhookSecret: e.DELIVERY_WEBHOOK_SECRET ?? '',
   // Hosted deployments must set this; deploymentProblems() stops the server if not.
   authSecret: e.BETTER_AUTH_SECRET ?? (isProduction ? '' : devSecret()),
 

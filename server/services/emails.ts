@@ -2,7 +2,7 @@ import { Webhook } from 'svix'
 import type { SessionUser } from '../auth.js'
 import { one, q } from '../db/pool.js'
 import { kickDispatcher } from '../email/outbox.js'
-import { defaultTemplates, templateInfo, validateTemplate, type EmailType, type TemplateText } from '../email/templates.js'
+import { AUTOMATION_TYPES, defaultTemplates, templateInfo, validateTemplate, type EmailType, type TemplateText } from '../email/templates.js'
 import { config } from '../env.js'
 import { audit } from '../lib/audit.js'
 import { badRequest, HttpError, notFound } from '../lib/errors.js'
@@ -79,7 +79,8 @@ export async function removeSuppression(actor: SessionUser, emailAddress: string
 
 export async function listTemplates() {
   const rows = await q<TemplateText & { type: EmailType; updated_at: string; updated_by: string }>('select * from email_templates')
-  return (Object.keys(templateInfo) as EmailType[]).map((type) => {
+  // Automation emails are edited with their timing under Marketing, Email Automations.
+  return (Object.keys(templateInfo) as EmailType[]).filter((type) => !AUTOMATION_TYPES.includes(type)).map((type) => {
     const row = rows.find((r) => r.type === type)
     return { type, title: templateInfo[type].title, placeholders: templateInfo[type].placeholders, ...(row ?? defaultTemplates[type]), customized: Boolean(row), updated_at: row?.updated_at ?? null }
   })
