@@ -133,7 +133,7 @@ The earlier Render plan (`render.yaml`, Neon, Cloudflare R2) is obsolete and was
 
 ## Marketing, reviews and content
 
-Owner managed announcement bars, promotional strips and image banners; a resource quiz and a Nurse Kin invitation, opened from two small buttons in the corner (never automatically); verified purchase reviews with moderation; the Our Story page; watermarked, owner approved sample previews on product pages; and email automations (a download reminder and review requests, all off by default). See **OWNER_GUIDE.md**. See **OWNER_GUIDE.md**. A banner never creates a discount: coupon codes are shown only after they are checked against a real Stripe promotion code.
+Owner managed announcement bars, promotional strips and image banners; a resource quiz and a Nurse Kin invitation, opened from two small buttons in the corner (never automatically); verified purchase reviews with moderation; the Our Story page; watermarked, owner approved sample previews on product pages; email automations (a download reminder and review requests, all off by default); and a searchable Help & FAQs page edited under Content. See **OWNER_GUIDE.md**. See **OWNER_GUIDE.md**. A banner never creates a discount: coupon codes are shown only after they are checked against a real Stripe promotion code.
 
 ## Where things live
 

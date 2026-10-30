@@ -169,3 +169,17 @@ When you save an existing **published** product with a new file:
 Nothing is released if you only upload without saving, if the save fails, if the product is a draft (the file waits until you publish and save again), or if the file is identical to the current one (checked by its content, not its name). Refunds, revocations and other purchase rules still apply. If you save a newer file before the earlier emails went out, customers get one email about the newest version.
 
 After saving, a green box shows what happened, and the version table shows each update's downloads and emails: queued, sent, skipped (for example, the customer already downloaded the new version), held (email sending not connected) or failed. **Show customers** lists them with links to the email log. **Retry notifications** sends held or failed ones again once Resend is connected. Email problems never undo an update or remove anyone's download.
+
+# Help & FAQs
+
+Content, **Help & FAQs**. The Help page is a searchable FAQ with four categories. All 28 starter answers are **drafts**: visitors see nothing until you approve answers and publish.
+
+1. Open a question, check the answer against how the store really works, and edit it. Replace anything in [BRACKETS] (for example [SUPPORT EMAIL]); an answer with brackets cannot be approved.
+2. Tick **Approved: I checked this answer and it can be published**.
+3. Press **Publish** (or **Publish changes**). Only approved answers appear; empty categories are hidden.
+
+Edits to published answers stay drafts until you publish again. To take one answer down, untick Approved and publish. **Unpublish** hides all answers (the contact card stays).
+
+You can rename and reorder categories, add, reorder, delete and move questions (Category menu), and add search keywords such as "coupon, promo". Links: `[My Downloads](#account-downloads)` for a page on this site, `[label](https://...)` for another site, and `[Find my resources](#find-my-resources)` to open the quiz. A paragraph that starts with `{{if quiz}}` only shows while a quiz is published (`{{if tutorials}}` for tutorials). Owner notes are only shown in the admin.
+
+The contact card shows the email, support hours, timezone and response time once they are filled in without brackets, plus "Message us from your account". The preview shows the computer and phone layout of what will be published.

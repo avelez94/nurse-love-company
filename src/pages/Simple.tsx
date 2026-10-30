@@ -2,10 +2,11 @@ import { ArrowRight, BookOpen, ExternalLink } from 'lucide-react'
 import { freebies } from '../data/catalog'
 import { site } from '../data/site'
 import { ExampleLabel } from '../components/Labels'
-import { TutorialHelpLink } from '../components/TutorialCard'
 import { Heart } from '../components/illustrations/Objects'
 import { SamplePageView } from '../components/SamplePageView'
 import { href } from '../lib/router'
+import { HelpLoading, HelpView } from '../components/HelpFaq'
+import { usePublishedHelp } from '../lib/help'
 import { paragraphs, usePublishedStory, type PublicStory } from '../lib/story'
 import { useUI } from '../lib/ui'
 import { PageHeader } from './PageHeader'
@@ -138,42 +139,9 @@ export function Story() {
 }
 
 export function Help() {
-  const faqs = [
-    { q: 'What are binder inserts?', a: 'Printable pages you add to your own binder. Nurse Love Company sells the inserts only. A binder is not included.' },
-    { q: 'Can I use resources digitally?', a: 'Each resource lists its own format and how it can be used. Check each resource for details.' },
-    { q: 'Which items ship to me?', a: 'Apparel, accessories and pens are physical items that ship to you. Shipping details will be shared before launch.' },
-    { q: 'How do I put my binder together?', a: 'Watch the free Tutorials. They show how to print, arrange and use your inserts. Physical binders are not included with digital purchases.' },
-    { q: 'Can I buy on this preview?', a: 'Not yet. This preview shows how shopping will work. The bag is a demonstration and no purchase or payment takes place.' },
-  ]
-  return (
-    <>
-      <PageHeader title="Help & contact" crumbs={[{ label: 'Home', route: 'home' }, { label: 'Help & contact' }]} intro={<p>Quick answers while the new shop is being prepared.</p>} />
-      <section className="container help">
-        <div className="help__faqs">
-          {faqs.map((f) => (
-            <details key={f.q} className="faq">
-              <summary>{f.q}</summary>
-              <p>{f.a}</p>
-            </details>
-          ))}
-        </div>
-        <aside className="help__contact">
-          <h2 className="help__title">Getting started</h2>
-          <TutorialHelpLink category="np-inserts" showTitle />
-          <TutorialHelpLink category="nurse-inserts" showTitle />
-          <h2 className="help__title">Contact</h2>
-          <p>Contact details for the new site will be added before launch.</p>
-          <p>
-            In the meantime, visit the current Nurse Love Company website:
-          </p>
-          <a className="arrow-link" href={site.existingSite} target="_blank" rel="noopener noreferrer">
-            nurselovecompany.com <ExternalLink aria-hidden="true" size={16} />
-            <span className="visually-hidden"> (opens in a new tab)</span>
-          </a>
-        </aside>
-      </section>
-    </>
-  )
+  const { loading, help } = usePublishedHelp()
+  if (loading) return <HelpLoading />
+  return <HelpView help={help} />
 }
 
 export function NotFound() {

@@ -9,6 +9,7 @@ import { audit } from '../lib/audit.js'
 import { badRequest, notFound } from '../lib/errors.js'
 import { str } from '../lib/validate.js'
 import { linkField } from './marketing.js'
+import { applyConditions, normalizeFaq, publishedSnapshot, starterFaq, type FaqContent, type PublicFaq } from '../../shared/faq.js'
 
 export const STORY_UPLOAD_TARGET = '00000000-0000-0000-0000-0000005707e5'
 
@@ -118,4 +119,81 @@ export async function storyPortrait(which: 'published' | 'draft') {
   const s = which === 'published' ? r.published : { ...blank, ...r.draft }
   if (!s?.portraitKey) throw notFound('Portrait')
   return { key: s.portraitKey, type: s.portraitType ?? 'image/jpeg' }
+}
+
+/* ---------- Help & FAQs ---------- */
+
+/*
+  The Help page. The owner edits a draft; Publish stores a snapshot with only
+  the questions she approved (no owner notes, no unfinished contact details).
+  Edits after that stay in the draft until she publishes again. The first
+  time the editor opens, the starter answers load as unapproved drafts.
+*/
+
+async function helpRow() {
+  await q(`insert into site_content (key, draft) values ('help_faq', $1) on conflict (key) do nothing`, [JSON.stringify(starterFaq())])
+  return (await one<{ draft: FaqContent; published: PublicFaq | null; published_at: string | null; updated_at: string; updated_by: string | null }>(
+    `select draft, published, published_at, updated_at, updated_by from site_content where key = 'help_faq'`,
+  ))!
+}
+
+function faqCounts(c: FaqContent) {
+  const all = c.categories.flatMap((cat) => cat.questions)
+  return { questions: all.length, approved: all.filter((x) => x.approved).length, needsConfirmation: all.filter((x) => x.needsConfirmation).length }
+}
+
+export async function adminHelp() {
+  const r = await helpRow()
+  const draft = normalizeFaq(r.draft)
+  const snapshot = publishedSnapshot(draft)
+  return {
+    draft,
+    published: r.published,
+    publishedAt: r.published_at,
+    updatedAt: r.updated_at,
+    updatedBy: r.updated_by,
+    counts: faqCounts(draft),
+    unpublishedChanges: JSON.stringify(snapshot) !== JSON.stringify(r.published),
+  }
+}
+
+function parseFaq(b: unknown) {
+  try {
+    return normalizeFaq(b)
+  } catch (err) {
+    throw badRequest((err as Error).message)
+  }
+}
+
+export async function saveHelpDraft(actor: SessionUser, b: unknown) {
+  await helpRow()
+  const draft = parseFaq(b)
+  await q(`update site_content set draft = $1, updated_by = $2, updated_at = now() where key = 'help_faq'`, [JSON.stringify(draft), actor.email])
+  return adminHelp()
+}
+
+export async function publishHelp(actor: SessionUser, action: 'publish' | 'unpublish', ip?: string) {
+  const r = await helpRow()
+  const draft = parseFaq(r.draft)
+  if (action === 'publish') {
+    if (!draft.heading) throw badRequest('Add the page heading before publishing.')
+    const snapshot = publishedSnapshot(draft)
+    await q(`update site_content set published = $1, published_at = now(), updated_by = $2, updated_at = now() where key = 'help_faq'`, [JSON.stringify(snapshot), actor.email])
+    const n = snapshot.categories.reduce((a, c) => a + c.questions.length, 0)
+    await audit({ actor, action: 'content.help_publish', entityType: 'content', entityId: 'help_faq', summary: `Published Help & FAQs with ${n} approved question${n === 1 ? '' : 's'}`, ip })
+  } else {
+    await q(`update site_content set published = null, updated_by = $1, updated_at = now() where key = 'help_faq'`, [actor.email])
+    await audit({ actor, action: 'content.help_unpublish', entityType: 'content', entityId: 'help_faq', summary: 'Unpublished Help & FAQs', ip })
+  }
+  return adminHelp()
+}
+
+/** What visitors see: the published snapshot only, with conditional sentences resolved now. Null until published. */
+export async function publicHelp(): Promise<PublicFaq | null> {
+  const r = await one<{ published: PublicFaq | null }>(`select published from site_content where key = 'help_faq'`)
+  if (!r?.published) return null
+  const live = await one<{ quiz: boolean; tutorials: boolean }>(
+    `select exists (select 1 from quizzes where status = 'published') as quiz, exists (select 1 from tutorials where status = 'published') as tutorials`,
+  )
+  return applyConditions(r.published, { quiz: Boolean(live?.quiz), tutorials: Boolean(live?.tutorials) })
 }

@@ -11,6 +11,7 @@ import { CustomerDetail, Customers } from './Customers'
 import { EmailDetail, Emails, Templates } from './Emails'
 import { OrderDetail, Orders } from './Orders'
 import { Automations } from './Automations'
+import { HelpFaqsEditor } from './HelpFaqs'
 import { QuizEditor, Quizzes } from './Quizzes'
 import { ReviewsAdmin } from './Reviews'
 import { StoryEditor } from './Story'
@@ -47,7 +48,7 @@ const nav: NavItem[] = [
       { label: 'Nurse Kin', route: 'admin-nurse-kin', match: ['popup'] },
     ],
   },
-  { view: 'story', label: 'Content', route: 'admin-our-story', icon: BookHeart, match: [], children: [{ label: 'Our Story', route: 'admin-our-story', match: ['story'] }] },
+  { view: 'story', label: 'Content', route: 'admin-our-story', icon: BookHeart, match: [], children: [{ label: 'Our Story', route: 'admin-our-story', match: ['story'] }, { label: 'Help & FAQs', route: 'admin-help-faqs', match: ['help'] }] },
   { view: 'emails', label: 'Email center', route: 'admin-emails', icon: Mail, match: ['emails', 'email', 'templates'] },
   { view: 'support', label: 'Support', route: 'admin-support', icon: LifeBuoy, match: ['support'] },
   { view: 'settings', label: 'Settings', route: 'admin-settings', icon: SettingsIcon, match: ['settings'] },
@@ -154,6 +155,7 @@ export default function AdminApp({ view, param }: { view: AdminView; param?: str
           {view === 'reviews' && <ReviewsAdmin />}
           {view === 'story' && <StoryEditor />}
           {view === 'automations' && <Automations />}
+          {view === 'help' && <HelpFaqsEditor />}
           {view === 'settings' && <SettingsPage />}
           {view === 'audit' && <Audit />}
         </main>
