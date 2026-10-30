@@ -133,7 +133,8 @@ export async function duplicateProduct(actor: SessionUser, id: string, ip?: stri
     if (!p) throw notFound('Product')
     let newSlug = `${p.slug}-copy`
     for (let n = 2; await one('select 1 from products where slug = $1', [newSlug], client); n++) newSlug = `${p.slug}-copy-${n}`
-    const cols = COLUMNS.filter((c) => c !== 'slug' && c !== 'title' && c !== 'sku')
+    // Copies start as an unfeatured draft (set below), so those columns are not copied.
+    const cols = COLUMNS.filter((c) => c !== 'slug' && c !== 'title' && c !== 'sku' && c !== 'featured')
     const row = await one<{ id: string }>(
       `insert into products (title, slug, sku, ${cols.join(',')}, status, active, featured)
        select $2, $3, null, ${cols.join(',')}, 'draft', true, false from products where id = $1 returning id`,

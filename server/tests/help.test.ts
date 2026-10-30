@@ -98,3 +98,21 @@ describe('help and FAQs', () => {
     assert.equal(r.data.draft.categories[0].questions[0].id, 'binder-inserts')
   })
 })
+
+describe('product duplicate', () => {
+  beforeEach(setup)
+  after(teardown)
+
+  it('copies a product as an unfeatured draft, keeping preview approvals', async () => {
+    const admin = await signUp('owner@example.com', 'admin')
+    const created = await api('/api/admin/products', { session: admin, body: { title: 'Planner', slug: 'planner', category: 'np-inserts', type: 'digital', price_cents: 900, featured: true, is_freebie: false } })
+    assert.equal(created.status, 201, JSON.stringify(created.data))
+    await q(`update products set status = 'published', featured = true where id = $1`, [created.data.id])
+    await q(`insert into product_images (product_id, kind, storage_key, content_type, alt, approved) values ($1,'sample','k1','image/png','',false)`, [created.data.id])
+    const dup = await api(`/api/admin/products/${created.data.id}/duplicate`, { session: admin, method: 'POST' })
+    assert.equal(dup.status, 201, JSON.stringify(dup.data))
+    const copy = (await q<{ title: string; slug: string; status: string; featured: boolean; price_cents: number }>('select title, slug, status, featured, price_cents from products where id = $1', [dup.data.id]))[0]
+    assert.deepEqual(copy, { title: 'Planner (copy)', slug: 'planner-copy', status: 'draft', featured: false, price_cents: 900 })
+    assert.deepEqual((await q<{ approved: boolean }>('select approved from product_images where product_id = $1', [dup.data.id])).map((i) => i.approved), [false])
+  })
+})
