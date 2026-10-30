@@ -14,6 +14,7 @@
   touch-action: pan-y;
 }
 .peek__frame {
+  position: relative;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -64,6 +65,8 @@
 }
 .peek__meta {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
   font-size: var(--text-sm);
@@ -129,5 +132,56 @@
   .peek__nav {
     width: 44px;
     height: 44px;
+  }
+}
+
+/* Real samples: a small "Sample" tag and an enlarge toggle. */
+.peek__tag {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 1;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--burgundy);
+  color: var(--white);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+.peek__enlarge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--pink-deep);
+  border-radius: var(--radius-pill);
+  background: var(--white);
+  color: var(--burgundy);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+.peek__enlarge:hover {
+  background: var(--pink);
+}
+.peek--large .peek__frame {
+  max-height: 82vh;
+}
+.peek-dialog:has(.peek--large) {
+  width: min(1040px, calc(100vw - 32px));
+}
+@media (max-width: 640px) {
+  .peek-dialog:has(.peek--large) {
+    width: 100vw;
+  }
+  .peek--large .peek__stage {
+    grid-template-columns: 36px minmax(0, 1fr) 36px;
+    padding-inline: 0;
+  }
+  .peek--large .peek__nav {
+    width: 36px;
+    height: 36px;
   }
 }

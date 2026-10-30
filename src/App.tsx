@@ -21,7 +21,7 @@ import { Shop } from './pages/Shop'
 import { Tutorials, TutorialWatch } from './pages/Tutorials'
 import { Freebies, Help, NotFound, Story } from './pages/Simple'
 import { ServerUnavailablePage } from './components/Unavailable'
-import { NurseKinPopup } from './components/Marketing'
+import { FloatingLaunchers } from './components/Launchers'
 import { MarketingProvider } from './lib/marketing'
 
 // The admin dashboard (and its rich text editor) loads only for admins.
@@ -171,7 +171,7 @@ function Shell() {
       <BackToTop />
       <ToastHost />
       <Overlays />
-      <NurseKinPopup />
+      <FloatingLaunchers />
     </>
   )
 }

@@ -20,7 +20,7 @@ export interface PublicImage {
   alt: string
   width: number | null
   height: number | null
-  kind: 'gallery' | 'sample'
+  kind: 'gallery' | 'sample' | 'detail'
   variantId: string | null
 }
 
@@ -38,6 +38,8 @@ export interface PublicProduct {
   featured: boolean
   isDemo: boolean
   images: PublicImage[]
+  whatsIncluded: string[]
+  walkthrough: { slug: string; title: string } | null
   variants: PublicVariant[]
   inStock: boolean
   soldOutBehavior: string
@@ -59,17 +61,20 @@ export const imageUrl = (id: string) => `/api/media/${id}`
 
 type Row = Record<string, unknown> & { id: string }
 
-export async function loadProducts(where: string, params: unknown[], client?: Queryable): Promise<PublicProduct[]> {
+export async function loadProducts(where: string, params: unknown[], client?: Queryable, opts: { publicView?: boolean } = {}): Promise<PublicProduct[]> {
   const rows = await q<Row>(
-    `select p.*, v.file_size as version_file_size, v.version_number, v.released_at as version_released_at
+    `select p.*, v.file_size as version_file_size, v.version_number, v.released_at as version_released_at,
+            t.slug as walkthrough_slug, t.title as walkthrough_title
        from products p left join product_versions v on v.id = p.current_version_id
+       left join tutorials t on t.id = p.walkthrough_tutorial_id and t.status = 'published'
       where ${where} order by p.sort_order, p.created_at`,
     params,
     client,
   )
   if (!rows.length) return []
   const ids = rows.map((r) => r.id)
-  const images = await q<Row>('select * from product_images where product_id = any($1) order by sort_order, created_at', [ids], client)
+  // Sample pages and details are public only once the owner approved the watermarked image.
+  const images = await q<Row>(`select * from product_images where product_id = any($1) ${opts.publicView ? 'and approved' : ''} order by sort_order, created_at`, [ids], client)
   const variants = await q<Row>('select * from product_variants where product_id = any($1) and active order by sort_order, created_at', [ids], client)
   return rows.map((r) => {
     const vs = variants.filter((v) => v.product_id === r.id)
@@ -91,7 +96,9 @@ export async function loadProducts(where: string, params: unknown[], client?: Qu
       isDemo: Boolean(r.is_demo),
       inStock,
       soldOutBehavior: String(r.out_of_stock_behavior),
-      images: imgs.map((i) => ({ id: i.id, url: imageUrl(i.id), alt: String(i.alt ?? ''), width: (i.width as number) ?? null, height: (i.height as number) ?? null, kind: i.kind as 'gallery' | 'sample', variantId: (i.variant_id as string) ?? null })),
+      images: imgs.map((i) => ({ id: i.id, url: imageUrl(i.id), alt: String(i.alt ?? ''), width: (i.width as number) ?? null, height: (i.height as number) ?? null, kind: i.kind as 'gallery' | 'sample' | 'detail', variantId: (i.variant_id as string) ?? null })),
+      whatsIncluded: (r.whats_included as string[]) ?? [],
+      walkthrough: r.walkthrough_slug ? { slug: String(r.walkthrough_slug), title: String(r.walkthrough_title) } : null,
       variants: vs.map((v) => ({
         id: v.id,
         title: String(v.title),
@@ -122,13 +129,13 @@ export async function loadProducts(where: string, params: unknown[], client?: Qu
 export const PUBLIC_WHERE = `p.status = 'published' and p.active and p.archived_at is null`
 
 export async function publicCatalog() {
-  const all = await loadProducts(PUBLIC_WHERE, [])
+  const all = await loadProducts(PUBLIC_WHERE, [], undefined, { publicView: true })
   // Sold out items marked "hide" leave the shop.
   return all.filter((p) => p.inStock || p.soldOutBehavior !== 'hide')
 }
 
 export async function publicProduct(slug: string) {
-  const [p] = await loadProducts(`${PUBLIC_WHERE} and p.slug = $1`, [slug])
+  const [p] = await loadProducts(`${PUBLIC_WHERE} and p.slug = $1`, [slug], undefined, { publicView: true })
   return p ?? null
 }
 
@@ -141,7 +148,7 @@ export async function previewProduct(id: string) {
 /** May this image be served to the public? Only images of public products. */
 export async function imageVisibility(imageId: string) {
   return one<{ storage_key: string; content_type: string; public: boolean }>(
-    `select i.storage_key, i.content_type, (p.status = 'published' and p.active and p.archived_at is null) as public
+    `select i.storage_key, i.content_type, (p.status = 'published' and p.active and p.archived_at is null and i.approved) as public
        from product_images i join products p on p.id = i.product_id where i.id = $1`,
     [imageId],
   )

@@ -19,7 +19,7 @@ interface ApiImage {
   alt: string
   width: number | null
   height: number | null
-  kind: 'gallery' | 'sample'
+  kind: 'gallery' | 'sample' | 'detail'
   variantId: string | null
 }
 
@@ -40,6 +40,8 @@ export interface ApiProduct {
   variants: Variant[]
   inStock: boolean
   digital: Product['digital']
+  whatsIncluded?: string[]
+  walkthrough?: { slug: string; title: string } | null
 }
 
 export interface ApiTutorial {
@@ -72,14 +74,14 @@ const defaultArt: Record<string, ImageRef['kind'] extends never ? never : string
 export function toProduct(p: ApiProduct): Product {
   const example = exampleProducts.find((e) => e.slug === p.slug)
   const gallery = p.images.filter((i) => i.kind === 'gallery')
-  const samples = p.images.filter((i) => i.kind === 'sample')
+  // Only previews the owner approved reach the storefront (the server filters them). Samples first, then details.
+  const samples = [...p.images.filter((i) => i.kind === 'sample'), ...p.images.filter((i) => i.kind === 'detail')]
   const doc = sanitizeDoc(p.description)
   const fallbackGallery: ImageRef[] = example?.gallery ?? [
     p.type === 'digital'
       ? { kind: 'illustration', name: p.category === 'np-inserts' ? 'pages-np' : 'pages-nurse', caption: p.title.slice(0, 18), alt: `Illustrated insert pages for ${p.title}. Illustrative image.` }
       : { kind: 'illustration', name: (defaultArt[p.category] ?? 'pens-trio') as 'tee', alt: `Illustration for ${p.title}. Illustrative image.` },
   ]
-  const fallbackPages: SamplePage[] = example?.samplePages ?? [{ kind: 'illustration', title: p.title.slice(0, 22), layout: 'lined' }]
   return {
     id: p.id,
     slug: p.slug,
@@ -91,7 +93,10 @@ export function toProduct(p: ApiProduct): Product {
     description: plainText(doc as RichDoc),
     descriptionDoc: doc,
     gallery: gallery.length ? gallery.map(photo) : fallbackGallery,
-    samplePages: samples.length ? samples.map((s) => ({ kind: 'photo', title: s.alt || 'Sample page', src: s.url, alt: s.alt || `Sample page from ${p.title}`, width: s.width ?? 850, height: s.height ?? 1100 })) : p.type === 'digital' ? fallbackPages : [],
+    samplePages: samples.map((s): SamplePage => ({ kind: 'photo', title: s.alt || (s.kind === 'detail' ? 'Close up detail' : 'Sample page'), src: s.url, alt: s.alt || `${s.kind === 'detail' ? 'Close up detail' : 'Sample page'} from ${p.title}, watermarked preview`, width: s.width ?? 850, height: s.height ?? 1100 })),
+    realSamples: samples.length > 0,
+    whatsIncluded: p.whatsIncluded ?? [],
+    walkthrough: p.walkthrough ?? null,
     priceCents: p.priceCents,
     salePriceCents: p.salePriceCents,
     fileFormat: p.digital?.fileFormat ?? null,

@@ -85,7 +85,7 @@ export const fileHeaders = (file: File, extra: Record<string, string> = {}) => (
   ...extra,
 })
 
-export type UploadPurpose = 'product_image' | 'product_file' | 'tutorial_thumbnail' | 'tutorial_video' | 'banner_image' | 'popup_image'
+export type UploadPurpose = 'product_image' | 'product_file' | 'tutorial_thumbnail' | 'tutorial_video' | 'banner_image' | 'popup_image' | 'story_portrait'
 
 /**
  * Uploads an admin file. The server decides how: on Vercel the file goes
@@ -96,7 +96,7 @@ export async function uploadAsset<T = any>(
   purpose: UploadPurpose,
   targetId: string,
   file: File,
-  opts: { imageKind?: 'gallery' | 'sample'; alt?: string; onProgress?: (fraction: number) => void; signal?: AbortSignal } = {},
+  opts: { imageKind?: 'gallery' | 'sample' | 'detail'; alt?: string; onProgress?: (fraction: number) => void; signal?: AbortSignal } = {},
 ): Promise<T> {
   const start = await api<{ mode: 'server' | 'direct'; url: string; id?: string }>('/api/admin/uploads', {
     body: { purpose, target_id: targetId, file_name: file.name, size: file.size, type: file.type, image_kind: opts.imageKind, alt: opts.alt ?? '' },

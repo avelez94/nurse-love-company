@@ -7,17 +7,13 @@ import {
   isBannerDismissed,
   isExternal,
   pageKey,
-  readStore,
   sendMarketingEvent,
   useMarketing,
   writeStore,
   type IconName,
   type PublicBanner,
-  type PublicPopup,
 } from '../lib/marketing'
 import { useRoute, type Route } from '../lib/router'
-import { useUI } from '../lib/ui'
-import { Dialog } from './Dialog'
 import { Heart } from './illustrations/Objects'
 import './Marketing.css'
 
@@ -189,162 +185,5 @@ export function BannerSlot({ placement }: { placement: 'below_hero' | 'above_fre
     <div ref={ref} className="container promo-slot">
       <PromoView banner={banner} onDismiss={dismiss} onClick={() => sendMarketingEvent('banner', banner.id, banner.dismissVersion, 'click')} />
     </div>
-  )
-}
-
-/* ---------- Nurse Kin popup ---------- */
-
-function PopupContent({ popup, onClose, onCta, preview, img }: { popup: PublicPopup; onClose: (reason: 'later' | 'close') => void; onCta: () => void; preview?: boolean; img: { url: string; alt: string } | null }) {
-  return (
-    <div className="nk-popup__body">
-      {img && <img className="nk-popup__image" src={img.url} alt={img.alt} />}
-      {preview && <p className="nk-popup__preview-note">Preview only. Nothing here is counted or remembered.</p>}
-      {popup.body.split(/\n{2,}/).map((p, i) => (
-        <p key={i} className="nk-popup__text">
-          {p}
-        </p>
-      ))}
-      <div className="nk-popup__actions">
-        <a
-          className="button nk-popup__cta"
-          href={popup.url || '#'}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => {
-            if (preview) e.preventDefault()
-            onCta()
-          }}
-        >
-          {popup.ctaLabel}
-          <ExternalLink size={16} aria-hidden="true" />
-          <span className="visually-hidden"> (opens Nurse Kin in a new tab)</span>
-        </a>
-        <button type="button" className="button button--outline" onClick={() => onClose('later')}>
-          Maybe later
-        </button>
-      </div>
-    </div>
-  )
-}
-
-const popupImage = (popup: PublicPopup, imageUrl?: string | null) => (imageUrl !== undefined ? (imageUrl ? { url: imageUrl, alt: popup.image?.alt ?? '' } : null) : popup.image)
-
-/** The popup itself. Used by the storefront and by the admin preview (which records nothing). */
-export function PopupView({ popup, open, onClose, onCta, preview, imageUrl }: { popup: PublicPopup; open: boolean; onClose: (reason: 'later' | 'close') => void; onCta: () => void; preview?: boolean; imageUrl?: string | null }) {
-  return (
-    <Dialog open={open} onClose={() => onClose('close')} title={popup.headline} variant="center" className={`nk-popup promo-theme--${popup.theme}`}>
-      <PopupContent popup={popup} onClose={onClose} onCta={onCta} preview={preview} img={popupImage(popup, imageUrl)} />
-    </Dialog>
-  )
-}
-
-/** Static copy of the popup for side by side desktop and phone previews in the admin. */
-export function PopupCard({ popup, imageUrl }: { popup: PublicPopup; imageUrl?: string | null }) {
-  return (
-    <div className={`nk-popup nk-card promo-theme--${popup.theme}`}>
-      <div className="dialog__panel">
-        <div className="dialog__header">
-          <p className="dialog__title">{popup.headline || 'Headline'}</p>
-          <span className="icon-button dialog__close" aria-hidden="true">
-            <X size={22} />
-          </span>
-        </div>
-        <div className="dialog__body">
-          <PopupContent popup={popup} onClose={() => {}} onCta={() => {}} preview img={popupImage(popup, imageUrl)} />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-const POPUP_KEY = 'nlc-nurse-kin'
-const POPUP_SESSION_KEY = 'nlc-nurse-kin-shown'
-const DAY = 86_400_000
-
-/** Whether this browser should not see the popup now (recently closed, already clicked, or already shown this session). */
-export function popupSuppressed(popup: PublicPopup, now = Date.now()) {
-  if (readStore('session', POPUP_SESSION_KEY) === String(popup.version)) return true
-  try {
-    const saved = JSON.parse(readStore('local', POPUP_KEY) ?? 'null') as { v: number; clicked?: boolean; closedAt?: number } | null
-    if (!saved || saved.v !== popup.version) return false
-    if (saved.clicked) return true
-    return typeof saved.closedAt === 'number' && now - saved.closedAt < popup.suppressDays * DAY
-  } catch {
-    return false
-  }
-}
-
-const videoPlaying = () => Array.from(document.querySelectorAll('video')).some((v) => !v.paused && !v.ended)
-const dialogOpen = () => document.documentElement.classList.contains('has-dialog') || Boolean(document.querySelector('dialog[open]'))
-
-/**
- * Shows the popup after the owner's delay or scroll depth, whichever comes
- * first, only on the chosen public pages, and never over another dialog, a
- * playing tutorial, sign in, checkout, accounts or the admin.
- */
-export function NurseKinPopup() {
-  const { popup } = useMarketing()
-  const route = useRoute()
-  const { overlay } = useUI()
-  const [open, setOpen] = useState(false)
-  const triggered = useRef(false)
-  const elapsed = useRef(0)
-  const page = pageKey(route)
-  const eligible = Boolean(popup) && appliesTo(popup?.pages ?? [], page)
-
-  // Time on site counts across pages, while the tab is visible.
-  useEffect(() => {
-    if (!popup || popupSuppressed(popup)) return
-    const t = window.setInterval(() => {
-      if (document.visibilityState === 'visible') elapsed.current += 1
-      if (elapsed.current >= popup.delaySeconds) triggered.current = true
-    }, 1000)
-    return () => window.clearInterval(t)
-  }, [popup])
-
-  // Scrolling far enough on an eligible page also triggers it.
-  useEffect(() => {
-    if (!popup || !eligible || !popup.scrollPercent) return
-    const onScroll = () => {
-      const max = document.documentElement.scrollHeight - window.innerHeight
-      if (max > 0 && (window.scrollY / max) * 100 >= popup.scrollPercent) triggered.current = true
-    }
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [popup, eligible])
-
-  // Once triggered, wait for a calm moment on an eligible page.
-  useEffect(() => {
-    if (!popup || !eligible || open) return
-    const t = window.setInterval(() => {
-      if (!triggered.current || overlay.kind !== 'none' || dialogOpen() || videoPlaying() || popupSuppressed(popup)) return
-      writeStore('session', POPUP_SESSION_KEY, String(popup.version))
-      setOpen(true)
-      sendMarketingEvent('popup', 'nurse_kin', popup.version, 'view')
-    }, 1000)
-    return () => window.clearInterval(t)
-  }, [popup, eligible, open, overlay.kind])
-
-  // Never stays open while moving to a page where it does not belong.
-  useEffect(() => {
-    if (open && !eligible) setOpen(false)
-  }, [open, eligible])
-
-  if (!popup) return null
-  return (
-    <PopupView
-      popup={popup}
-      open={open}
-      onClose={() => {
-        writeStore('local', POPUP_KEY, JSON.stringify({ v: popup.version, closedAt: Date.now() }))
-        sendMarketingEvent('popup', 'nurse_kin', popup.version, 'dismiss')
-        setOpen(false)
-      }}
-      onCta={() => {
-        writeStore('local', POPUP_KEY, JSON.stringify({ v: popup.version, clicked: true }))
-        sendMarketingEvent('popup', 'nurse_kin', popup.version, 'click')
-        setOpen(false)
-      }}
-    />
   )
 }

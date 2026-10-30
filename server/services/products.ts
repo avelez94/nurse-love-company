@@ -32,6 +32,8 @@ export function parseProductInput(b: Record<string, unknown>) {
     price_cents: price,
     sale_price_cents: sale,
     featured: bool(b.featured),
+    whats_included: strList(b.whats_included, "What's included", { maxItems: 25, maxLen: 160 }),
+    walkthrough_tutorial_id: b.walkthrough_tutorial_id ? uuid(b.walkthrough_tutorial_id, 'walkthrough video') : null,
     sort_order: int(b.sort_order, 'Display order', { optional: true, min: -100000, max: 100000 }) ?? 0,
   }
   const digital =
@@ -62,7 +64,7 @@ export function parseProductInput(b: Record<string, unknown>) {
 
 type ProductInput = ReturnType<typeof parseProductInput>
 const COLUMNS: Array<keyof ProductInput> = [
-  'title', 'slug', 'category', 'collection', 'type', 'short_description', 'description', 'price_cents', 'sale_price_cents', 'featured', 'sort_order',
+  'title', 'slug', 'category', 'collection', 'type', 'short_description', 'description', 'price_cents', 'sale_price_cents', 'featured', 'whats_included', 'walkthrough_tutorial_id', 'sort_order',
   'page_count', 'page_size', 'orientation', 'file_format', 'usage_attributes', 'app_compatibility', 'show_binder_notice',
   'sku', 'weight_grams', 'shipping_info', 'inventory_quantity', 'low_stock_threshold', 'out_of_stock_behavior',
 ]
@@ -131,7 +133,7 @@ export async function duplicateProduct(actor: SessionUser, id: string, ip?: stri
       client,
     )
     // Images are copied as references to the same stored files. Product files and versions are not copied.
-    await q(`insert into product_images (product_id, kind, storage_key, content_type, width, height, alt, sort_order) select $2, kind, storage_key, content_type, width, height, alt, sort_order from product_images where product_id = $1 and variant_id is null`, [id, row!.id], client)
+    await q(`insert into product_images (product_id, kind, storage_key, content_type, width, height, alt, approved, sort_order) select $2, kind, storage_key, content_type, width, height, alt, approved, sort_order from product_images where product_id = $1 and variant_id is null`, [id, row!.id], client)
     await q(`insert into product_variants (product_id, title, options, price_cents, inventory_quantity, sort_order) select $2, title, options, price_cents, 0, sort_order from product_variants where product_id = $1`, [id, row!.id], client)
     await audit({ actor, action: 'product.duplicated', entityType: 'product', entityId: row!.id, summary: `Duplicated ${p.title} as a new draft`, data: { from: id }, ip }, client)
     return row!
@@ -185,10 +187,23 @@ export async function updateImages(actor: SessionUser, productId: string, list: 
     const id = uuid(img.id, 'image id')
     const alt = str(img.alt, 'Alt text', { optional: true, max: 250 })
     const variant = img.variant_id ? uuid(img.variant_id, 'variant') : null
-    const kind = oneOf(img.kind, 'Image type', ['gallery', 'sample'] as const, 'gallery')
-    await q('update product_images set alt = $3, sort_order = $4, variant_id = $5, kind = $6 where id = $1 and product_id = $2', [id, productId, alt, i, variant, kind])
+    const kind = oneOf(img.kind, 'Image type', ['gallery', 'sample', 'detail'] as const, 'gallery')
+    // Photos stay photos: only watermarked previews can be samples or details, so the kind can only switch between those two.
+    await q(
+      `update product_images set alt = $3, sort_order = $4, variant_id = $5,
+         kind = case when kind <> 'gallery' and $6 <> 'gallery' then $6 else kind end
+       where id = $1 and product_id = $2`,
+      [id, productId, alt, i, variant, kind],
+    )
   }
   await audit({ actor, action: 'product.images_updated', entityType: 'product', entityId: productId, summary: 'Updated image order, alt text or assignments', ip })
+}
+
+/** The owner checks a watermarked preview, then approves it for the product page (or withdraws it). */
+export async function approveImage(actor: SessionUser, productId: string, imageId: string, approved: boolean, ip?: string) {
+  const img = await one<{ kind: string }>(`update product_images set approved = $3 where id = $1 and product_id = $2 and kind <> 'gallery' returning kind`, [imageId, productId, approved])
+  if (!img) throw notFound('Preview image')
+  await audit({ actor, action: approved ? 'product.preview_approved' : 'product.preview_withdrawn', entityType: 'product', entityId: productId, summary: `${approved ? 'Approved' : 'Withdrew'} a ${img.kind === 'detail' ? 'detail' : 'sample page'} preview`, ip })
 }
 
 export async function deleteImage(actor: SessionUser, productId: string, imageId: string, ip?: string) {
@@ -227,7 +242,7 @@ export async function adminProductDetail(id: string) {
   const p = await one<Record<string, unknown>>('select * from products where id = $1', [id])
   if (!p) throw notFound('Product')
   const [images, variants, versions, uploads, releases, affected] = await Promise.all([
-    q('select id, kind, alt, width, height, sort_order, variant_id, content_type from product_images where product_id = $1 order by kind, sort_order', [id]),
+    q('select id, kind, alt, width, height, sort_order, variant_id, content_type, approved from product_images where product_id = $1 order by kind, sort_order', [id]),
     q('select * from product_variants where product_id = $1 order by sort_order', [id]),
     q('select id, version_number, file_name, content_type, file_size, sha256, notes, released_at, released_by from product_versions where product_id = $1 order by version_number desc', [id]),
     q('select id, file_name, content_type, file_size, created_at, uploaded_by from product_file_uploads where product_id = $1 and released_version_id is null order by created_at desc', [id]),

@@ -10,8 +10,15 @@ Today the account email cannot be changed on the site ("contact support"). Plann
 
 Until then, an email can be corrected directly in the Supabase database on request, recorded in the audit log.
 
-## Nurse Kin popup: waiting for the owner
-Built and ready (Marketing, Nurse Kin popup), kept as a draft. Needs the real Nurse Kin address, the approved description, a button label and optionally a logo before it can be published. No sale or popup has been published.
+## Waiting for the owner's content
+Built and ready, nothing published:
+* **Nurse Kin button** (Marketing, Nurse Kin): the real address, approved description, labels, optional logo.
+* **Resource quiz** (Marketing, Resource Quiz): questions, answers, result groups and their products.
+* **Our Story** (Content, Our Story): her own words and a portrait.
+* **Product previews**: selected sample page images, what's included lists, optional walkthrough tutorials.
+
+## Not built
+* **Generating previews from the PDF automatically.** Previews are uploaded by hand for now (screenshots or exports), which keeps the owner in control of exactly which pages are shown.
 
 ## Also open
 * **Show password button on Sign in and Reset password** (sign up already has it). Offered, not yet requested.

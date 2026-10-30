@@ -1,5 +1,5 @@
 /*
-  Owner managed banners and the Nurse Kin popup. Four preset themes in the
+  Owner managed banners (and the Nurse Kin theme colors). Four preset themes in the
   brand palette (no purple), calm entrance, no marquees or flashing.
   Text colors meet WCAG AA contrast on each background.
 */
@@ -230,76 +230,6 @@
   .promo,
   .promo-bar {
     animation: none;
-  }
-}
-
-/* ---------- Nurse Kin popup ---------- */
-.nk-popup .dialog__panel {
-  max-width: 460px;
-  background: var(--promo-bg);
-  color: var(--promo-fg);
-  border: 1px solid var(--promo-border);
-}
-.nk-popup .dialog__title,
-.nk-popup .dialog__close {
-  color: var(--promo-fg);
-}
-.nk-popup__body {
-  display: grid;
-  gap: var(--space-3);
-}
-.nk-popup__image {
-  max-width: 120px;
-  max-height: 120px;
-  object-fit: contain;
-  border-radius: var(--radius-md);
-}
-.nk-popup__text {
-  color: var(--promo-muted);
-  white-space: pre-line;
-}
-.nk-popup__preview-note {
-  font-size: var(--text-xs);
-  font-weight: 700;
-  padding: 6px 10px;
-  border-radius: var(--radius-sm);
-  background: var(--white);
-  color: var(--burgundy);
-  border: 1px dashed var(--pink-deep);
-}
-.nk-popup__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  margin-top: var(--space-2);
-}
-.nk-popup__cta {
-  --btn-bg: var(--promo-btn-bg);
-  --btn-fg: var(--promo-btn-fg);
-  --btn-border: var(--promo-btn-bg);
-}
-@media (max-width: 480px) {
-  .nk-popup__actions .button {
-    width: 100%;
-  }
-}
-
-/* Static admin preview of the popup panel. */
-.nk-card {
-  container-type: inline-size;
-}
-.nk-card .dialog__panel {
-  position: static;
-  transform: none;
-  opacity: 1;
-  margin: 0 auto;
-  width: 100%;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
-}
-@container (max-width: 480px) {
-  .nk-card .nk-popup__actions .button {
-    width: 100%;
   }
 }
 

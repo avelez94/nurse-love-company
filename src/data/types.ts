@@ -121,6 +121,12 @@ export interface Product {
   descriptionDoc?: unknown
   isDemo?: boolean
   featured?: boolean
+  /** Live text list of what the download includes. */
+  whatsIncluded?: string[]
+  /** A published tutorial that walks through this product. */
+  walkthrough?: { slug: string; title: string } | null
+  /** True when samplePages are owner approved, watermarked previews (not illustrations). */
+  realSamples?: boolean
 }
 
 export interface Category {

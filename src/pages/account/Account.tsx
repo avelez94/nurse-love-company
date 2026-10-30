@@ -10,6 +10,7 @@ import { TutorialHelpLink } from '../../components/TutorialCard'
 import { Dialog } from '../../components/Dialog'
 import { Checkbox, Confirm, dateOnly, dateTime, Empty, FormError, Loading, money, Notice, Pill, TextArea, TextInput, useApiData } from '../../components/ui'
 import { rememberReturn } from '../Auth'
+import { ReviewDialog, reviewLabel, reviewStatusText, type Reviewable } from './ReviewDialog'
 import './Account.css'
 
 const tabs: Array<{ view: AccountView; label: string; route: string }> = [
@@ -108,9 +109,42 @@ function Overview() {
         <span className="account-tile__title">Tutorials</span>
         <span className="account-tile__text">Free videos on setting up your inserts</span>
       </a>
+      <YourReviews />
       <div className="account__help">
         <TutorialHelpLink category="np-inserts" />
       </div>
+    </div>
+  )
+}
+
+function useReviewables() {
+  const r = useApiData<{ purchases: Reviewable[] }>('/api/account/reviews')
+  return { ...r, byProduct: new Map((r.data?.purchases ?? []).map((p) => [p.product_id, p])) }
+}
+
+/** Purchases the customer can review, with "Leave a review" beside each. */
+function YourReviews() {
+  const { data, reload } = useReviewables()
+  const [editing, setEditing] = useState<Reviewable | null>(null)
+  if (!data?.purchases.length) return null
+  return (
+    <div className="panel account__reviews">
+      <h2 className="panel__title">Reviews</h2>
+      <p className="muted">Share what you think of things you bought. Reviews appear once Nurse Love Company approves them.</p>
+      <ul className="review-list">
+        {data.purchases.map((p) => (
+          <li key={p.product_id}>
+            <span>
+              {p.title}
+              {p.review_status && <span className="muted"> · {reviewStatusText[p.review_status]}</span>}
+            </span>
+            <button type="button" className="button button--outline button--small" onClick={() => setEditing(p)}>
+              {reviewLabel(p)}
+            </button>
+          </li>
+        ))}
+      </ul>
+      <ReviewDialog item={editing} onClose={() => setEditing(null)} onSaved={reload} />
     </div>
   )
 }
@@ -145,7 +179,7 @@ function Orders() {
 
 interface OrderDetailData {
   order: Record<string, any>
-  items: Array<{ id: string; product_type: string; title: string; variant: string; unit_price_cents: number; quantity: number; refunded_quantity: number }>
+  items: Array<{ id: string; product_id: string; product_type: string; title: string; variant: string; unit_price_cents: number; quantity: number; refunded_quantity: number }>
   shipments: Array<{ carrier: string; tracking_number: string; tracking_url: string; status: string; shipped_at: string; delivered_at: string | null }>
   updates: Array<{ message: string; created_at: string }>
 }
@@ -154,6 +188,8 @@ const addressLines = (a?: Record<string, string> | null) => (a ? [a.line1, a.lin
 
 function OrderDetail({ number }: { number: string }) {
   const { data, error, loading } = useApiData<OrderDetailData>(`/api/account/orders/${encodeURIComponent(number)}`)
+  const reviews = useReviewables()
+  const [reviewing, setReviewing] = useState<Reviewable | null>(null)
   if (loading) return <Loading label="Loading order..." />
   if (error) return <FormError message={error} />
   if (!data) return null
@@ -167,6 +203,7 @@ function OrderDetail({ number }: { number: string }) {
       <a className="arrow-link" href={href('account-orders')}>
         ← All orders
       </a>
+      <ReviewDialog item={reviewing} onClose={() => setReviewing(null)} onSaved={reviews.reload} />
       <div className="panel">
         <div className="panel__head">
           <h2 className="panel__title">
@@ -207,6 +244,14 @@ function OrderDetail({ number }: { number: string }) {
                     <br />
                     <span className="muted">{i.product_type === 'digital' ? 'Digital download • Binder not included' : 'Ships to you'}</span>
                     {i.refunded_quantity > 0 && <> <Pill value="refunded" /></>}
+                    {reviews.byProduct.get(i.product_id) && (
+                      <span className="review-cell">
+                        <button type="button" className="button button--outline button--small" onClick={() => setReviewing(reviews.byProduct.get(i.product_id)!)}>
+                          {reviewLabel(reviews.byProduct.get(i.product_id)!)}
+                        </button>
+                        {reviews.byProduct.get(i.product_id)!.review_status && <span className="muted">{reviewStatusText[reviews.byProduct.get(i.product_id)!.review_status!]}</span>}
+                      </span>
+                    )}
                   </td>
                   <td className="num">{i.quantity}</td>
                   <td className="num">{money(i.unit_price_cents)}</td>

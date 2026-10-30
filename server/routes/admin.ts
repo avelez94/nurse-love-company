@@ -15,7 +15,7 @@ import { customerDetail, listAdmins, listCustomers, saveCustomerNotes, setAdmin 
 import { emailDetail, listEmails, listTemplates, removeSuppression, resendEmail, saveTemplate } from '../services/emails.js'
 import { countAffectedPurchasers, grantReplacement, publishRelease } from '../services/entitlements.js'
 import { addShipment, requestRefund } from '../services/orders.js'
-import { adminProductDetail, adminProductList, createProduct, deleteImage, duplicateProduct, saveVariants, setProductState, updateImages, updateProduct } from '../services/products.js'
+import { adminProductDetail, adminProductList, approveImage, createProduct, deleteImage, duplicateProduct, saveVariants, setProductState, updateImages, updateProduct } from '../services/products.js'
 import { ordersCsv, revenueReport, salesCsv } from '../services/reports.js'
 import { defaultSettings, getSettings, setSetting, type Settings } from '../services/settings.js'
 import {
@@ -100,6 +100,10 @@ adminRoutes.put('/admin/products/:id/images', async (c) => {
   await updateImages(requireAdmin(c), uuid(c.req.param('id')), b.images, ip(c))
   return c.json({ ok: true })
 })
+adminRoutes.post('/admin/products/:id/images/:imageId/approval', async (c) => {
+  await approveImage(requireAdmin(c), uuid(c.req.param('id')), uuid(c.req.param('imageId')), bool((await jsonBody(c)).approved), ip(c))
+  return c.json({ ok: true })
+})
 adminRoutes.delete('/admin/products/:id/images/:imageId', async (c) => {
   await deleteImage(requireAdmin(c), uuid(c.req.param('id')), uuid(c.req.param('imageId')), ip(c))
   return c.json({ ok: true })
@@ -108,7 +112,7 @@ adminRoutes.post('/admin/products/:id/images', async (c) => {
   const actor = requireAdmin(c)
   const id = uuid(c.req.param('id'))
   if (!(await one('select 1 from products where id = $1', [id]))) throw notFound('Product')
-  const kind = oneOf(c.req.query('kind'), 'Image type', ['gallery', 'sample'] as const, 'gallery')
+  const kind = oneOf(c.req.query('kind'), 'Image type', ['gallery', 'sample', 'detail'] as const, 'gallery')
   const f = await receiveUpload(c, 'image', `product-images/${id}`, config.limits.imageBytes)
   const alt = str(decodeURIComponent(c.req.header('x-alt-text') ?? ''), 'Alt text', { optional: true, max: 250 })
   return c.json(await attachUpload(actor, 'product_image', id, f, { imageKind: kind, alt }, ip(c)), 201)
@@ -132,7 +136,7 @@ adminRoutes.post('/admin/products/:id/files', async (c) => {
 */
 adminRoutes.post('/admin/uploads', async (c) => {
   const b = await jsonBody(c)
-  const purpose = oneOf(b.purpose, 'Upload type', ['product_image', 'product_file', 'tutorial_thumbnail', 'tutorial_video', 'banner_image', 'popup_image'] as const)
+  const purpose = oneOf(b.purpose, 'Upload type', ['product_image', 'product_file', 'tutorial_thumbnail', 'tutorial_video', 'banner_image', 'popup_image', 'story_portrait'] as const)
   return c.json(
     await startUpload(requireAdmin(c), {
       purpose,
@@ -140,7 +144,7 @@ adminRoutes.post('/admin/uploads', async (c) => {
       fileName: str(b.file_name, 'File name', { max: 200 }),
       size: Number(b.size),
       type: String(b.type ?? '').slice(0, 100),
-      imageKind: oneOf(b.image_kind, 'Image type', ['gallery', 'sample'] as const, 'gallery'),
+      imageKind: oneOf(b.image_kind, 'Image type', ['gallery', 'sample', 'detail'] as const, 'gallery'),
       alt: str(b.alt, 'Alt text', { optional: true, max: 250 }),
     }),
     201,

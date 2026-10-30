@@ -167,29 +167,24 @@ describe('sale banners and coupon codes', () => {
   })
 })
 
-describe('Nurse Kin popup', () => {
-  const copy = { headline: 'Meet Nurse Kin', body: 'Approved description from the owner.', cta_label: 'Visit Nurse Kin', url: 'https://nursekin.example', pages: ['home', 'shop'] }
+describe('Nurse Kin launcher', () => {
+  const copy = { launcher_label: 'Meet Nurse Kin', headline: 'Meet Nurse Kin', body: 'Approved description from the owner.', cta_label: 'Visit Nurse Kin', url: 'https://nursekin.example' }
 
-  it('stays private until it is complete and published; never on excluded pages; campaign reset raises the version', async () => {
+  it('stays hidden until it is complete and published; switching off hides it; a new campaign raises the version', async () => {
     const a = await admin()
     assert.equal((await publicFeed()).popup, null)
     const blank = await api('/api/admin/marketing/popup/publish', { session: a, method: 'POST' })
     assert.equal(blank.status, 400)
     assert.match(blank.data.error, /Nurse Kin address/)
     assert.equal((await api('/api/admin/marketing/popup', { session: a, method: 'PUT', body: { ...copy, url: 'http://nursekin.example' } })).status, 400)
-    assert.equal((await api('/api/admin/marketing/popup', { session: a, method: 'PUT', body: { ...copy, pages: ['account', 'sign-in'] } })).status, 400, 'only public storefront pages can be chosen')
-    assert.equal((await api('/api/admin/marketing/popup', { session: a, method: 'PUT', body: { ...copy, delay_seconds: 2 } })).status, 400)
     assert.equal((await api('/api/admin/marketing/popup', { session: a, method: 'PUT', body: copy })).status, 200)
     assert.equal((await publicFeed()).popup, null, 'saved but not published')
-
     const pub = await api('/api/admin/marketing/popup/publish', { session: a, method: 'POST' })
     assert.equal(pub.data.state, 'live')
     const popup = (await publicFeed()).popup!
-    assert.deepEqual([popup.url, popup.delaySeconds, popup.suppressDays, popup.version, popup.pages], ['https://nursekin.example/', 30, 7, 1, ['home', 'shop']])
-
+    assert.deepEqual([popup.launcherLabel, popup.url, popup.version], ['Meet Nurse Kin', 'https://nursekin.example/', 1])
     // While published it must stay complete.
     assert.equal((await api('/api/admin/marketing/popup', { session: a, method: 'PUT', body: { ...copy, url: '' } })).status, 400)
-
     await api('/api/admin/marketing/popup/disable', { session: a, method: 'POST' })
     assert.equal((await publicFeed()).popup, null)
     await api('/api/admin/marketing/popup/enable', { session: a, method: 'POST' })
@@ -213,7 +208,7 @@ describe('marketing statistics and images', () => {
     const listed = (await api('/api/admin/marketing/banners', { session: a })).data.banners[0]
     assert.deepEqual(listed.stats, { views: 2, clicks: 1, dismissals: 0 })
 
-    await api('/api/admin/marketing/popup', { session: a, method: 'PUT', body: { headline: 'Meet Nurse Kin', body: 'Approved.', cta_label: 'Visit Nurse Kin', url: 'https://nursekin.example', pages: ['home'] } })
+    await api('/api/admin/marketing/popup', { session: a, method: 'PUT', body: { launcher_label: 'Meet Nurse Kin', headline: 'Meet Nurse Kin', body: 'Approved.', cta_label: 'Visit Nurse Kin', url: 'https://nursekin.example' } })
     await api('/api/admin/marketing/popup/publish', { session: a, method: 'POST' })
     await ev({ kind: 'popup', id: 'nurse_kin', version: 1, event: 'view' })
     await ev({ kind: 'popup', id: 'nurse_kin', version: 1, event: 'click' })

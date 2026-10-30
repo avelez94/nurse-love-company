@@ -129,17 +129,19 @@ type Form = {
   inventory_quantity: number
   low_stock_threshold: number
   out_of_stock_behavior: string
+  whats_included: string[]
+  walkthrough_tutorial_id: string | null
 }
 
 const blank: Form = {
   title: '', slug: '', category: 'nurse-inserts', collection: '', type: 'digital', short_description: '', description: { type: 'doc', content: [] }, price_cents: null, sale_price_cents: null, featured: false, sort_order: 0,
   page_count: null, page_size: '', orientation: '', file_format: '', usage_attributes: [], app_compatibility: [], show_binder_notice: true,
-  sku: '', weight_grams: null, shipping_info: '', inventory_quantity: 0, low_stock_threshold: 3, out_of_stock_behavior: 'show_sold_out',
+  sku: '', weight_grams: null, shipping_info: '', inventory_quantity: 0, low_stock_threshold: 3, out_of_stock_behavior: 'show_sold_out', whats_included: [], walkthrough_tutorial_id: null,
 }
 
 interface Detail {
   product: Form & { id: string; status: string; active: boolean; archived_at: string | null; is_demo: boolean; current_version_id: string | null; updated_at: string }
-  images: Array<{ id: string; kind: 'gallery' | 'sample'; alt: string; width: number | null; height: number | null; sort_order: number; variant_id: string | null }>
+  images: Array<{ id: string; kind: 'gallery' | 'sample' | 'detail'; approved: boolean; alt: string; width: number | null; height: number | null; sort_order: number; variant_id: string | null }>
   variants: Array<{ id: string; title: string; options: { size?: string; color?: string }; sku: string | null; price_cents: number | null; inventory_quantity: number; active: boolean }>
   versions: Array<{ id: string; version_number: number; file_name: string; file_size: number; notes: string; released_at: string; released_by: string }>
   uploads: Array<{ id: string; file_name: string; file_size: number; created_at: string; uploaded_by: string }>
@@ -163,6 +165,7 @@ export function ProductEditor({ id }: { id: string }) {
   const [saveError, setSaveError] = useState('')
   const [preview, setPreview] = useState<ApiProduct | null>(null)
   const [confirmAction, setConfirmAction] = useState<null | 'archive' | 'deactivate'>(null)
+  const tutorials = useApiData<{ tutorials: Array<{ id: string; title: string; status: string }> }>('/api/admin/tutorials')
 
   useEffect(() => {
     if (data) {
@@ -279,7 +282,25 @@ export function ProductEditor({ id }: { id: string }) {
           )}
 
           {!isNew && data && form.type === 'physical' && <Variants productId={id} variants={data.variants} reload={reload} />}
-          {!isNew && data && <Images productId={id} images={data.images} variants={data.variants} reload={reload} />}
+          {!isNew && data && <Images productId={id} images={data.images.filter((i) => i.kind === 'gallery')} variants={data.variants} reload={reload} />}
+          {!isNew && data && <Previews productId={id} images={data.images.filter((i) => i.kind !== 'gallery')} reload={reload} />}
+          <section className="panel form-stack">
+            <h2 className="panel__title">What's included and walkthrough</h2>
+            <TextArea
+              label="What's included"
+              value={form.whats_included.join('\n')}
+              onChange={(v) => set('whats_included', v.split('\n').map((x) => x.replace(/^\s*[•*]\s*/, '')).slice(0, 25))}
+              rows={5}
+              hint="One item per line, for example a section name and its page count. Shown as a list on the product page. Leave empty to hide."
+            />
+            <Select
+              label="Walkthrough video (optional)"
+              value={form.walkthrough_tutorial_id ?? ''}
+              onChange={(v) => set('walkthrough_tutorial_id', v || null)}
+              options={[{ value: '', label: 'None' }, ...(tutorials.data?.tutorials ?? []).filter((t) => t.status !== 'archived').map((t) => ({ value: t.id, label: `${t.title}${t.status === 'published' ? '' : ' (not published yet, hidden until it is)'}` }))]}
+              hint="Pick a tutorial that walks through this product. The link appears only while the tutorial is published."
+            />
+          </section>
           {!isNew && data && form.type === 'digital' && <Files productId={id} data={data} reload={reload} />}
         </div>
 
@@ -405,7 +426,7 @@ function Images({ productId, images, variants, reload }: { productId: string; im
   const input = useRef<HTMLInputElement>(null)
   useEffect(() => setList(images), [images])
 
-  const upload = async (files: FileList | null, kind: 'gallery' | 'sample') => {
+  const upload = async (files: FileList | null, kind: 'gallery') => {
     if (!files?.length) return
     setError('')
     for (const f of Array.from(files)) {
@@ -444,19 +465,15 @@ function Images({ productId, images, variants, reload }: { productId: string; im
   return (
     <section className="panel form-stack">
       <div className="panel__head">
-        <h2 className="panel__title">Photos and sample pages</h2>
+        <h2 className="panel__title">Product photos</h2>
         <div className="button-row">
           <label className="button button--outline button--small">
             <ImagePlus size={16} aria-hidden="true" /> Add photos
             <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onChange={(e) => { void upload(e.target.files, 'gallery'); e.target.value = '' }} />
           </label>
-          <label className="button button--outline button--small">
-            <ImagePlus size={16} aria-hidden="true" /> Add sample pages
-            <input type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onChange={(e) => { void upload(e.target.files, 'sample'); e.target.value = '' }} />
-          </label>
         </div>
       </div>
-      <p className="muted">Full marketing graphics are shown whole, never cropped, and shoppers can enlarge them. Sample pages appear in "Peek inside". Images are public only while the product is published.</p>
+      <p className="muted">Full marketing graphics are shown whole, never cropped, and shoppers can enlarge them. Images are public only while the product is published.</p>
       {progress && <ProgressBar value={progress.value} label={`Uploading ${progress.name}`} />}
       <FormError message={error} />
       {missingAlt > 0 && <Notice tone="warn">{missingAlt} image{missingAlt === 1 ? ' needs' : 's need'} alt text for shoppers using screen readers.</Notice>}
@@ -468,7 +485,6 @@ function Images({ productId, images, variants, reload }: { productId: string; im
             <div className="image-tile" key={img.id}>
               <img src={`/api/media/${img.id}`} alt="" />
               <TextInput label="Alt text" value={img.alt} onChange={(v) => setList(list.map((x) => (x.id === img.id ? { ...x, alt: v } : x)))} maxLength={250} />
-              <Select label="Shown as" value={img.kind} onChange={(v) => setList(list.map((x) => (x.id === img.id ? { ...x, kind: v } : x)))} options={[{ value: 'gallery', label: 'Product photo' }, { value: 'sample', label: 'Sample page' }]} />
               {variants.length > 0 && (
                 <Select label="Variant" value={img.variant_id ?? ''} onChange={(v) => setList(list.map((x) => (x.id === img.id ? { ...x, variant_id: v || null } : x)))} options={[{ value: '', label: 'All variants' }, ...variants.map((v) => ({ value: v.id, label: v.title }))]} />
               )}
@@ -494,6 +510,129 @@ function Images({ productId, images, variants, reload }: { productId: string; im
       {list.length > 0 && (
         <div className="button-row">
           <button type="button" className="button button--small" onClick={save}>Save image order and alt text</button>
+          {saved && <span role="status">{saved}</span>}
+        </div>
+      )}
+    </section>
+  )
+}
+
+/**
+ * Sample pages and close up details for "View a sample". Each upload is
+ * flattened with a PREVIEW watermark on the server, then waits for the
+ * owner's approval. These are separate images: the paid file is never used
+ * or shown here.
+ */
+function Previews({ productId, images, reload }: { productId: string; images: Detail['images']; reload: () => void }) {
+  const [list, setList] = useState(images)
+  const [progress, setProgress] = useState<{ name: string; value: number } | null>(null)
+  const [error, setError] = useState('')
+  const [saved, setSaved] = useState('')
+  useEffect(() => setList(images), [images])
+
+  const upload = async (files: FileList | null, kind: 'sample' | 'detail') => {
+    if (!files?.length) return
+    setError('')
+    for (const f of Array.from(files)) {
+      if (!['image/png', 'image/jpeg', 'image/webp'].includes(f.type)) {
+        setError(`${f.name} is not a PNG, JPG or WebP image.`)
+        continue
+      }
+      try {
+        setProgress({ name: f.name, value: 0 })
+        await uploadAsset('product_image', productId, f, { imageKind: kind, onProgress: (v) => setProgress({ name: f.name, value: v }) })
+      } catch (err) {
+        setError(`${f.name}: ${errorMessage(err)}`)
+      }
+    }
+    setProgress(null)
+    reload()
+  }
+  const approve = async (imageId: string, approved: boolean) => {
+    setError('')
+    try {
+      await api(`/api/admin/products/${productId}/images/${imageId}/approval`, { body: { approved } })
+      reload()
+    } catch (err) {
+      setError(errorMessage(err))
+    }
+  }
+  const move = (i: number, d: number) => {
+    const next = [...list]
+    const [x] = next.splice(i, 1)
+    next.splice(i + d, 0, x)
+    setList(next)
+  }
+  const save = async () => {
+    setError('')
+    try {
+      await api(`/api/admin/products/${productId}/images`, { method: 'PUT', body: { images: list.map((i) => ({ id: i.id, alt: i.alt, kind: i.kind, variant_id: i.variant_id })) } })
+      setSaved('Preview details saved.')
+      reload()
+    } catch (err) {
+      setError(errorMessage(err))
+    }
+  }
+  const waiting = list.filter((i) => !i.approved).length
+  return (
+    <section className="panel form-stack">
+      <div className="panel__head">
+        <h2 className="panel__title">Sample previews</h2>
+        <div className="button-row">
+          <label className="button button--outline button--small">
+            <ImagePlus size={16} aria-hidden="true" /> Add sample pages
+            <input type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onChange={(e) => { void upload(e.target.files, 'sample'); e.target.value = '' }} />
+          </label>
+          <label className="button button--outline button--small">
+            <ImagePlus size={16} aria-hidden="true" /> Add close up details
+            <input type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onChange={(e) => { void upload(e.target.files, 'detail'); e.target.value = '' }} />
+          </label>
+        </div>
+      </div>
+      <p className="muted">
+        Upload a few selected pages or cropped details (screenshots or exports), not the whole resource. Each image is stamped with a PREVIEW watermark built into the picture, then waits for your
+        approval. Approved previews appear behind the “View a sample” button. Your paid file is never shown. Products can also be published with no previews at all.
+      </p>
+      {progress && <ProgressBar value={progress.value} label={`Uploading and watermarking ${progress.name}`} />}
+      <FormError message={error} />
+      {waiting > 0 && <Notice tone="warn">{waiting} preview{waiting === 1 ? ' is' : 's are'} waiting for your approval and not shown yet.</Notice>}
+      {!list.length ? (
+        <p className="muted">No previews. The “View a sample” button is hidden for this product.</p>
+      ) : (
+        <div className="image-grid">
+          {list.map((img, i) => (
+            <div className="image-tile" key={img.id}>
+              <img src={`/api/media/${img.id}`} alt="" />
+              <Pill value={img.approved ? 'published' : 'pending'} label={img.approved ? 'Approved, shown' : 'Waiting for approval'} />
+              <TextInput label="Caption and alt text" value={img.alt} onChange={(v) => setList(list.map((x) => (x.id === img.id ? { ...x, alt: v } : x)))} maxLength={250} hint="For example “Daily planner page”." />
+              <Select label="Type" value={img.kind as 'sample' | 'detail'} onChange={(v) => setList(list.map((x) => (x.id === img.id ? { ...x, kind: v } : x)))} options={[{ value: 'sample', label: 'Sample page' }, { value: 'detail', label: 'Close up detail' }]} />
+              <div className="button-row">
+                {img.approved ? (
+                  <button type="button" className="button button--outline button--small" onClick={() => approve(img.id, false)}>Hide</button>
+                ) : (
+                  <button type="button" className="button button--small" onClick={() => approve(img.id, true)}>Approve</button>
+                )}
+                <button type="button" className="icon-button" aria-label="Move earlier" disabled={i === 0} onClick={() => move(i, -1)}><ArrowUp size={16} aria-hidden="true" /></button>
+                <button type="button" className="icon-button" aria-label="Move later" disabled={i === list.length - 1} onClick={() => move(i, 1)}><ArrowDown size={16} aria-hidden="true" /></button>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label="Delete preview"
+                  onClick={async () => {
+                    await api(`/api/admin/products/${productId}/images/${img.id}`, { method: 'DELETE' })
+                    reload()
+                  }}
+                >
+                  <Trash2 size={16} aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {list.length > 0 && (
+        <div className="button-row">
+          <button type="button" className="button button--small" onClick={save}>Save preview order and captions</button>
           {saved && <span role="status">{saved}</span>}
         </div>
       )}

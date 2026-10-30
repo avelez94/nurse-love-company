@@ -16,6 +16,7 @@ import { HttpError } from './lib/errors.js'
 import { accountRoutes } from './routes/account.js'
 import { adminRoutes } from './routes/admin.js'
 import { marketingRoutes } from './routes/marketing.js'
+import { featureRoutes } from './routes/features.js'
 import { publicRoutes } from './routes/public.js'
 import { webhookRoutes } from './routes/webhooks.js'
 
@@ -138,6 +139,7 @@ export function createApp() {
   app.route('/api', publicRoutes)
   app.route('/api', accountRoutes)
   app.route('/api', marketingRoutes)
+  app.route('/api', featureRoutes)
   app.route('/api', adminRoutes)
 
   app.notFound((c) => (c.req.path.startsWith('/api/') ? c.json({ error: 'Not found.', code: 'not_found' }, 404) : c.text('Not found', 404)))

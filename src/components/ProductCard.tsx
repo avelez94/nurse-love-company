@@ -24,10 +24,12 @@ export function ProductCard({ product, style }: { product: Product; style?: Reac
         <p className="product-card__price"><Price product={product} /></p>
         <div className="product-card__actions">
           {isDigital ? (
-            <button type="button" className="button button--outline button--small" onClick={() => open({ kind: 'peek', product })}>
-              <BookOpen aria-hidden="true" size={18} />
-              Peek inside
-            </button>
+            product.samplePages.length > 0 && (
+              <button type="button" className="button button--outline button--small" onClick={() => open({ kind: 'peek', product })} aria-haspopup="dialog">
+                <BookOpen aria-hidden="true" size={18} />
+                View a sample
+              </button>
+            )
           ) : (
             <button type="button" className="button button--outline button--small" onClick={() => open({ kind: 'quick-view', product })}>
               <Eye aria-hidden="true" size={18} />

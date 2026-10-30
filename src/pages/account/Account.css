@@ -199,3 +199,63 @@
   vertical-align: -3px;
   color: var(--raspberry);
 }
+
+/* Reviews */
+.star-input {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.star-input legend {
+  font-weight: 700;
+  margin-bottom: var(--space-2);
+}
+.star-input__row {
+  display: flex;
+  gap: 4px;
+}
+.star-input__star {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  color: var(--pink-deep);
+  cursor: pointer;
+}
+.star-input__star.is-on {
+  color: var(--raspberry);
+}
+.star-input__star.is-on svg {
+  fill: var(--raspberry);
+}
+.star-input__star:has(input:focus-visible) {
+  outline: 3px solid var(--raspberry);
+  outline-offset: 2px;
+}
+.review-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.review-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-block: var(--space-2);
+  border-bottom: 1px solid var(--border);
+}
+.review-cell {
+  margin-top: var(--space-2);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.account__reviews {
+  grid-column: 1 / -1;
+}

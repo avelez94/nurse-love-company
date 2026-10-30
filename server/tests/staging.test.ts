@@ -154,7 +154,7 @@ describe('migrations', () => {
     await Promise.all([migrate(db()), migrate(db())])
     await migrate(db())
     const applied = await q<{ name: string }>('select name from schema_migrations order by name')
-    assert.deepEqual(applied.map((r) => r.name), ['001_core.sql', '002_demo_keys.sql', '003_serverless.sql', '004_marketing.sql'])
+    assert.deepEqual(applied.map((r) => r.name), ['001_core.sql', '002_demo_keys.sql', '003_serverless.sql', '004_marketing.sql', '005_quiz_reviews_story_previews.sql'])
     // The health check compares the database with this constant, so it must name the newest file.
     assert.equal(LATEST_MIGRATION, latestMigration())
     // Supabase's Data API must not see store tables: every public table has row level security on.

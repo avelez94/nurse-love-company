@@ -131,9 +131,9 @@ In short:
 
 The earlier Render plan (`render.yaml`, Neon, Cloudflare R2) is obsolete and was removed.
 
-## Banners and the Nurse Kin popup
+## Marketing, reviews and content
 
-Owner managed announcement bars, promotional strips and image banners with schedules, priorities and four preset themes, plus a Nurse Kin popup. See **OWNER_GUIDE.md**. A banner never creates a discount: coupon codes are shown only after they are checked against a real Stripe promotion code.
+Owner managed announcement bars, promotional strips and image banners; a resource quiz and a Nurse Kin invitation, opened from two small buttons in the corner (never automatically); verified purchase reviews with moderation; the Our Story page; and watermarked, owner approved sample previews on product pages. See **OWNER_GUIDE.md**. A banner never creates a discount: coupon codes are shown only after they are checked against a real Stripe promotion code.
 
 ## Where things live
 

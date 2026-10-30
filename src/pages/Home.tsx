@@ -7,6 +7,8 @@ import { InsertPage } from '../components/illustrations/InsertPage'
 import { PageCluster } from '../components/illustrations/PageCluster'
 import { DigitalLabel, ShipsLabel } from '../components/Labels'
 import { BannerSlot } from '../components/Marketing'
+import { openQuizPanel, useMarketing } from '../lib/marketing'
+import { paragraphs, usePublishedStory, type PublicStory } from '../lib/story'
 import { ProductArt } from '../components/ProductArt'
 import { href } from '../lib/router'
 import { useReveal } from '../lib/useReveal'
@@ -27,6 +29,7 @@ export function SectionHeading({ children, id }: { children: React.ReactNode; id
 
 function Hero() {
   const { open } = useUI()
+  const { quiz } = useMarketing()
   return (
     <section className="hero" aria-labelledby="hero-title">
       <div className="hero__art" role="img" aria-label="Loose printable insert pages and a tablet showing a sample daily planner page on a plain pale background. Illustrative image.">
@@ -56,7 +59,12 @@ function Hero() {
               {site.hero.primary}
               <ArrowRight className="arrow" aria-hidden="true" size={20} />
             </a>
-            <button type="button" className="button button--outline" onClick={() => open({ kind: 'finder' })} aria-haspopup="dialog">
+            <button
+              type="button"
+              className="button button--outline"
+              onClick={() => (quiz ? openQuizPanel() : open({ kind: 'finder' }))}
+              aria-haspopup="dialog"
+            >
               {site.hero.secondary}
             </button>
           </div>
@@ -163,6 +171,35 @@ function ExtraCute() {
   )
 }
 
+/** A short founder introduction. Shown only once the owner publishes Our Story. */
+function FounderIntro() {
+  const { story } = usePublishedStory()
+  return story ? <FounderIntroView story={story} /> : null
+}
+
+/** Exported for the admin preview. */
+export function FounderIntroView({ story }: { story: PublicStory }) {
+  return (
+    <section className="section founder" aria-labelledby="founder-title">
+      <div className="container founder__inner">
+        {story.portraitUrl && <img className="founder__portrait" src={story.portraitUrl} alt={story.portraitAlt} loading="lazy" />}
+        <div className="founder__text">
+          <h2 id="founder-title" className="founder__title">
+            Meet the nurse behind the love
+          </h2>
+          {paragraphs(story.homeExcerpt).map((t, i) => (
+            <p key={i}>{t}</p>
+          ))}
+          <a className="button button--outline button--small" href={href('our-story')}>
+            Meet the founder
+            <ArrowRight className="arrow" aria-hidden="true" size={18} />
+          </a>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function FreebieCorner() {
   const ref = useReveal<HTMLElement>()
   const { open } = useUI()
@@ -199,6 +236,7 @@ export function Home() {
       <Benefits />
       <Collections />
       <ExtraCute />
+      <FounderIntro />
       <BannerSlot placement="above_freebies" />
       <FreebieCorner />
     </>

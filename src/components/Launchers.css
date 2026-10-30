@@ -1,0 +1,334 @@
+/* Floating launchers: small labeled pills in the bottom right corner. No badges, dots or attention animations. */
+.launchers {
+  position: fixed;
+  right: calc(20px + env(safe-area-inset-right, 0px));
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  z-index: 26;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+html.has-dialog .launchers,
+html.has-dialog .launcher-panel,
+html.has-dialog .launcher-backdrop {
+  display: none;
+}
+.launcher {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--pink-deep);
+  background: var(--ivory);
+  color: var(--burgundy);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  transition: background-color var(--dur-fast), border-color var(--dur-fast);
+}
+.launcher svg {
+  color: var(--raspberry);
+  flex: none;
+}
+.launcher:hover {
+  background: var(--pink);
+}
+.launcher.is-open {
+  background: var(--pink);
+  border-color: var(--raspberry);
+}
+.launcher:focus-visible,
+.launcher-panel__close:focus-visible {
+  outline: 3px solid var(--raspberry);
+  outline-offset: 2px;
+}
+
+.launcher-panel {
+  position: fixed;
+  right: calc(20px + env(safe-area-inset-right, 0px));
+  bottom: calc(20px + var(--launcher-stack, 110px) + env(safe-area-inset-bottom, 0px));
+  z-index: 27;
+  width: min(380px, calc(100vw - 40px));
+  max-height: min(600px, calc(100vh - 140px - var(--launcher-stack, 110px)));
+  max-height: min(600px, calc(100dvh - 140px - var(--launcher-stack, 110px)));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--ivory);
+  color: var(--burgundy);
+  box-shadow: var(--shadow-lg);
+  animation: launcher-in var(--dur-base) var(--ease-out);
+}
+@keyframes launcher-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.launcher-panel__close {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--burgundy);
+  cursor: pointer;
+}
+.launcher-panel__close:hover {
+  background: var(--pink);
+}
+
+/* Phones: a bottom sheet that scrolls inside itself. */
+html.has-sheet {
+  overflow: hidden;
+}
+.launcher-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 27;
+  background: rgb(var(--shadow-color) / 0.35);
+}
+.launcher-panel--sheet {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 28;
+  width: 100%;
+  max-height: 85vh;
+  max-height: 85dvh;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: var(--space-5) var(--gutter-r) calc(var(--space-5) + env(safe-area-inset-bottom, 0px)) var(--gutter);
+  animation-name: sheet-in;
+}
+@keyframes sheet-in {
+  from {
+    transform: translateY(40px);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .launcher-panel {
+    animation: none;
+  }
+}
+
+/* Quiz */
+.quiz {
+  display: grid;
+  gap: var(--space-3);
+}
+.quiz__title,
+.quiz__q {
+  margin: 0;
+  padding-right: 40px;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--text-xl);
+  line-height: 1.2;
+}
+.quiz__q {
+  font-size: var(--text-lg);
+}
+.quiz__title:focus,
+.quiz__q:focus,
+.kin__title:focus {
+  outline: none;
+}
+.quiz__intro,
+.quiz__helper,
+.quiz__fine {
+  margin: 0;
+}
+.quiz__helper,
+.quiz__fine {
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+}
+.quiz__start {
+  justify-self: start;
+}
+.quiz__progress-label {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--raspberry);
+}
+.quiz__progress {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--pink);
+  overflow: hidden;
+}
+.quiz__progress span {
+  display: block;
+  height: 100%;
+  background: var(--raspberry);
+  transition: width var(--dur-base) var(--ease-out);
+}
+.quiz__question {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.quiz__question legend {
+  padding: 0;
+}
+.quiz__answers {
+  display: grid;
+  gap: var(--space-2);
+}
+.quiz__answer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 48px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--white);
+  cursor: pointer;
+}
+.quiz__answer:hover {
+  border-color: var(--pink-deep);
+}
+.quiz__answer.is-chosen {
+  border-color: var(--raspberry);
+  background: var(--blush);
+}
+.quiz__answer input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  flex: none;
+  accent-color: var(--raspberry);
+}
+.quiz__answer:has(input:focus-visible) {
+  outline: 3px solid var(--raspberry);
+  outline-offset: 2px;
+}
+.quiz__nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.quiz__products {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.quiz__product {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--white);
+  color: inherit;
+  text-decoration: none;
+}
+.quiz__product:hover {
+  border-color: var(--raspberry);
+}
+.quiz__product img,
+.quiz__product-art {
+  width: 56px;
+  height: 56px;
+  flex: none;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  background: var(--pink);
+}
+.quiz__product-title {
+  display: block;
+  font-weight: 700;
+}
+.quiz__product-price {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--raspberry);
+}
+.quiz__more {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Nurse Kin uses the owner's chosen theme. */
+.launcher-panel--themed {
+  background: var(--promo-bg);
+  color: var(--promo-fg);
+  border-color: var(--promo-border);
+}
+.launcher-panel--themed .launcher-panel__close {
+  color: var(--promo-fg);
+}
+.launcher-panel--themed .launcher-panel__close:hover {
+  background: rgb(255 255 255 / 0.25);
+}
+.launcher-panel--themed .kin__cta {
+  background: var(--promo-btn-bg);
+  color: var(--promo-btn-fg);
+  border-color: var(--promo-btn-bg);
+}
+.launcher-panel--themed .kin__fine {
+  color: var(--promo-muted);
+}
+/* A static copy of the panel for the admin preview. */
+.launcher-panel--static {
+  position: relative;
+  inset: auto;
+  max-height: none;
+  animation: none;
+}
+
+/* Nurse Kin */
+.kin {
+  display: grid;
+  gap: var(--space-3);
+}
+.kin__image {
+  max-width: 140px;
+  max-height: 90px;
+  object-fit: contain;
+}
+.kin__title {
+  margin: 0;
+  padding-right: 40px;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--text-xl);
+  line-height: 1.2;
+}
+.kin__text {
+  margin: 0;
+}
+.kin__cta {
+  justify-self: start;
+}
+.kin__fine {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}

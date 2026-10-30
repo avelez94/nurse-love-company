@@ -10,6 +10,7 @@
     and, for product files, released.
 */
 import { randomUUID } from 'node:crypto'
+import { Readable } from 'node:stream'
 import type { SessionUser } from '../auth.js'
 import { one, q } from '../db/pool.js'
 import { config } from '../env.js'
@@ -18,10 +19,12 @@ import { badRequest, HttpError, notFound } from '../lib/errors.js'
 import { allowed, imageSize, safeFileName, type Kind } from '../lib/files.js'
 import { storage } from '../lib/storage.js'
 import { checkStoredUpload, type UploadedFile } from '../lib/upload.js'
+import { watermarkPreview } from '../lib/watermark.js'
+import { setStoryPortrait, STORY_UPLOAD_TARGET } from './content.js'
 import { attachMarketingImage, POPUP_UPLOAD_TARGET } from './marketing.js'
 import { processLocalVideo, recordUploadFailure, recordUploadStart } from './tutorials.js'
 
-export type Purpose = 'product_image' | 'product_file' | 'tutorial_thumbnail' | 'tutorial_video' | 'banner_image' | 'popup_image'
+export type Purpose = 'product_image' | 'product_file' | 'tutorial_thumbnail' | 'tutorial_video' | 'banner_image' | 'popup_image' | 'story_portrait'
 
 const rules: Record<Purpose, { kind: Kind; limit: () => number; prefix: (id: string) => string; serverUrl: (id: string, imageKind: string) => string }> = {
   product_image: { kind: 'image', limit: () => config.limits.imageBytes, prefix: (id) => `product-images/${id}`, serverUrl: (id, k) => `/api/admin/products/${id}/images?kind=${k}` },
@@ -29,6 +32,7 @@ const rules: Record<Purpose, { kind: Kind; limit: () => number; prefix: (id: str
   tutorial_thumbnail: { kind: 'image', limit: () => config.limits.imageBytes, prefix: (id) => `tutorial-thumbnails/${id}`, serverUrl: (id) => `/api/admin/tutorials/${id}/thumbnail` },
   tutorial_video: { kind: 'video', limit: () => config.limits.videoBytes, prefix: (id) => `tutorial-videos/${id}`, serverUrl: (id) => `/api/admin/tutorials/${id}/video` },
   banner_image: { kind: 'image', limit: () => config.limits.imageBytes, prefix: (id) => `marketing/banners/${id}`, serverUrl: (id) => `/api/admin/marketing/banners/${id}/image` },
+  story_portrait: { kind: 'image', limit: () => config.limits.imageBytes, prefix: () => 'content/our-story', serverUrl: () => '/api/admin/content/our-story/portrait' },
   popup_image: { kind: 'image', limit: () => config.limits.imageBytes, prefix: () => 'marketing/popup', serverUrl: () => '/api/admin/marketing/popup/image' },
 }
 
@@ -54,7 +58,7 @@ export interface UploadRequest {
   fileName: string
   size: number
   type: string
-  imageKind?: 'gallery' | 'sample'
+  imageKind?: 'gallery' | 'sample' | 'detail'
   alt?: string
 }
 
@@ -63,6 +67,8 @@ async function checkTarget(r: UploadRequest) {
     const b = await one<{ style: string }>('select style from marketing_banners where id = $1', [r.targetId])
     if (!b) throw notFound('Banner')
     if (b.style !== 'image') throw badRequest('Only image and text banners have an image.')
+  } else if (r.purpose === 'story_portrait') {
+    if (r.targetId !== STORY_UPLOAD_TARGET) throw badRequest('Invalid portrait upload.')
   } else if (r.purpose === 'popup_image') {
     if (r.targetId !== POPUP_UPLOAD_TARGET) throw badRequest('Invalid popup upload.')
   } else if (r.purpose === 'product_image' || r.purpose === 'product_file') {
@@ -143,7 +149,7 @@ export async function completeUpload(actor: SessionUser, id: string, ip?: string
     if (u.video_upload_id) await recordUploadFailure(u.target_id, u.video_upload_id, (err as Error).message)
     throw err
   }
-  return attachUpload(actor, u.purpose, u.target_id, f, { imageKind: (u.image_kind ?? 'gallery') as 'gallery' | 'sample', alt: u.alt, videoUploadId: u.video_upload_id, wait: true }, ip)
+  return attachUpload(actor, u.purpose, u.target_id, f, { imageKind: (u.image_kind ?? 'gallery') as 'gallery' | 'sample' | 'detail', alt: u.alt, videoUploadId: u.video_upload_id, wait: true }, ip)
 }
 
 /** The browser reports a direct upload that did not finish. Nothing is attached; the object is removed. */
@@ -167,18 +173,37 @@ export async function attachUpload(
   purpose: Purpose,
   targetId: string,
   f: UploadedFile,
-  opts: { imageKind?: 'gallery' | 'sample'; alt?: string; videoUploadId?: string | null; wait?: boolean },
+  opts: { imageKind?: 'gallery' | 'sample' | 'detail'; alt?: string; videoUploadId?: string | null; wait?: boolean },
   ip?: string,
 ) {
   if (purpose === 'product_image') {
     const kind = opts.imageKind ?? 'gallery'
-    const size = imageSize(f.head)
+    let key = f.key
+    let contentType = f.contentType
+    let size = imageSize(f.head)
+    if (kind === 'sample' || kind === 'detail') {
+      // Sample pages and details become separate watermarked preview images,
+      // hidden until the owner approves them. The upload itself is discarded.
+      const opened = await storage().open(f.key)
+      const chunks: Buffer[] = []
+      for await (const c of opened.stream) chunks.push(c as Buffer)
+      const wm = await watermarkPreview(Buffer.concat(chunks), f.contentType).catch(async () => {
+        await storage().remove(f.key).catch(() => {})
+        throw badRequest('That image could not be read. Please export it again as a PNG, JPG or WebP file and upload it.')
+      })
+      key = `product-images/${targetId}/preview-${randomUUID()}`
+      await storage().put(key, Readable.from([wm.buffer]), wm.contentType, wm.buffer.length + 1)
+      await storage().remove(f.key).catch(() => {})
+      contentType = wm.contentType
+      size = { width: wm.width, height: wm.height }
+    }
     const row = await one(
-      `insert into product_images (product_id, kind, storage_key, content_type, width, height, alt, sort_order)
-       values ($1,$2,$3,$4,$5,$6,$7,(select coalesce(max(sort_order),-1)+1 from product_images where product_id = $1 and kind = $2)) returning id, kind, alt, width, height, sort_order, variant_id`,
-      [targetId, kind, f.key, f.contentType, size?.width ?? null, size?.height ?? null, opts.alt ?? ''],
+      `insert into product_images (product_id, kind, storage_key, content_type, width, height, alt, approved, sort_order)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,(select coalesce(max(sort_order),-1)+1 from product_images where product_id = $1 and kind = $2)) returning id, kind, alt, width, height, sort_order, variant_id, approved`,
+      [targetId, kind, key, contentType, size?.width ?? null, size?.height ?? null, opts.alt ?? '', kind === 'gallery'],
     )
-    await audit({ actor, action: 'product.image_uploaded', entityType: 'product', entityId: targetId, summary: `Uploaded ${kind === 'sample' ? 'a sample page image' : 'a product photo'} (${f.fileName})`, ip })
+    const what = kind === 'sample' ? 'a watermarked sample page (awaiting approval)' : kind === 'detail' ? 'a watermarked detail image (awaiting approval)' : 'a product photo'
+    await audit({ actor, action: 'product.image_uploaded', entityType: 'product', entityId: targetId, summary: `Uploaded ${what} (${f.fileName})`, ip })
     return row
   }
   if (purpose === 'product_file') {
@@ -189,6 +214,11 @@ export async function attachUpload(
     )
     await audit({ actor, action: 'product.file_uploaded', entityType: 'product', entityId: targetId, summary: `Uploaded private file ${f.fileName} for ${p?.title ?? 'a product'} (not released yet)`, ip })
     return row
+  }
+  if (purpose === 'story_portrait') {
+    await setStoryPortrait(f.key, f.contentType)
+    await audit({ actor, action: 'content.portrait_uploaded', entityType: 'content', entityId: 'our_story', summary: `Uploaded an Our Story portrait (${f.fileName}), not yet published`, ip })
+    return { ok: true }
   }
   if (purpose === 'banner_image' || purpose === 'popup_image') {
     await attachMarketingImage(purpose === 'banner_image' ? 'banner' : 'popup', targetId, f.key, f.contentType)

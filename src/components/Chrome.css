@@ -1,7 +1,8 @@
 .back-to-top {
   position: fixed;
   right: calc(20px + env(safe-area-inset-right, 0px));
-  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  /* Sits above the floating launchers when they are shown. */
+  bottom: calc(20px + var(--launcher-stack, 0px) + env(safe-area-inset-bottom, 0px));
   z-index: 25;
   width: 48px;
   height: 48px;

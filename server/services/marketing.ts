@@ -11,8 +11,9 @@
     was checked against a real, active Stripe promotion code, and the offer
     text is generated from Stripe's own terms. When that code expires or is
     switched off, the banner stops showing.
-  * The popup stays private until it is published with a real https address,
-    a headline, body copy and a button label.
+  * The Nurse Kin launcher stays hidden until it is published with a real https
+    address, a launcher label, a headline, a description and a button label.
+    Visitors open it themselves; it never opens automatically.
   * Statistics are daily aggregate counts with no visitor identifiers.
 */
 import type { SessionUser } from '../auth.js'
@@ -65,6 +66,7 @@ export interface BannerRow {
 
 export interface PopupRow {
   id: 'nurse_kin'
+  launcher_label: string
   enabled: boolean
   status: 'draft' | 'published'
   headline: string
@@ -158,23 +160,19 @@ export function bannerInput(b: Record<string, unknown>) {
   return out
 }
 
+/** Nurse Kin launcher: a button visitors choose to open. It never opens by itself. */
 export function popupInput(b: Record<string, unknown>) {
   const startsAt = optionalDate(b.starts_at, 'Start')
   const endsAt = optionalDate(b.ends_at, 'End')
   if (startsAt && endsAt && endsAt <= startsAt) throw badRequest('The end must be after the start.')
-  const scroll = int(b.scroll_percent ?? 50, 'Scroll trigger', { min: 0, max: 90 })!
-  if (scroll !== 0 && scroll < 20) throw badRequest('The scroll trigger must be 0 (off) or between 20% and 90%.')
   return {
+    launcher_label: text(b.launcher_label, 'Launcher label', 30),
     headline: text(b.headline, 'Headline', 80),
     body: text(b.body, 'Body copy', 400),
     cta_label: text(b.cta_label, 'Button label', 30),
     url: linkField(b.url, 'Nurse Kin address', { httpsOnly: true }),
     image_alt: text(b.image_alt, 'Image description', 160),
     theme: oneOf(b.theme, 'Theme', THEMES, 'blush'),
-    delay_seconds: int(b.delay_seconds ?? 30, 'Delay', { min: 10, max: 300 })!,
-    scroll_percent: scroll,
-    suppress_days: int(b.suppress_days ?? 7, 'Days before showing again', { min: 1, max: 90 })!,
-    pages: pagesField(b.pages, false),
     starts_at: startsAt,
     ends_at: endsAt,
   }
@@ -199,8 +197,9 @@ export function bannerState(b: BannerRow, now = Date.now()): LiveState {
   return 'live'
 }
 
-export function popupProblems(p: Pick<PopupRow, 'headline' | 'body' | 'cta_label' | 'url'>) {
+export function popupProblems(p: Pick<PopupRow, 'launcher_label' | 'headline' | 'body' | 'cta_label' | 'url'>) {
   const problems: string[] = []
+  if (!p.launcher_label) problems.push('Add the launcher label (for example "Meet Nurse Kin").')
   if (!p.url) problems.push('Add the Nurse Kin address (https://...).')
   if (!p.headline) problems.push('Add a headline.')
   if (!p.body) problems.push('Add a short description of Nurse Kin.')
@@ -350,8 +349,8 @@ export async function updatePopup(actor: SessionUser, body: Record<string, unkno
   const current = (await popupRow())
   if (current.status === 'published' && popupProblems(v).length) throw badRequest(`The popup is published, so it must stay complete: ${popupProblems(v).join(' ')}`)
   await q(
-    `update marketing_popup set headline=$1, body=$2, cta_label=$3, url=$4, image_alt=$5, theme=$6, delay_seconds=$7, scroll_percent=$8, suppress_days=$9, pages=$10, starts_at=$11, ends_at=$12, updated_by=$13, updated_at=now() where id = 'nurse_kin'`,
-    [v.headline, v.body, v.cta_label, v.url, v.image_alt, v.theme, v.delay_seconds, v.scroll_percent, v.suppress_days, v.pages, v.starts_at, v.ends_at, actor.email],
+    `update marketing_popup set launcher_label=$1, headline=$2, body=$3, cta_label=$4, url=$5, image_alt=$6, theme=$7, starts_at=$8, ends_at=$9, updated_by=$10, updated_at=now() where id = 'nurse_kin'`,
+    [v.launcher_label, v.headline, v.body, v.cta_label, v.url, v.image_alt, v.theme, v.starts_at, v.ends_at, actor.email],
   )
   if (current.status === 'published') await audit({ actor, action: 'marketing.popup_edited', entityType: 'popup', entityId: 'nurse_kin', summary: 'Edited the published Nurse Kin popup', ip })
   return getPopup()
@@ -494,16 +493,13 @@ export async function publicMarketing(now = Date.now()) {
   const popup =
     popupState(p, now) === 'live'
       ? {
+          launcherLabel: p.launcher_label,
           headline: p.headline,
           body: p.body,
           ctaLabel: p.cta_label,
           url: p.url,
           image: p.image_key ? { url: '/api/marketing/popup/image', alt: p.image_alt } : null,
           theme: p.theme,
-          delaySeconds: p.delay_seconds,
-          scrollPercent: p.scroll_percent,
-          suppressDays: p.suppress_days,
-          pages: p.pages,
           version: p.campaign_version,
         }
       : null

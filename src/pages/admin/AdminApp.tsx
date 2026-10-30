@@ -1,4 +1,4 @@
-import { BarChart3, ClipboardList, ExternalLink, FileVideo, LifeBuoy, LogOut, Mail, Megaphone, Menu, Package, ScrollText, Settings as SettingsIcon, UserRound, Users, X } from 'lucide-react'
+import { BarChart3, BookHeart, ClipboardList, ExternalLink, FileVideo, LifeBuoy, LogOut, Mail, Megaphone, Menu, Package, ScrollText, Settings as SettingsIcon, UserRound, Users, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { href, navigate, type AdminView } from '../../lib/router'
 import { useSession } from '../../lib/session'
@@ -10,6 +10,9 @@ import { BannerEditor, Banners, PopupEditor } from './Marketing'
 import { CustomerDetail, Customers } from './Customers'
 import { EmailDetail, Emails, Templates } from './Emails'
 import { OrderDetail, Orders } from './Orders'
+import { QuizEditor, Quizzes } from './Quizzes'
+import { ReviewsAdmin } from './Reviews'
+import { StoryEditor } from './Story'
 import { Overview } from './Overview'
 import { ProductEditor, Products } from './Products'
 import { SettingsPage } from './Settings'
@@ -17,13 +20,32 @@ import { SupportPage } from './Support'
 import { TutorialEditor, TutorialsAdmin } from './Tutorials'
 import './Admin.css'
 
-const nav: Array<{ view: AdminView; label: string; route: string; icon: typeof BarChart3; match: AdminView[] }> = [
+type NavItem = { view: AdminView; label: string; route: string; icon: typeof BarChart3; match: AdminView[]; children?: Array<{ label: string; route: string; match: AdminView[] }> }
+const nav: NavItem[] = [
   { view: 'overview', label: 'Overview', route: 'admin', icon: BarChart3, match: ['overview'] },
   { view: 'orders', label: 'Orders', route: 'admin-orders', icon: ClipboardList, match: ['orders', 'order'] },
   { view: 'products', label: 'Products', route: 'admin-products', icon: Package, match: ['products', 'product'] },
-  { view: 'customers', label: 'Customers', route: 'admin-customers', icon: Users, match: ['customers', 'customer'] },
+  {
+    view: 'customers',
+    label: 'Customers',
+    route: 'admin-customers',
+    icon: Users,
+    match: ['customers', 'customer'],
+    children: [{ label: 'Reviews', route: 'admin-reviews', match: ['reviews'] }],
+  },
   { view: 'tutorials', label: 'Tutorials', route: 'admin-tutorials', icon: FileVideo, match: ['tutorials', 'tutorial'] },
-  { view: 'marketing', label: 'Marketing', route: 'admin-marketing', icon: Megaphone, match: ['marketing', 'banner', 'popup'] },
+  {
+    view: 'marketing',
+    label: 'Marketing',
+    route: 'admin-marketing',
+    icon: Megaphone,
+    match: ['marketing', 'banner'],
+    children: [
+      { label: 'Resource Quiz', route: 'admin-quizzes', match: ['quizzes', 'quiz'] },
+      { label: 'Nurse Kin', route: 'admin-nurse-kin', match: ['popup'] },
+    ],
+  },
+  { view: 'story', label: 'Content', route: 'admin-our-story', icon: BookHeart, match: [], children: [{ label: 'Our Story', route: 'admin-our-story', match: ['story'] }] },
   { view: 'emails', label: 'Email center', route: 'admin-emails', icon: Mail, match: ['emails', 'email', 'templates'] },
   { view: 'support', label: 'Support', route: 'admin-support', icon: LifeBuoy, match: ['support'] },
   { view: 'settings', label: 'Settings', route: 'admin-settings', icon: SettingsIcon, match: ['settings'] },
@@ -93,6 +115,17 @@ export default function AdminApp({ view, param }: { view: AdminView; param?: str
                   <n.icon size={18} aria-hidden="true" />
                   {n.label}
                 </a>
+                {n.children && (
+                  <ul className="admin__subnav">
+                    {n.children.map((s) => (
+                      <li key={s.route}>
+                        <a href={href(s.route)} aria-current={s.match.includes(view) ? 'page' : undefined}>
+                          {s.label}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </li>
             ))}
           </ul>
@@ -114,6 +147,10 @@ export default function AdminApp({ view, param }: { view: AdminView; param?: str
           {view === 'marketing' && <Banners />}
           {view === 'banner' && <BannerEditor id={param ?? 'new'} />}
           {view === 'popup' && <PopupEditor />}
+          {view === 'quizzes' && <Quizzes />}
+          {view === 'quiz' && param && <QuizEditor id={param} />}
+          {view === 'reviews' && <ReviewsAdmin />}
+          {view === 'story' && <StoryEditor />}
           {view === 'settings' && <SettingsPage />}
           {view === 'audit' && <Audit />}
         </main>

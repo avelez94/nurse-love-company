@@ -564,3 +564,50 @@
     padding-block: var(--space-7) var(--space-6);
   }
 }
+
+/* Founder introduction (only after the owner publishes Our Story) */
+.founder__inner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  max-width: 880px;
+  padding: var(--space-6);
+  border-radius: var(--radius-lg);
+  background: var(--white);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+.founder__portrait {
+  width: 160px;
+  height: 160px;
+  flex: none;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 5px solid var(--pink);
+}
+.founder__text {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+}
+.founder__text p {
+  margin: 0;
+}
+.founder__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--text-xl);
+}
+@media (max-width: 640px) {
+  .founder__inner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: var(--space-5) var(--space-4);
+    gap: var(--space-4);
+  }
+  .founder__portrait {
+    width: 120px;
+    height: 120px;
+  }
+}

@@ -6,6 +6,7 @@ import { after, before, beforeEach, describe, it } from 'node:test'
 import { buildSamplePlannerPdf } from '../../shared/samplePdf.js'
 import { LATEST_MIGRATION } from '../db/schema-version.js'
 import { FakeSupabase } from './fake-supabase.js'
+import sharp from 'sharp'
 import Stripe from 'stripe'
 import { Webhook } from 'svix'
 import { checkoutCompleted, digitalProduct, drainOutbox, entitlementsFor, GATE, one, ORIGIN, payOrder, pendingOrder, q, setSender, setup, signUp, teardown, type Session } from './helpers.js'
@@ -143,12 +144,19 @@ describe('direct uploads to Supabase Storage', () => {
     assert.equal(product.status, 201, JSON.stringify(product.data))
     const productId = product.data.id
 
-    const photo = await directUpload(admin, 'product_image', productId, 'cover.png', png(), { image_kind: 'sample' })
+    // A sample page is watermarked on the server, so it must be a real image.
+    const realPng = await sharp({ create: { width: 40, height: 30, channels: 3, background: '#ffffff' } }).png().toBuffer()
+    const photo = await directUpload(admin, 'product_image', productId, 'cover.png', realPng, { image_kind: 'sample' })
     assert.equal(photo.complete!.status, 201, JSON.stringify(photo.complete!.data))
     const img = await one<{ storage_key: string; kind: string; width: number }>('select storage_key, kind, width from product_images where product_id = $1', [productId])
     assert.equal(img!.kind, 'sample')
     assert.equal(img!.width, 40)
     assert.ok(supabase.objects.has(`media/${img!.storage_key}`), 'photos live in the media bucket')
+    assert.ok(img!.storage_key.includes('/preview-'), 'the watermarked copy is stored, not the original')
+
+    // An image that cannot be read is refused with a clear message, not a server error.
+    const broken = await directUpload(admin, 'product_image', productId, 'broken.png', png(), { image_kind: 'detail' })
+    assert.equal(broken.complete!.status, 400, JSON.stringify(broken.complete!.data))
 
     const pdf = Buffer.from(buildSamplePlannerPdf('Direct upload'))
     const file = await directUpload(admin, 'product_file', productId, 'pages.pdf', pdf)

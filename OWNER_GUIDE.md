@@ -1,6 +1,12 @@
-# Owner guide: banners and the Nurse Kin popup
+# Owner guide
 
-Everything here is in the store admin under **Marketing**. Nothing you create is visible to visitors until you press **Publish**.
+Banners, the resource quiz, the Nurse Kin button, reviews, Our Story and product previews. Nothing you create is visible to visitors until you press **Publish**.
+
+After this update is deployed, run `supabase/updates/005_quiz_reviews_story_previews.sql` once in the Supabase SQL Editor (paste the whole file, click Run).
+
+# Banners
+
+In the store admin under **Marketing**.
 
 ## Banner styles
 
@@ -46,25 +52,65 @@ Each place on the site shows one banner at a time. The **lowest priority number*
 * **Archive**: put it away. You can restore it later.
 * **Show again to visitors who closed it**: if visitors can close the banner, they will not see it again in that browser until you press this.
 
-## The Nurse Kin popup
+## The Nurse Kin button
 
-Marketing, **Nurse Kin popup**. It stays a draft until you add the real Nurse Kin address and your own description.
+Marketing, **Nurse Kin**. A small "Meet Nurse Kin" button sits in the bottom right corner of the store. Visitors open it themselves; it never pops up on its own. It stays hidden until you add the real Nurse Kin address and your own description and press Publish.
 
-1. Write the headline, what Nurse Kin is, and the button label (for example "Visit Nurse Kin"). Add the Nurse Kin address (`https://...`) and, if you like, a logo.
-2. Choose when it appears: after a number of seconds on the site (default 30) **or** after scrolling part of a page (default 50%), whichever comes first.
-3. Choose the pages. It never appears during sign in, password reset, checkout, the account pages or the admin, never over another window, and never while a tutorial video is playing.
-4. Press **Show preview** to see it exactly as visitors will. Previews are never counted.
-5. **Publish.**
+1. Write the corner button label (for example "Meet Nurse Kin"), the headline, what Nurse Kin is, and the link button label (for example "Visit Nurse Kin"). Add the Nurse Kin address (`https://...`) and, if you like, a logo with a short description of it.
+2. Optional: a start and end time. Times are in your own timezone, which the page shows next to the fields.
+3. Check the computer and phone previews.
+4. **Publish.** Use **Switch off** to hide it for a while without losing anything.
 
-How often visitors see it:
-* at most once per visit;
-* after "Maybe later" or closing it, not again for the number of days you choose (default 7);
-* after clicking through to Nurse Kin, not again, unless you press **Start a new campaign**.
-
-This memory lives in each visitor's browser, so it cannot follow someone to another device, and it resets if they clear their browsing data.
-
-The popup only sends people to Nurse Kin. It does not sign anyone up or collect email addresses.
+The button is hidden during sign in, password recovery, checkout, customer accounts and the admin, and steps aside while a tutorial video plays or another window is open. It only sends people to Nurse Kin. It does not sign anyone up or collect email addresses.
 
 ## Results
 
-Each banner and the popup show **times shown**, **clicks**, **click rate** and **times closed**. They are simple totals with no personal information. A click to Nurse Kin means someone opened Nurse Kin, not that they joined.
+Each banner shows **times shown**, **clicks**, **click rate** and **times closed**. For Nurse Kin, "times shown" counts panel openings and a click means someone opened the Nurse Kin website, not that they joined. They are simple totals with no personal information.
+
+# Resource quiz
+
+Marketing, **Resource Quiz**. A "Find my resources" button in the corner of the store (and the "Find your essentials" button on the home page) opens a short quiz that suggests products. It is not a medical assessment, needs no email, and answers are never stored. The corner button is hidden until a quiz is published.
+
+1. **New quiz**, give it an internal name.
+2. **Basics:** the title, a short introduction and the wording of the final button.
+3. **Result groups:** each group is a possible result. Give it a title, a short explanation, and choose products and/or collections. Optionally add tutorials or a link to The Freebie Corner. Only published, active products are ever shown; others are marked in the list.
+4. **Fallback result:** shown when no group earns points, or when the winning group has nothing available right now.
+5. **Questions:** one at a time on the storefront. Choose "Choose one" or "Choose any that apply", required or optional, and helper text. For every answer, type the points it adds to each result group (0 to 10).
+6. **How the rules work** explains the scoring in plain words: most points wins; a tie goes to the lower priority number.
+7. **Test your quiz:** answer it right on the page; it shows the result and the points. Tests are never counted.
+8. **Publish.** The list under "Before it can be published" must be empty first.
+
+Only one quiz is on the storefront. Publishing another moves the current one back to draft. Edits to a published quiz are saved as a draft and visitors keep seeing the published version until you press **Publish changes**. You can also Duplicate, Unpublish, Archive (drafts only) and Restore.
+
+Results: **started**, **finished**, **finish rate** and **product clicks**, for the published version. Totals only; no one's answers are kept.
+
+# Reviews
+
+Customers, **Reviews**. Customers who bought a product (and were not fully refunded) see **Leave a review** next to it in their account: stars, a title, the review, and a public display name. They are reminded not to include patient or private information. One review per customer per product; writing again edits it.
+
+* New and edited reviews wait for you under **Waiting for approval**. Open one with **Review and respond**.
+* **Publish** it, or **Reject** it with a reason (spam, abuse, private or patient information, not about the product, or other with a note). Please publish honest criticism too.
+* Add an optional public **reply**.
+* Shoppers can **report** a published review. It stays visible until you decide: keep it and clear the reports, or unpublish it.
+* Filter by status, product and rating. Each review shows its history.
+
+The product page shows the average and count from **published** reviews only, the reviewer's display name, and "Verified purchase". No email, billing name or order number is ever shown. If a purchase is later fully refunded, the review stays but loses "Verified purchase" and can no longer be edited.
+
+# Our Story
+
+Content, **Our Story**. The page is titled "Meet the nurse behind the love". Fill in your own words; empty sections are left out. Required before publishing: your name, a portrait with a short description, the introduction, and the home page introduction (two or three sentences). Optional: title, credentials, nursing background, why you started, how resources are made and reviewed, who you hope to support, a closing message, and a Nurse Kin paragraph with its link.
+
+The preview shows the home page introduction and the full page. **Publish** makes both live; the home page introduction appears between "A little extra cute" and The Freebie Corner. Later edits stay in the draft until you publish again.
+
+# Product previews ("View a sample")
+
+Products, open a product, **Sample previews**.
+
+* **Add sample pages** or **Add close up details**: upload PNG, JPG or WebP images of a few selected pages or cropped areas (screenshots or exports). Do not upload the whole resource.
+* Each image is reduced to preview size and stamped with "PREVIEW · Nurse Love Company" built into the picture itself. The original upload is discarded.
+* Each preview waits for you to press **Approve**. **Hide** takes it down again.
+* Approved previews appear behind the **View a sample** button, with a "Sample" tag, enlarge, previous and next, and a note that only selected pages are shown. With no approved previews, the button is hidden.
+* **What's included:** one item per line, shown as a list on the product page.
+* **Walkthrough video:** pick a tutorial; the link shows only while that tutorial is published.
+
+Your paid PDF is never used for previews and never shown. Viewing previews does not affect anyone's downloads. Nobody can promise images cannot be copied, so only upload what you are happy to share.

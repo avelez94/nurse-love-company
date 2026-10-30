@@ -273,19 +273,26 @@
 .details dd {
   margin: 0;
 }
-.peek-section {
-  padding-block: var(--space-7);
-  border-top: 1px solid var(--border);
+.included {
   display: grid;
   gap: var(--space-2);
 }
-.peek-section__title {
-  font-size: var(--text-2xl);
+.included__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
 }
-.peek-section__viewer {
-  max-width: 640px;
-  width: 100%;
-  margin-top: var(--space-4);
+.included__list li {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+}
+.included__list svg {
+  flex: none;
+  color: var(--raspberry);
+  transform: translateY(2px);
 }
 .related {
   padding-block: var(--space-6) var(--space-7);
@@ -364,14 +371,66 @@
   height: 36px;
   color: var(--raspberry);
 }
-.story__placeholder {
+.story__links {
+  margin-top: var(--space-5);
+}
+.story__card--founder {
+  max-width: 760px;
+  font-size: var(--text-md);
+  line-height: 1.65;
+}
+.story__card--founder p {
+  margin: 0;
+}
+.story__founder {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.story__portrait {
+  width: 120px;
+  height: 120px;
+  flex: none;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 4px solid var(--pink);
+}
+.story__name {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  line-height: 1.2;
+}
+.story__role {
+  color: var(--burgundy-soft);
+  font-size: var(--text-sm);
+}
+.story__section,
+.story__kin {
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space-3);
+}
+.story__heading {
+  margin: var(--space-3) 0 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--text-lg);
+  color: var(--raspberry-dark);
+}
+.story__closing {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+}
+.story__kin {
   padding: var(--space-4);
   border-radius: var(--radius-md);
-  border: 1.5px dashed var(--pink-deep);
   background: var(--blush);
-  font-size: var(--text-md);
+  border: 1px solid var(--pink-deep);
+}
+@media (max-width: 520px) {
+  .story__founder {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 @media (max-width: 520px) {
   .story__card {

@@ -1,6 +1,7 @@
-import { Copy, Eye, Plus } from 'lucide-react'
+import { Copy, HeartHandshake, Plus } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { AnnouncementView, PopupCard, PopupView, PromoView } from '../../components/Marketing'
+import { AnnouncementView, PromoView } from '../../components/Marketing'
+import { NurseKinCard } from '../../components/Launchers'
 import { Checkbox, Confirm, dateTime, Empty, FormError, Loading, Notice, Pill, Select, TextArea, TextInput, useApiData } from '../../components/ui'
 import { api, errorMessage, uploadAsset } from '../../lib/api'
 import type { IconName, PublicBanner, PublicPopup, Theme } from '../../lib/marketing'
@@ -122,7 +123,7 @@ export function Banners() {
   return (
     <>
       <PageTitle title="Marketing">
-        <a className="button button--small button--outline" href={href('admin-nurse-kin')}>Nurse Kin popup</a>
+        <a className="button button--small button--outline" href={href('admin-nurse-kin')}>Nurse Kin</a>
         <a className="button button--small" href={href('admin-banner-new')}>
           <Plus size={16} aria-hidden="true" /> New banner
         </a>
@@ -471,19 +472,16 @@ export function BannerEditor({ id }: { id: string }) {
   )
 }
 
-/* ---------- Nurse Kin popup ---------- */
+/* ---------- Nurse Kin launcher ---------- */
 
 interface PopupForm {
+  launcher_label: string
   headline: string
   body: string
   cta_label: string
   url: string
   image_alt: string
   theme: Theme
-  delay_seconds: number
-  scroll_percent: number
-  suppress_days: number
-  pages: string[]
   starts_at: string
   ends_at: string
 }
@@ -507,12 +505,11 @@ export function PopupEditor() {
   const [form, setForm] = useState<PopupForm | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const [preview, setPreview] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)
   const d = detail.data
 
   useEffect(() => {
-    if (d) setForm({ headline: d.headline, body: d.body, cta_label: d.cta_label, url: d.url, image_alt: d.image_alt, theme: d.theme, delay_seconds: d.delay_seconds, scroll_percent: d.scroll_percent, suppress_days: d.suppress_days, pages: d.pages, starts_at: toLocalInput(d.starts_at), ends_at: toLocalInput(d.ends_at) })
+    if (d) setForm({ launcher_label: d.launcher_label, headline: d.headline, body: d.body, cta_label: d.cta_label, url: d.url, image_alt: d.image_alt, theme: d.theme, starts_at: toLocalInput(d.starts_at), ends_at: toLocalInput(d.ends_at) })
   }, [d])
   if (detail.error) return <FormError message={detail.error} />
   if (!d || !form) return <Loading />
@@ -524,7 +521,7 @@ export function PopupEditor() {
     setError('')
     try {
       await api('/api/admin/marketing/popup', { method: 'PUT', body: payload() })
-      showToast(d.status === 'published' ? 'Saved. The live popup is updated.' : 'Saved as a draft.')
+      showToast(d.status === 'published' ? 'Saved. The live launcher is updated.' : 'Saved as a draft.')
       await detail.reload()
     } catch (err) {
       setError(errorMessage(err))
@@ -538,7 +535,7 @@ export function PopupEditor() {
     try {
       await api('/api/admin/marketing/popup', { method: 'PUT', body: payload() })
       await api(`/api/admin/marketing/popup/${action}`, { body: {} })
-      const words: Record<string, string> = { publish: 'Published.', unpublish: 'Moved back to draft.', enable: 'Switched on.', disable: 'Switched off.', reset_campaign: 'New campaign started. Browsers that closed or clicked it may see it again.' }
+      const words: Record<string, string> = { publish: 'Published.', unpublish: 'Moved back to draft.', enable: 'Switched on.', disable: 'Switched off.', reset_campaign: 'Results reset. Counting starts fresh.' }
       showToast(words[action] ?? 'Done.')
       await detail.reload()
     } catch (err) {
@@ -560,37 +557,36 @@ export function PopupEditor() {
   }
 
   const popup: PublicPopup = {
+    launcherLabel: form.launcher_label || 'Meet Nurse Kin',
     headline: form.headline || 'Your headline',
     body: form.body || 'A short description of Nurse Kin.',
     ctaLabel: form.cta_label || 'Visit Nurse Kin',
     url: form.url,
     image: d.image_key ? { url: `/api/admin/marketing/popup/preview-image?v=${d.updated_at}`, alt: form.image_alt } : null,
     theme: form.theme,
-    delaySeconds: form.delay_seconds,
-    scrollPercent: form.scroll_percent,
-    suppressDays: form.suppress_days,
-    pages: form.pages,
     version: d.campaign_version,
   }
 
   return (
     <>
-      <PageTitle title="Nurse Kin popup" back={{ label: 'Marketing', route: 'admin-marketing' }}>
+      <PageTitle title="Nurse Kin" back={{ label: 'Marketing', route: 'admin-marketing' }}>
         <StatePill state={d.state} />
       </PageTitle>
       <Notice>
-        The popup invites visitors to visit Nurse Kin, where they can join. It does not sign anyone up or collect email addresses. It stays a draft until you add the real Nurse Kin address and your approved description.
+        A small "Meet Nurse Kin" button sits in the bottom right corner of the store. Visitors open it themselves; it never pops up on its own. It links to Nurse Kin, where people can join. It does
+        not sign anyone up or collect email addresses. The button stays hidden until you add the real Nurse Kin address and your approved description, then publish.
       </Notice>
       {d.problems.length > 0 && <Notice tone="warn">Before it can be published: {d.problems.join(' ')}</Notice>}
 
       <div className="mk-editor">
         <section className="panel form-stack">
           <h2 className="panel__title">Content</h2>
+          <TextInput label="Button label in the corner" value={form.launcher_label} onChange={(v) => set('launcher_label', v)} maxLength={30} hint='Keep it short, for example "Meet Nurse Kin".' />
           <TextInput label="Headline" value={form.headline} onChange={(v) => set('headline', v)} maxLength={80} />
           <TextArea label="What Nurse Kin is" value={form.body} onChange={(v) => set('body', v)} maxLength={400} rows={4} hint="Use your approved description. Do not promise benefits or prices that are not on Nurse Kin." />
           <div className="form-grid">
-            <TextInput label="Button label" value={form.cta_label} onChange={(v) => set('cta_label', v)} maxLength={30} hint='For example "Visit Nurse Kin".' />
-            <TextInput label="Nurse Kin address" value={form.url} onChange={(v) => set('url', v)} placeholder="https://..." hint="Opens in a new tab." />
+            <TextInput label="Link button label" value={form.cta_label} onChange={(v) => set('cta_label', v)} maxLength={30} hint='For example "Visit Nurse Kin".' />
+            <TextInput label="Nurse Kin address" value={form.url} onChange={(v) => set('url', v)} placeholder="https://..." hint="Must start with https://. Opens in a new tab." />
           </div>
           <Select label="Theme" value={form.theme} onChange={(v) => set('theme', v)} options={themes} />
           <label className="field">
@@ -602,49 +598,49 @@ export function PopupEditor() {
               Remove image
             </button>
           )}
-          <TextInput label="Image description (alt text)" value={form.image_alt} onChange={(v) => set('image_alt', v)} maxLength={160} />
+          <TextInput label="Image description (alt text)" value={form.image_alt} onChange={(v) => set('image_alt', v)} maxLength={160} hint="Required when there is an image." />
         </section>
 
         <section className="panel form-stack">
-          <h2 className="panel__title">When it appears</h2>
-          <div className="form-grid">
-            <TextInput label="Wait before showing (seconds)" type="number" value={String(form.delay_seconds)} onChange={(v) => set('delay_seconds', Number(v) || 30)} hint="10 to 300. Time spent on the site, across pages." />
-            <TextInput label="Or after scrolling (%)" type="number" value={String(form.scroll_percent)} onChange={(v) => set('scroll_percent', Number(v) || 0)} hint="20 to 90, or 0 to use time only." />
-            <TextInput label="Days before showing again" type="number" value={String(form.suppress_days)} onChange={(v) => set('suppress_days', Number(v) || 7)} hint="After someone closes it or picks “Maybe later”." />
-          </div>
-          <fieldset className="mk-pages">
-            <legend className="field__label">Show on</legend>
-            {pageOptions.map((p) => (
-              <Checkbox key={p.value} label={p.label} checked={form.pages.includes(p.value)} onChange={(v) => set('pages', v ? [...form.pages, p.value] : form.pages.filter((x) => x !== p.value))} />
-            ))}
-          </fieldset>
-          <p className="muted">Times are in your timezone: <strong>{timezoneLabel()}</strong>.</p>
+          <h2 className="panel__title">Schedule (optional)</h2>
+          <p className="muted">
+            Times use your timezone: <strong>{timezoneLabel()}</strong>. They are saved as an exact moment, so the button appears and disappears at the same instant for every visitor.
+          </p>
           <div className="form-grid">
             <DateTimeInput label="Start (optional)" value={form.starts_at} onChange={(v) => set('starts_at', v)} />
             <DateTimeInput label="End (optional)" value={form.ends_at} onChange={(v) => set('ends_at', v)} />
           </div>
           <Notice>
-            It never shows during sign in, password recovery, checkout, accounts or the admin, never over another window or a playing tutorial, and at most once per visit. After someone clicks
-            through to Nurse Kin it does not show again in that browser. All of this is remembered in the visitor's browser only, so it cannot follow them to another device or survive clearing
-            their browsing data.
+            The button is hidden during sign in, password recovery, checkout, customer accounts and the admin, and steps aside while a tutorial video plays or another window is open. Only one corner
+            panel is open at a time.
           </Notice>
         </section>
       </div>
 
       <section className="panel">
-        <div className="panel__head">
-          <h2 className="panel__title">Preview</h2>
-          <button type="button" className="button button--outline button--small" onClick={() => setPreview(true)}>
-            <Eye size={16} aria-hidden="true" /> Show preview
-          </button>
-        </div>
-        <PreviewFrames>{() => <PopupCard popup={popup} />}</PreviewFrames>
+        <h2 className="panel__title">Preview</h2>
+        <p className="muted">How the open panel looks. The link does nothing in the preview.</p>
+        <PreviewFrames>
+          {(size) => (
+            <div className={`mk-kin-preview mk-kin-preview--${size}`}>
+              <div className={`launcher-panel launcher-panel--static launcher-panel--themed promo-theme--${popup.theme}`}>
+                <NurseKinCard popup={popup} preview />
+              </div>
+              <span className="launcher is-open" aria-hidden="true">
+                <HeartHandshake size={18} />
+                {popup.launcherLabel}
+              </span>
+            </div>
+          )}
+        </PreviewFrames>
       </section>
 
       <section className="panel">
-        <h2 className="panel__title">Results for this campaign</h2>
+        <h2 className="panel__title">Results</h2>
         <Stats {...d.stats} clickWord="Clicks to Nurse Kin" />
-        <p className="muted">A click means someone opened Nurse Kin, not that they joined. Joining can only be measured on Nurse Kin itself.</p>
+        <p className="muted">
+          "Times shown" counts panel openings (once per visit). A click means someone opened the Nurse Kin website, not that they joined. Joining can only be measured on Nurse Kin itself.
+        </p>
       </section>
 
       <FormError message={error} />
@@ -653,12 +649,11 @@ export function PopupEditor() {
         {d.status === 'draft' && <button type="button" className="button button--outline" disabled={busy || d.problems.length > 0} onClick={() => act('publish')}>Publish</button>}
         {d.status === 'published' && <button type="button" className="button button--outline" disabled={busy} onClick={() => act('unpublish')}>Unpublish</button>}
         {d.status === 'published' && (d.enabled ? <button type="button" className="button button--outline" disabled={busy} onClick={() => act('disable')}>Switch off</button> : <button type="button" className="button button--outline" disabled={busy} onClick={() => act('enable')}>Switch on</button>)}
-        <button type="button" className="button button--outline" disabled={busy} onClick={() => setConfirmReset(true)}>Start a new campaign</button>
+        <button type="button" className="button button--outline" disabled={busy} onClick={() => setConfirmReset(true)}>Reset results</button>
       </div>
 
-      <PopupView popup={popup} open={preview} preview onClose={() => setPreview(false)} onCta={() => setPreview(false)} />
-      <Confirm open={confirmReset} title="Start a new campaign?" confirmLabel="Start new campaign" onConfirm={() => act('reset_campaign')} onClose={() => setConfirmReset(false)} busy={busy}>
-        Browsers that closed the popup or already clicked through will be eligible to see it again, and results start fresh. Use this for a meaningfully new message.
+      <Confirm open={confirmReset} title="Reset the results?" confirmLabel="Reset results" onConfirm={() => act('reset_campaign')} onClose={() => setConfirmReset(false)} busy={busy}>
+        The counts start again from zero. Use this when you change to a meaningfully new message.
       </Confirm>
     </>
   )

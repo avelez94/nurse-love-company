@@ -1,5 +1,5 @@
 import { ServerUnavailablePage } from '../components/Unavailable'
-import { ArrowRight, Check, ShoppingBag } from 'lucide-react'
+import { ArrowRight, BookOpen, Check, PlayCircle, ShoppingBag } from 'lucide-react'
 import { useState } from 'react'
 import { getCategory } from '../data/catalog'
 import type { Product as ProductRecord } from '../data/types'
@@ -7,12 +7,13 @@ import { Heart } from '../components/illustrations/Objects'
 import { Gallery } from '../components/Gallery'
 import { Price, ProductLabels } from '../components/Labels'
 import { useAddToBag, VariantPicker } from '../components/Overlays'
-import { PeekInside } from '../components/PeekInside'
+import { ProductReviews } from '../components/Reviews'
 import { ProductCard } from '../components/ProductCard'
 import { TutorialHelpLink } from '../components/TutorialCard'
 import { RichText } from '../components/RichText'
 import { href } from '../lib/router'
 import { displayPrice, useStore } from '../lib/store'
+import { useUI } from '../lib/ui'
 import { NotFound } from './Simple'
 
 function Detail({ term, value }: { term: string; value: string | null }) {
@@ -39,6 +40,7 @@ export function Product({ slug }: { slug: string }) {
 export function ProductView({ product, preview = false }: { product: ProductRecord; preview?: boolean }) {
   const category = getCategory(product.category)
   const addToBag = useAddToBag()
+  const { open } = useUI()
   const { products } = useStore()
   const [added, setAdded] = useState(false)
   const [variantId, setVariantId] = useState<string | null>(null)
@@ -97,17 +99,10 @@ export function ProductView({ product, preview = false }: { product: ProductReco
               {added ? <Heart className="button__heart" /> : <ShoppingBag aria-hidden="true" size={18} />}
               {soldOut ? 'Sold out' : unpriced ? 'Pricing to be added' : needsVariant ? 'Choose an option' : added ? (isDigital ? 'In your bag' : 'Add another') : 'Add to bag'}
             </button>
-            {isDigital && (
-              <button
-                type="button"
-                className="button button--outline"
-                onClick={() => {
-                  const target = document.getElementById('peek-inside')
-                  target?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
-                  target?.querySelector<HTMLElement>('.peek__nav--next')?.focus({ preventScroll: true })
-                }}
-              >
-                Peek inside
+            {product.samplePages.length > 0 && (
+              <button type="button" className="button button--outline" onClick={() => open({ kind: 'peek', product })} aria-haspopup="dialog">
+                <BookOpen aria-hidden="true" size={18} />
+                View a sample
               </button>
             )}
           </div>
@@ -123,6 +118,26 @@ export function ProductView({ product, preview = false }: { product: ProductReco
           )}
 
           {isDigital && <TutorialHelpLink category={product.category} />}
+          {product.walkthrough && (
+            <a className="arrow-link" href={href(`tutorial-${product.walkthrough.slug}`)}>
+              <PlayCircle aria-hidden="true" size={18} /> Watch the walkthrough: {product.walkthrough.title}
+            </a>
+          )}
+
+          {Boolean(product.whatsIncluded?.length) && (
+            <section className="included" aria-labelledby="included-title">
+              <h2 id="included-title" className="details__title">What's included</h2>
+              <ul className="included__list">
+                {product.whatsIncluded!.map((item) => (
+                  <li key={item}>
+                    <Check aria-hidden="true" size={16} />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              {isDigital && <p className="muted">Inserts only. Binder not included.</p>}
+            </section>
+          )}
 
           <section className="details" aria-labelledby="details-title">
             <h2 id="details-title" className="details__title">Details</h2>
@@ -149,15 +164,7 @@ export function ProductView({ product, preview = false }: { product: ProductReco
         </div>
       </article>
 
-      {isDigital && (
-        <section className="container peek-section" id="peek-inside" aria-labelledby="peek-title">
-          <h2 id="peek-title" className="peek-section__title">Peek inside</h2>
-          <p className="muted">Flip through sample layouts. Use the arrows, the thumbnails, or swipe.</p>
-          <div className="peek-section__viewer">
-            <PeekInside pages={product.samplePages} title={product.title} />
-          </div>
-        </section>
-      )}
+      {!product.isExample && <ProductReviews slug={product.slug} preview={preview} />}
 
       {related.length > 0 && (
         <section className="container related" aria-labelledby="related-title">
