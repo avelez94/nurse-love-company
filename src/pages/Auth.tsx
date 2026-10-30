@@ -195,3 +195,49 @@ export function ResetPassword({ token }: { token?: string }) {
     </AuthCard>
   )
 }
+
+/**
+ * First admin setup. Needs a signed in account and the one time setup code
+ * (ADMIN_BOOTSTRAP_TOKEN on the server). Stops working once an admin exists.
+ */
+export function AdminSetup() {
+  const { user, loading, refresh } = useSession()
+  const [token, setToken] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  if (loading) return null
+  if (!user) {
+    return (
+      <AuthCard title="Store admin setup" intro="First create your own account (or sign in), then come back to this page.">
+        <div className="button-row">
+          <a className="button button--small" href={href('sign-up')} onClick={() => rememberReturn('admin-setup')}>Create account</a>
+          <a className="button button--outline button--small" href={href('sign-in')} onClick={() => rememberReturn('admin-setup')}>Sign in</a>
+        </div>
+      </AuthCard>
+    )
+  }
+  const submit = async (e: FormEvent) => {
+    e.preventDefault()
+    setBusy(true)
+    setError('')
+    try {
+      await api('/api/admin-bootstrap', { body: { token } })
+      await refresh()
+      navigate('admin')
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <AuthCard title="Store admin setup" intro={`Signed in as ${user.email}. Enter the one time setup code to make this account the store's first admin.`}>
+      <form className="form-stack" onSubmit={submit}>
+        <TextInput label="Setup code" type="password" value={token} onChange={setToken} autoComplete="off" required />
+        <FormError message={error} />
+        <button type="submit" className="button" disabled={busy || !token}>{busy ? 'Checking...' : 'Make me the admin'}</button>
+      </form>
+      <p className="muted">This only works while the store has no admin. Afterwards, admins add other admins in Settings.</p>
+    </AuthCard>
+  )
+}

@@ -66,7 +66,7 @@ Tutorials are completely separate: watching never touches downloads or purchases
 
 ## Demo data
 
-Everything created by the seed is marked `is_demo` and labeled "Demo" in the admin, on product pages ("Demo price") and on receipts. Demo prices are placeholders, not approved prices. Demo files are generic prototype PDFs. The overview has an "Include demo data" switch, and CSV exports mark demo rows. Demo data is never created in production.
+Everything created by the seed is marked `is_demo` and labeled "Demo" in the admin, on product pages ("Demo price") and on receipts. Demo prices are placeholders, not approved prices. Demo files are generic prototype PDFs. The overview has an "Include demo data" switch, and CSV exports mark demo rows. Demo data is never created in production. On staging it is off unless `DEMO_CONTENT=true`, and then loaded from Admin, Settings (see DEPLOYMENT.md).
 
 The tutorial "How to Put Together Your NP Binder" uses a short, clearly labeled placeholder video. It is not the owner's recording.
 
@@ -116,11 +116,17 @@ They cover: successful, failed, unpaid and duplicate payment events; forged webh
 
 ## Deploying
 
-1. Create the hosted database, bucket, Stripe, Resend and Mux accounts and put their keys in the host's environment settings (see `.env.example`). Set `NODE_ENV=production`, `APP_URL` and `BETTER_AUTH_SECRET`.
-2. `npm install && npm run build`, then `npm start`. Migrations run automatically at start up.
-3. Create the owner's account on the site, then run `npm run admin:create -- owner@example.com` once on the server.
+A private staging preview runs on Render from `render.yaml`, with a Neon database and a Cloudflare R2 bucket. **DEPLOYMENT.md** has the step by step guide, every environment variable (required and optional), how staging access is locked, how to create the first admin securely, and the optional labeled demo content.
+
+In short:
+
+1. Set `DEPLOY_ENV` (`staging` or `production`), `APP_URL`, `DATABASE_URL`, `BETTER_AUTH_SECRET`, persistent file storage and, on staging, `STAGING_ACCESS_PASSWORD`. The server lists anything missing and refuses to start.
+2. `npm ci --include=dev && npm run build`, then `npm start`. Migrations run automatically at start up and are safe to repeat.
+3. Sign up, then claim the admin role at `/#admin-setup` with `ADMIN_BOOTSTRAP_TOKEN` (remove it afterwards), or run `npm run admin:create -- owner@example.com` on the server.
 4. Add the webhook addresses above in Stripe, Resend and Mux.
-5. Test a full order with a Stripe test card before asking for live keys.
+5. Test a full order with a Stripe test card. Live payments are always blocked on staging.
+
+`GET /api/health` reports the database and each integration and returns 503 if the database is unreachable.
 
 ## Where things live
 

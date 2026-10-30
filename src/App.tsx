@@ -12,7 +12,7 @@ import { SessionProvider } from './lib/session'
 import { StoreProvider, useStore } from './lib/store'
 import { UIProvider, useUI } from './lib/ui'
 import { AccountArea, CheckoutResult } from './pages/account/Account'
-import { ForgotPassword, ResetPassword, SignIn, SignUp } from './pages/Auth'
+import { AdminSetup, ForgotPassword, ResetPassword, SignIn, SignUp } from './pages/Auth'
 import { Collection } from './pages/Collection'
 import { ExtraCute } from './pages/ExtraCute'
 import { Home } from './pages/Home'
@@ -48,7 +48,7 @@ function useTitle(route: Route): string {
     case 'product':
       return `${getProduct(route.slug)?.title ?? 'Product'} | ${site.name}`
     case 'auth':
-      return `${{ 'sign-in': 'Sign in', 'sign-up': 'Create account', 'forgot-password': 'Reset password', 'reset-password': 'Choose a new password' }[route.mode]} | ${site.name}`
+      return `${{ 'sign-in': 'Sign in', 'sign-up': 'Create account', 'forgot-password': 'Reset password', 'reset-password': 'Choose a new password', 'admin-setup': 'Admin setup' }[route.mode]} | ${site.name}`
     case 'checkout':
       return `Checkout | ${site.name}`
     case 'account':
@@ -86,6 +86,7 @@ function Page({ route }: { route: Route }) {
       if (route.mode === 'sign-in') return <SignIn />
       if (route.mode === 'sign-up') return <SignUp />
       if (route.mode === 'forgot-password') return <ForgotPassword />
+      if (route.mode === 'admin-setup') return <AdminSetup />
       return <ResetPassword token={route.token} />
     case 'checkout':
       return <CheckoutResult result={route.result} />
@@ -99,7 +100,14 @@ function Page({ route }: { route: Route }) {
 }
 
 function OfflineBanner() {
-  const { status } = useStore()
+  const { status, environment } = useStore()
+  if (environment === 'staging') {
+    return (
+      <p className="offline-banner" role="status">
+        Staging preview for review. Payments are in test mode or switched off, and items marked Demo are sample content.
+      </p>
+    )
+  }
   if (status !== 'offline') return null
   return (
     <p className="offline-banner" role="status">

@@ -9,6 +9,21 @@ const here = dirname(fileURLToPath(import.meta.url))
 
 /** Creates or updates the Better Auth tables, then applies store migrations in order. */
 export async function migrate(pool: pg.Pool) {
+  // One migrator at a time: during a deploy two server instances can start
+  // together. A session level advisory lock makes the second one wait, then
+  // find nothing left to do. Each file runs in its own transaction and is
+  // recorded only on success, so a failed or interrupted run is safe to retry.
+  const lock = await pool.connect()
+  try {
+    await lock.query('select pg_advisory_lock(727001)')
+    await runAll(pool)
+  } finally {
+    await lock.query('select pg_advisory_unlock(727001)').catch(() => {})
+    lock.release()
+  }
+}
+
+async function runAll(pool: pg.Pool) {
   const { runMigrations } = await getMigrations(authOptions(pool) as never)
   await runMigrations()
 

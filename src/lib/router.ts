@@ -16,7 +16,7 @@ export type Route =
   | { name: 'story' }
   | { name: 'help' }
   | { name: 'product'; slug: string }
-  | { name: 'auth'; mode: 'sign-in' | 'sign-up' | 'forgot-password' | 'reset-password'; token?: string }
+  | { name: 'auth'; mode: 'sign-in' | 'sign-up' | 'forgot-password' | 'reset-password' | 'admin-setup'; token?: string }
   | { name: 'checkout'; result: 'success' | 'canceled' }
   | { name: 'account'; view: AccountView; param?: string }
   | { name: 'admin'; view: AdminView; param?: string }
@@ -73,6 +73,7 @@ export function parseHash(raw: string): Route {
     case 'sign-in':
     case 'sign-up':
     case 'forgot-password':
+    case 'admin-setup':
       return { name: 'auth', mode: hash }
     case 'reset-password':
       return { name: 'auth', mode: 'reset-password', token: params.get('token') ?? undefined }

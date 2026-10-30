@@ -1,14 +1,21 @@
-/* Command line tools: npm run seed, npm run admin:create -- email@example.com */
+/*
+  Command line tools (run on the server, for example in the host's shell):
+    npm run seed [-- reviewer@example.com]   load labeled demo content (development, or staging with DEMO_CONTENT=true)
+    npm run admin:create -- you@example.com   give an existing account admin access
+    npm run migrate                           apply database migrations
+*/
 import { boot } from './boot.js'
 import { one, q } from './db/pool.js'
-import { seed } from './seed.js'
+import { demoAllowed, deployEnv } from './env.js'
+import { seedDemoContent } from './seed.js'
 
 const [cmd, arg] = process.argv.slice(2)
 const pool = await boot()
 try {
   if (cmd === 'seed') {
-    if (process.env.NODE_ENV === 'production') throw new Error('Demo data cannot be seeded in production.')
-    await seed()
+    if (!demoAllowed()) throw new Error(`Demo content is not allowed here (DEPLOY_ENV=${deployEnv}). It needs DEPLOY_ENV=staging and DEMO_CONTENT=true.`)
+    const r = await seedDemoContent({ reviewerEmail: arg ?? null, actor: { id: 'command-line', email: 'command line', name: 'Command line', role: 'admin' } })
+    console.log(`Demo content loaded: ${r.productsCreated} products, ${r.ordersCreated} demo orders, ${r.reviewerOrdersCreated} reviewer orders, ${r.tutorialsCreated} tutorials added. Existing content was not duplicated.`)
   } else if (cmd === 'admin') {
     if (!arg) throw new Error('Usage: npm run admin:create -- owner@example.com (the account must already exist; sign up first)')
     const u = await one<{ id: string }>('select id from "user" where lower(email) = lower($1)', [arg])
@@ -19,7 +26,7 @@ try {
   } else if (cmd === 'migrate') {
     console.log('Migrations are up to date.')
   } else {
-    console.log('Commands: seed | admin <email> | migrate')
+    console.log('Commands: seed [reviewer email] | admin <email> | migrate')
   }
 } finally {
   await pool.end()

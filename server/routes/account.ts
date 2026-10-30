@@ -1,8 +1,10 @@
+import { timingSafeEqual } from 'node:crypto'
 import { Hono } from 'hono'
-import { one, q } from '../db/pool.js'
+import { one, q, tx } from '../db/pool.js'
+import { config } from '../env.js'
 import { escapeHtml } from '../email/templates.js'
 import { clientIp, jsonBody, requireUser, type AppEnv } from '../http.js'
-import { badRequest, notFound } from '../lib/errors.js'
+import { badRequest, HttpError, notFound } from '../lib/errors.js'
 import { rateLimit } from '../lib/rate-limit.js'
 import { toWebBody } from '../lib/stream.js'
 import { bool, str, uuid } from '../lib/validate.js'
@@ -181,6 +183,31 @@ accountRoutes.post('/account/support', async (c) => {
   }
   const row = await one(`insert into support_requests (user_id, order_id, subject, message) values ($1,$2,$3,$4) returning id`, [user.id, orderId, str(b.subject, 'Subject', { min: 2, max: 140 }), str(b.message, 'Message', { min: 5, max: 4000 })])
   return c.json(row, 201)
+})
+
+/*
+  First admin. Works only while the store has no admin at all, and only with
+  the ADMIN_BOOTSTRAP_TOKEN set on the server. The signed in account becomes
+  the first admin; after that this endpoint refuses every request.
+*/
+accountRoutes.post('/admin-bootstrap', async (c) => {
+  const user = requireUser(c)
+  rateLimit(`bootstrap:${clientIp(c)}`, 5, 900)
+  const expected = config.adminBootstrapToken
+  if (!expected) throw new HttpError(404, 'Admin setup is not enabled.', 'not_enabled')
+  const given = Buffer.from(String((await jsonBody(c)).token ?? ''))
+  const want = Buffer.from(expected)
+  if (given.length !== want.length || !timingSafeEqual(given, want)) throw new HttpError(403, 'That setup code is not correct.', 'bad_token')
+  const done = await tx(async (client) => {
+    await client.query('select pg_advisory_xact_lock(727003)')
+    const admins = await one<{ n: number }>(`select count(*)::int as n from "user" where role = 'admin'`, [], client)
+    if ((admins?.n ?? 0) > 0) return false
+    await q(`update "user" set role = 'admin' where id = $1`, [user.id], client)
+    await q(`insert into audit_log (actor_id, actor_email, action, entity_type, entity_id, summary, ip) values ($1,$2,'admin.bootstrapped','user',$1,$3,$4)`, [user.id, user.email, `${user.email} became the first admin using the setup code`, clientIp(c)], client)
+    return true
+  })
+  if (!done) throw new HttpError(409, 'This store already has an admin. Ask them to give you access in Settings.', 'already_set_up')
+  return c.json({ ok: true })
 })
 
 /* Cart and checkout */

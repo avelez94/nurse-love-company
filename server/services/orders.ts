@@ -12,7 +12,7 @@ import type { PoolClient } from 'pg'
 import type { SessionUser } from '../auth.js'
 import { one, q, tx } from '../db/pool.js'
 import { kickDispatcher, queueEmail } from '../email/outbox.js'
-import { config } from '../env.js'
+import { config, paymentsState } from '../env.js'
 import { audit } from '../lib/audit.js'
 import { badRequest, conflict, HttpError, notFound } from '../lib/errors.js'
 import { stripe, type Stripe } from '../lib/stripe.js'
@@ -55,6 +55,7 @@ export async function priceCart(user: SessionUser | null, lines: CartLine[], cli
       client,
     )
     if (!p || p.status !== 'published' || !p.active || p.archived_at) throw badRequest('One of the items in your bag is no longer available. Please remove it and try again.')
+    if ((p as { is_demo?: boolean }).is_demo && paymentsState() !== 'test') throw badRequest(`${p.title} is demo content and can only be bought with Stripe test cards.`)
     const qty = Number(l.quantity)
     if (!Number.isInteger(qty) || qty < 1) throw badRequest(`Please choose a quantity for ${p.title}.`)
     let price = p.sale_price_cents ?? p.price_cents

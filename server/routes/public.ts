@@ -36,7 +36,7 @@ publicRoutes.get('/media/:id', async (c) => {
 
 publicRoutes.get('/status', (c) => {
   const s = integrationStatus()
-  return c.json({ payments: s.payments.state, email: s.email.configured })
+  return c.json({ payments: s.payments.state, email: s.email.configured, environment: s.environment })
 })
 
 /* Tutorials: unlimited public viewing of published tutorials only. No account needed. */

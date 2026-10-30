@@ -14,6 +14,9 @@ import { buildSamplePlannerPdf } from '../../shared/samplePdf.js'
 export const TEST_DB = process.env.TEST_DATABASE_URL ?? 'postgres://nurselove:nurselove-local@localhost:5432/nurselove_test'
 export const ORIGIN = 'http://localhost:5173'
 
+/** On staging tests, every request passes the access gate unless told otherwise. */
+export const GATE = process.env.DEPLOY_ENV === 'staging' ? `Basic ${Buffer.from(`${process.env.STAGING_ACCESS_USER ?? 'nurselove'}:${process.env.STAGING_ACCESS_PASSWORD}`).toString('base64')}` : null
+
 let booted: Awaited<ReturnType<typeof boot>> | null = null
 export let app: ReturnType<typeof createApp>
 
@@ -46,7 +49,7 @@ export interface Session {
 export async function signUp(email: string, role: 'customer' | 'admin' = 'customer', name = 'Test Person'): Promise<Session> {
   const res = await app.request('/api/auth/sign-up/email', {
     method: 'POST',
-    headers: { 'content-type': 'application/json', origin: ORIGIN },
+    headers: { 'content-type': 'application/json', origin: ORIGIN, ...(GATE ? { authorization: GATE } : {}) },
     body: JSON.stringify({ email, password: 'Correct-Horse-1', name }),
   })
   if (res.status !== 200) throw new Error(`sign up failed ${res.status} ${await res.text()}`)
@@ -54,7 +57,7 @@ export async function signUp(email: string, role: 'customer' | 'admin' = 'custom
   if (role === 'admin') await q(`update "user" set role = 'admin' where id = $1`, [user!.id])
   const signIn = await app.request('/api/auth/sign-in/email', {
     method: 'POST',
-    headers: { 'content-type': 'application/json', origin: ORIGIN },
+    headers: { 'content-type': 'application/json', origin: ORIGIN, ...(GATE ? { authorization: GATE } : {}) },
     body: JSON.stringify({ email, password: 'Correct-Horse-1' }),
   })
   const cookie = (signIn.headers.getSetCookie?.() ?? [signIn.headers.get('set-cookie') ?? ''])
@@ -63,8 +66,8 @@ export async function signUp(email: string, role: 'customer' | 'admin' = 'custom
   return { cookie, id: user!.id, email }
 }
 
-export async function api(path: string, opts: { session?: Session | null; method?: string; body?: unknown; headers?: Record<string, string> } = {}) {
-  const headers: Record<string, string> = { origin: ORIGIN, ...(opts.headers ?? {}) }
+export async function api(path: string, opts: { session?: Session | null; method?: string; body?: unknown; headers?: Record<string, string>; noGate?: boolean } = {}) {
+  const headers: Record<string, string> = { origin: ORIGIN, ...(GATE && !opts.noGate ? { authorization: GATE } : {}), ...(opts.headers ?? {}) }
   if (opts.session) headers.cookie = opts.session.cookie
   let body: BodyInit | undefined
   if (opts.body !== undefined) {

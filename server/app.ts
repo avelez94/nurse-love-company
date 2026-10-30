@@ -1,7 +1,11 @@
 import { Hono } from 'hono'
 import { secureHeaders } from 'hono/secure-headers'
+import { timingSafeEqual } from 'node:crypto'
 import { auth } from './auth.js'
-import { isProduction } from './env.js'
+import { db } from './db/pool.js'
+import { config, deployEnv, integrationStatus, isProduction } from './env.js'
+import { clientIp } from './http.js'
+import { rateLimit } from './lib/rate-limit.js'
 import { originGuard, sessionMiddleware, type AppEnv } from './http.js'
 import { HttpError } from './lib/errors.js'
 import { accountRoutes } from './routes/account.js'
@@ -32,6 +36,52 @@ export function createApp() {
       crossOriginEmbedderPolicy: false,
     }),
   )
+
+  // Health check for the host. No secrets: only whether each part is reachable.
+  // Deliberately outside the staging gate so the host can check it.
+  app.get('/api/health', async (c) => {
+    let database = false
+    try {
+      await db().query('select 1')
+      database = true
+    } catch {
+      database = false
+    }
+    const s = integrationStatus()
+    return c.json(
+      {
+        status: database ? 'ok' : 'degraded',
+        environment: deployEnv,
+        database,
+        payments: s.payments.state,
+        email: s.email.configured ? 'configured' : 'not configured',
+        storage: s.storage.driver,
+        video: s.video.provider,
+      },
+      database ? 200 : 503,
+      { 'cache-control': 'no-store' },
+    )
+  })
+
+  // Staging gate: the whole staging site, dashboards included, needs the
+  // staging username and password. Only payment, email and video webhooks
+  // (which prove themselves with signatures) and the health check get through.
+  if (deployEnv === 'staging') {
+    const expected = Buffer.from(`${config.staging.accessUser}:${config.staging.accessPassword}`)
+    app.use('*', async (c, next) => {
+      c.header('x-robots-tag', 'noindex, nofollow')
+      const path = c.req.path
+      if (path.startsWith('/api/webhooks/') || path === '/api/health') return next()
+      const header = c.req.header('authorization') ?? ''
+      const given = header.startsWith('Basic ') ? Buffer.from(header.slice(6), 'base64') : Buffer.alloc(0)
+      if (given.length === expected.length && timingSafeEqual(given, expected)) return next()
+      if (header) rateLimit(`staging-gate:${clientIp(c)}`, 20, 600)
+      return c.text('This is a private staging preview. Please sign in with the staging username and password.', 401, {
+        'www-authenticate': 'Basic realm="Nurse Love Company staging", charset="UTF-8"',
+        'cache-control': 'no-store',
+      })
+    })
+  }
 
   // JSON bodies are capped at 1 MB. File uploads stream with their own limits.
   app.use('/api/*', async (c, next) => {

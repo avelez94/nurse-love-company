@@ -154,6 +154,7 @@ interface StoreValue {
   featuredIds: string[]
   supportEmail: string
   payments: 'test' | 'live' | 'live-blocked' | 'not-configured' | 'unknown'
+  environment: 'development' | 'staging' | 'production' | 'unknown'
   reload: () => Promise<void>
   getProduct: (slug: string) => Product | undefined
   productById: (id: string) => Product | undefined
@@ -171,19 +172,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [featuredIds, setFeatured] = useState<string[]>([])
   const [supportEmail, setSupport] = useState('')
   const [payments, setPayments] = useState<StoreValue['payments']>('unknown')
+  const [environment, setEnvironment] = useState<StoreValue['environment']>('unknown')
 
   const reload = useCallback(async () => {
     try {
       const [cat, tut, st] = await Promise.all([
         api<{ products: ApiProduct[]; featuredIds: string[]; store: { supportEmail: string } }>('/api/catalog'),
         api<{ tutorials: ApiTutorial[] }>('/api/tutorials'),
-        api<{ payments: StoreValue['payments'] }>('/api/status'),
+        api<{ payments: StoreValue['payments']; environment: StoreValue['environment'] }>('/api/status'),
       ])
       setProducts(cat.products.map(toProduct))
       setTutorials(tut.tutorials.map(toTutorial))
       setFeatured(cat.featuredIds)
       setSupport(cat.store.supportEmail)
       setPayments(st.payments)
+      setEnvironment(st.environment ?? 'unknown')
       setStatus('live')
     } catch {
       setProducts(exampleProducts)
@@ -205,6 +208,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       featuredIds,
       supportEmail,
       payments,
+      environment,
       reload,
       getProduct,
       productById: (id) => products.find((p) => p.id === id),
@@ -215,7 +219,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return matches.find((t) => t.title.startsWith('How to')) ?? matches[0]
       },
     }
-  }, [status, products, tutorials, featuredIds, supportEmail, payments, reload])
+  }, [status, products, tutorials, featuredIds, supportEmail, payments, environment, reload])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

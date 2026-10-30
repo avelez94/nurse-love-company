@@ -11,8 +11,8 @@
     "smoke": "node scripts/smoke.mjs",
     "build:artifact": "vite build --mode artifact && node scripts/make-artifact.mjs",
     "dev:web": "vite",
-    "dev:api": "tsx watch --env-file-if-exists=.env --clear-screen=false server/index.ts",
-    "start": "NODE_ENV=production tsx --env-file-if-exists=.env server/index.ts",
+    "dev:api": "tsx watch --clear-screen=false server/index.ts",
+    "start": "NODE_ENV=production tsx server/index.ts",
     "test": "node --import tsx --test --test-concurrency=1 server/tests/*.test.ts",
     "seed": "tsx server/scripts.ts seed",
     "migrate": "tsx server/scripts.ts migrate",
@@ -34,7 +34,8 @@
     "react-dom": "^19.2.4",
     "resend": "^6.35.0",
     "stripe": "^23.1.0",
-    "svix": "^2.9.1"
+    "svix": "^2.9.1",
+    "tsx": "^4.23.15"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
@@ -43,8 +44,10 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "embedded-postgres": "^17.10.0-beta.17",
-    "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vite": "^8.3.5"
+  },
+  "engines": {
+    "node": ">=20.12"
   }
 }

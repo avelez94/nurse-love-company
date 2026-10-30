@@ -4,11 +4,19 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import { createApp } from './app.js'
 import { boot } from './boot.js'
 import { kickDispatcher } from './email/outbox.js'
-import { config, integrationStatus, isProduction } from './env.js'
+import { config, deployEnv, deploymentProblems, integrationStatus } from './env.js'
 import { seedIfEmpty } from './seed.js'
 
+const problems = deploymentProblems()
+if (problems.length) {
+  console.error(`[api] Refusing to start the ${deployEnv} server:\n  - ${problems.join('\n  - ')}`)
+  process.exit(1)
+}
+
 const pool = await boot()
-if (!isProduction && process.env.SEED_DEMO !== 'false') await seedIfEmpty()
+// Local development fills an empty database with demo data. Staging only does
+// so when an admin presses "Load demo content" (with DEMO_CONTENT=true).
+if (deployEnv === 'development' && process.env.SEED_DEMO !== 'false') await seedIfEmpty()
 
 const app = createApp()
 

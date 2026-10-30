@@ -1,7 +1,8 @@
 import { Hono } from 'hono'
 import { one, q } from '../db/pool.js'
 import { templateInfo, renderEmail, type EmailType } from '../email/templates.js'
-import { config, integrationStatus } from '../env.js'
+import { config, demoAllowed, integrationStatus } from '../env.js'
+import { demoSummary, seedDemoContent } from '../seed.js'
 import { adminOnly, clientIp, jsonBody, requireAdmin, type AppEnv } from '../http.js'
 import { audit } from '../lib/audit.js'
 import { badRequest, notFound } from '../lib/errors.js'
@@ -458,7 +459,16 @@ adminRoutes.get('/admin/tutorials/:id/preview/captions/:lang', async (c) => c.bo
 
 /* ---------- Settings, access and audit ---------- */
 
-adminRoutes.get('/admin/settings', async (c) => c.json({ settings: await getSettings(), integrations: integrationStatus(), admins: await listAdmins(), appUrl: config.appUrl }))
+adminRoutes.get('/admin/settings', async (c) =>
+  c.json({ settings: await getSettings(), integrations: integrationStatus(), admins: await listAdmins(), appUrl: config.appUrl, demo: { allowed: demoAllowed(), ...(await demoSummary()) } }),
+)
+
+/** Staging only (DEMO_CONTENT=true): adds any missing labeled demo content. Safe to press twice. */
+adminRoutes.post('/admin/demo', async (c) => {
+  const b = await jsonBody(c)
+  const reviewerEmail = b.reviewer_email ? emailField(b.reviewer_email, 'Reviewer email') : null
+  return c.json(await seedDemoContent({ reviewerEmail, actor: requireAdmin(c) }))
+})
 
 adminRoutes.put('/admin/settings/:section', async (c) => {
   const actor = requireAdmin(c)

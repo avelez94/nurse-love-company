@@ -17,6 +17,7 @@ interface Settings {
 interface Data {
   settings: Settings
   integrations: {
+    environment: 'development' | 'staging' | 'production'
     payments: { state: string; webhook: boolean }
     email: { configured: boolean; webhook: boolean }
     storage: { driver: string; configured: boolean }
@@ -24,6 +25,44 @@ interface Data {
   }
   admins: Array<{ id: string; name: string; email: string; created_at: string }>
   appUrl: string
+  demo: { allowed: boolean; products: number; orders: number }
+}
+
+function DemoPanel({ demo, onDone }: { demo: Data['demo']; onDone: () => void }) {
+  const [email, setEmail] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const { showToast } = useUI()
+  if (!demo.allowed) return null
+  return (
+    <section className="panel form-stack">
+      <h2 className="panel__title">Demo content (staging only)</h2>
+      <Notice tone="warn">Adds labeled sample products, orders and a placeholder tutorial so the dashboards can be reviewed. Everything is marked Demo, demo orders took no payment, and emails about demo content are never sent. Pressing this again only adds what is missing.</Notice>
+      <p className="muted">Currently: {demo.products} demo products and {demo.orders} demo orders.</p>
+      <TextInput label="Also add demo orders to this account (optional)" value={email} onChange={setEmail} placeholder="reviewer@example.com" hint="The person signs up normally with their own password first. They then see demo orders and downloads in their own customer dashboard." />
+      <FormError message={error} />
+      <button
+        type="button"
+        className="button button--small"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true)
+          setError('')
+          try {
+            const r = await api<{ productsCreated: number; ordersCreated: number; reviewerOrdersCreated: number; tutorialsCreated: number }>('/api/admin/demo', { body: { reviewer_email: email || null } })
+            showToast(`Demo content loaded: ${r.productsCreated} products, ${r.ordersCreated + r.reviewerOrdersCreated} orders and ${r.tutorialsCreated} tutorials added.`)
+            onDone()
+          } catch (err) {
+            setError(errorMessage(err))
+          } finally {
+            setBusy(false)
+          }
+        }}
+      >
+        {busy ? 'Loading demo content...' : 'Load demo content'}
+      </button>
+    </section>
+  )
 }
 
 function useSection<K extends keyof Settings>(data: Data | null, key: K) {
@@ -88,7 +127,10 @@ export function SettingsPage() {
   return (
     <>
       <PageTitle title="Settings" />
+      {data.integrations.environment === 'staging' && <Notice tone="warn">This is the staging preview. Live payments are always off here, whatever keys are set.</Notice>}
       <Notice>Secret keys (Stripe, Resend, storage, Mux) are set as server environment variables and never shown here. This page shows whether each service is connected.</Notice>
+
+      <DemoPanel demo={data.demo} onDone={reload} />
 
       <section className="panel">
         <h2 className="panel__title">Connected services</h2>

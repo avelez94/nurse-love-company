@@ -110,12 +110,18 @@ export function kickDispatcher() {
 
 /** Claims and sends one queued email. Returns false when the queue is empty. */
 export async function dispatchOne(): Promise<boolean> {
-  const row = await one<{ id: string; to_email: string; subject: string; html: string; text_body: string; idempotency_key: string }>(
+  const row = await one<{ id: string; to_email: string; subject: string; html: string; text_body: string; idempotency_key: string; is_demo: boolean }>(
     `update emails set status = 'sending', attempts = attempts + 1
      where id = (select id from emails where status = 'queued' order by requested_at for update skip locked limit 1)
-     returning id, to_email, subject, html, text_body, idempotency_key`,
+     returning id, to_email, subject, html, text_body, idempotency_key, is_demo`,
   )
   if (!row) return false
+
+  // Emails about demo content are recorded for review but never sent.
+  if (row.is_demo) {
+    await q(`update emails set status = 'suppressed', failure_reason = 'Demo content: recorded for review, never sent.' where id = $1`, [row.id])
+    return true
+  }
 
   const suppressed = await one('select 1 from email_suppressions where email = lower($1)', [row.to_email])
   if (suppressed) {
