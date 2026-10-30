@@ -77,8 +77,15 @@ textarea.input {
   border: 1px solid var(--border);
   background: var(--blush);
   font-size: var(--text-sm);
-  display: grid;
-  gap: var(--space-2);
+}
+.ui-notice > p + p,
+.ui-notice > span + button,
+.ui-notice > p + button {
+  margin-top: var(--space-2);
+}
+.ui-notice > button {
+  display: inline-flex;
+  margin-top: var(--space-2);
 }
 .ui-notice--warn {
   background: #fff7e8;
