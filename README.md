@@ -35,6 +35,7 @@ Other commands:
 | `npm run build` | Type checks everything and builds the site into `dist/` |
 | `npm start` | Runs the API and built site as one Node server (not used on Vercel) |
 | `npm run migrate` | Applies database migrations and sets up the storage buckets (run deliberately; see DEPLOYMENT.md) |
+| `npm run db:sql` | Regenerates `supabase/setup.sql`, the paste into Supabase setup script |
 | `npm run seed` | Adds the demo data again (development only) |
 | `npm run admin:create -- you@example.com` | Gives an existing account admin access |
 
@@ -120,7 +121,7 @@ The staging preview runs on **Vercel** (storefront and API) with **Supabase** (d
 
 In short:
 
-1. Create a Supabase project, then run the "Run database migrations" GitHub Action (or `npm run migrate`). Migrations never run inside Vercel functions.
+1. Create a Supabase project, then paste `supabase/setup.sql` into its SQL Editor and run it once. Migrations never run inside Vercel functions.
 2. Import the repository into Vercel. `vercel.json` sets the build, the API function, the daily maintenance job and security headers. Add the required variables. If any is missing, the API answers "not fully configured" and the function logs list exactly what.
 3. Sign up, then claim the admin role at `/#admin-setup` with `ADMIN_BOOTSTRAP_TOKEN` (remove it afterwards).
 4. Add the webhook addresses above in Stripe, Resend and Mux.

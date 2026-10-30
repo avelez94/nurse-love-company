@@ -110,12 +110,11 @@ Limits that matter here:
 
 ## Migrations
 
-Migrations never run inside Vercel Functions. Run them deliberately, once per database, whenever a release adds a file to `server/db/migrations/`:
+Migrations never run inside Vercel Functions. The database is set up deliberately, once, in Supabase itself:
 
-* **From GitHub:** Actions tab, "Run database migrations", Run workflow, choose `staging`. It uses the secrets of the GitHub environment with that name, so staging and production never mix.
-* **From a computer:** `DATABASE_URL=... STORAGE_DRIVER=supabase SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run migrate`
-
-Use Supabase's **Session pooler** connection string (port 5432) for migrations. The same command creates or updates the two private storage buckets. It is safe to run again: each migration runs once, in its own transaction, under a lock.
+* **First setup (recommended): Supabase SQL Editor.** In the Supabase dashboard open **SQL Editor**, **New query**, paste the whole of [`supabase/setup.sql`](supabase/setup.sql), and click **Run**. It creates the account tables, the store tables, row level security and the two private storage buckets, in one transaction (all or nothing). On a database that is already set up it stops with "already set up" and changes nothing. The file is generated from the migrations (`npm run db:sql`), and a test checks it builds exactly the database `npm run migrate` would.
+* **Later updates:** when a release adds a file to `server/db/migrations/`, that release also adds the same change as a ready to paste script in `supabase/updates/`. Paste and run it the same way.
+* **Optional alternatives:** the "Run database migrations" GitHub Action (it needs a GitHub environment with the secrets listed below), or from a computer: `DATABASE_URL=... STORAGE_DRIVER=supabase SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run migrate` with Supabase's **Session pooler** connection string (port 5432). Both are safe to run again: each migration runs once, in its own transaction, under a lock.
 
 `/api/health` reports `"schema": "behind"` (and returns 503) if the code expects a migration the database does not have yet.
 
@@ -164,7 +163,7 @@ The store keeps its own accounts (Better Auth). That is secure and needs no chan
 
 Vercel sets `VERCEL` itself. If any required value is missing or invalid, every API request answers 503 "not fully configured", and the exact list is in the function logs (Vercel project, Logs).
 
-### GitHub (environment named `staging`, for the migration workflow)
+### GitHub (optional; only if you use the migration workflow instead of the SQL Editor)
 
 | Name | Kind | Value |
 | --- | --- | --- |
@@ -213,7 +212,7 @@ Each step says what it costs. Nothing has been created yet.
 
 1. **Supabase project** (free plan). Create a project named `nurse-love-staging`, choose a strong database password, and pick a region near you. Do not set up Supabase Auth.
 2. **Collect from Supabase:** project URL and secret (service role) key, from Project Settings, API. Transaction pooler and Session pooler connection strings, from Connect. The CA certificate, from Database settings, SSL.
-3. **GitHub environment `staging`** with the four secrets above. Then Actions, "Run database migrations", choose `staging`. This creates the tables and the two private buckets.
+3. **Database setup in Supabase:** SQL Editor, New query, paste `supabase/setup.sql`, Run. This creates the tables and the two private buckets.
 4. **Vercel project** (decide Hobby or Pro first). Import the `nurse-love-company` repository. Vercel reads `vercel.json`. Before the first deploy, add the required variables to the Production environment.
 5. **Check it:** `https://YOUR-ADDRESS/api/health` should show `"status":"ok"`, `"schema":"current"`, `"storage":"supabase"`. The site itself should ask for the staging password.
 6. **First admin**, then delete `ADMIN_BOOTSTRAP_TOKEN`.
@@ -221,4 +220,4 @@ Each step says what it costs. Nothing has been created yet.
 8. **Stripe test mode:** add `STRIPE_SECRET_KEY` (`sk_test_`), and a webhook to `https://YOUR-ADDRESS/api/webhooks/stripe` with the events listed in the README. Add its signing secret as `STRIPE_WEBHOOK_SECRET`.
 9. **Optional:** set `DEMO_CONTENT=true` and load demo content. Later, Resend.
 
-Vercel redeploys on every push to `main` once connected. Pushes do not run migrations; run the workflow when a release adds one.
+Vercel redeploys on every push to `main` once connected. Pushes do not change the database; when a release adds a migration, run its script from `supabase/updates/` in the SQL Editor.

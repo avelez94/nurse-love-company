@@ -16,7 +16,8 @@
     "test": "node --import tsx --test --test-concurrency=1 server/tests/*.test.ts",
     "seed": "tsx server/scripts.ts seed",
     "migrate": "tsx server/scripts.ts migrate",
-    "admin:create": "tsx server/scripts.ts admin"
+    "admin:create": "tsx server/scripts.ts admin",
+    "db:sql": "tsx server/db/setup-sql-cli.ts"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.5",
