@@ -81,6 +81,7 @@ interface Report {
   recentOrders: Array<{ id: string; order_number: string; customer_name: string; status: string; fulfillment_status: string; total_cents: number; created_at: string; is_demo: boolean }>
   lowStock: Array<{ product_id: string; title: string; stock: number; threshold: number }>
   freeClaims?: { claims: number; customers: number }
+  customers?: { total: number; paying: number; freebieOnly: number }
   daily: Array<{ day: string; gross: number }>
   counts: { open_reports: number; open_support: number; to_fulfill: number; email_problems: number; has_demo: boolean }
   integrations: { payments: { state: string; webhook: boolean }; email: { configured: boolean; webhook: boolean }; storage: { driver: string; configured: boolean }; video: { provider: string; configured: boolean } }
@@ -166,10 +167,17 @@ export function Overview() {
             {data.counts.open_support > 0 && <a className="chip" href={href('admin-support')}>{data.counts.open_support} support messages</a>}
             {data.counts.email_problems > 0 && <a className="chip" href={href('admin-emails')}>{data.counts.email_problems} email delivery problems</a>}
           </div>
-          {data.freeClaims && data.freeClaims.claims > 0 && (
-            <Notice>
-              <strong>Free claims:</strong> {data.freeClaims.claims} Freebie Corner {data.freeClaims.claims === 1 ? 'resource' : 'resources'} claimed by {data.freeClaims.customers} {data.freeClaims.customers === 1 ? 'customer' : 'customers'} in this period. Free claims are not counted in orders, sales or customers below.
-            </Notice>
+          {data.customers && (
+            <section className="panel" aria-labelledby="customers-split">
+              <h2 className="panel__title" id="customers-split">Customers in this period</h2>
+              <dl className="mk-stats">
+                <div><dt>All customers</dt><dd>{data.customers.total}</dd></div>
+                <div><dt>Paying customers</dt><dd>{data.customers.paying}</dd></div>
+                <div><dt>Freebie only</dt><dd>{data.customers.freebieOnly}</dd></div>
+                <div><dt>Free claims</dt><dd>{data.freeClaims?.claims ?? 0}</dd></div>
+              </dl>
+              <p className="muted">Free claims are Freebie Corner resources claimed at $0. They are left out of sales, orders and average order value below; paying customers are customers with at least one paid order.</p>
+            </section>
           )}
           <section className="kpis" aria-label="Revenue">
             <Kpi label="Net sales" value={data.current.netSales} prev={data.previous.netSales} primary />
@@ -252,7 +260,7 @@ export function Overview() {
                 </p>
               </section>
               <section className="panel">
-                <h2 className="panel__title">Customers</h2>
+                <h2 className="panel__title">Paying customers</h2>
                 <dl className="kv">
                   <dt>New</dt><dd>{data.current.newCustomers}</dd>
                   <dt>Returning</dt><dd>{data.current.returningCustomers}</dd>
@@ -294,7 +302,7 @@ export function Overview() {
                   <dt>Taxes</dt><dd>Sales tax collected. Owed to tax authorities; not revenue.</dd>
                   <dt>Processing fees</dt><dd>Stripe fees when Stripe has reported them.</dd>
                   <dt>Average order value</dt><dd>Gross sales minus discounts, divided by the number of orders. Excludes shipping and tax.</dd>
-                  <dt>New customers</dt><dd>Customers whose first paid order is in the range.</dd>
+                  <dt>New customers</dt><dd>Paying customers whose first paid order is in the range. Free claims do not count.</dd>
                   <dt>Comparison</dt><dd>The same length of time immediately before the selected range.</dd>
                   <dt>Not profit</dt><dd>Product costs, materials, labels and other expenses are not included anywhere here.</dd>
                 </dl>

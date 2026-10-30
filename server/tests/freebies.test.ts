@@ -4,7 +4,7 @@ import { after, beforeEach, describe, it } from 'node:test'
 import { revenueReport } from '../services/reports.js'
 import { contactSuppressed, setListProvider, syncMarketingContacts } from '../services/consent.js'
 import { CONSENT_WORDING } from '../../shared/consent.js'
-import { api, digitalProduct, drainOutbox, entitlementsFor, one, payOrder, pendingOrder, q, setSender, setup, signUp, teardown, type Session } from './helpers.js'
+import { api, digitalProduct, drainOutbox, entitlementsFor, one, payOrder, pendingOrder, postResend, q, setSender, setup, signUp, teardown, type Session } from './helpers.js'
 
 async function freebie(admin: Session, slug = 'free-planner') {
   const id = await digitalProduct(slug, 900)
@@ -159,6 +159,7 @@ describe('freebies and email list consent', () => {
     assert.equal(r.current.newCustomers, 0)
     assert.equal(r.byProduct.length, 0)
     assert.deepEqual(r.freeClaims, { claims: 1, customers: 1 })
+    assert.deepEqual(r.customers, { total: 1, paying: 0, freebieOnly: 1 }, 'freebie only customers are shown, apart from paying customers')
 
     // The future setting: reminders for free claims only when the owner turns it on.
     await api('/api/admin/automations/download_reminder', { session: admin, method: 'PUT', body: { include_freebies: true } })
@@ -176,7 +177,7 @@ describe('freebies and email list consent', () => {
 
     const list = new Map<string, boolean>()
     let calls = 0
-    setListProvider({ name: 'Test list', upsert: async ({ email, subscribed }) => void (calls++, list.set(email, subscribed)) })
+    setListProvider({ name: 'Test list', get: async (email) => (list.has(email) ? { unsubscribed: !list.get(email) } : null), upsert: async ({ email, subscribed }) => void (calls++, list.set(email, subscribed)) })
     assert.equal((await syncMarketingContacts()).synced, 1)
     assert.deepEqual([...list], [['one@example.com', true]])
     await api('/api/account/profile', { session: a, method: 'PATCH', body: { name: 'One', marketing: false } })
@@ -194,5 +195,63 @@ describe('freebies and email list consent', () => {
     const overview = await api('/api/admin/email-list', { session: await signUp('owner@example.com', 'admin') })
     assert.equal(overview.data.provider.connected, true)
     assert.equal(overview.data.counts.subscribed, 1)
+  })
+
+  it('an unsubscribe made in Resend is recorded here and never undone by a later sync', async () => {
+    const admin = await signUp('owner@example.com', 'admin')
+    const id = await freebie(admin)
+    const list = new Map<string, boolean>()
+    setListProvider({ name: 'Test list', get: async (e) => (list.has(e) ? { unsubscribed: !list.get(e) } : null), upsert: async ({ email, subscribed }) => void list.set(email, subscribed) })
+    const buyer = await signUp('webhook@example.com')
+    assert.equal((await checkout(buyer, [id], true)).status, 200)
+    await syncMarketingContacts()
+    assert.equal(list.get('webhook@example.com'), true)
+
+    // The person unsubscribes in a Resend broadcast; Resend sends contact.updated.
+    list.set('webhook@example.com', false)
+    const evt = { type: 'contact.updated', created_at: new Date().toISOString(), data: { id: 'c_1', email: 'webhook@example.com', unsubscribed: true, updated_at: new Date().toISOString(), created_at: new Date().toISOString() } }
+    const r = await postResend(evt, 'msg_contact_1')
+    assert.equal(r.status, 200, JSON.stringify(r.data))
+    assert.equal(r.data.result, 'unsubscribed')
+    assert.equal((await postResend(evt, 'msg_contact_1')).data.result, 'duplicate')
+    assert.deepEqual((await events('webhook@example.com')).map((e) => `${e.action}:${e.source}`), ['subscribe:freebie_checkout', 'unsubscribe:resend_unsubscribe'])
+    assert.equal((await api('/api/account/marketing', { session: buyer })).data.status, 'unsubscribed')
+    assert.equal((await entitlementsFor(buyer.id)).length, 1, 'the freebie is kept')
+
+    // Syncing again never resubscribes them; a re-subscribe event from the list is not consent either.
+    await syncMarketingContacts()
+    assert.equal(list.get('webhook@example.com'), false)
+    const back = await postResend({ ...evt, data: { ...evt.data, unsubscribed: false } }, 'msg_contact_2')
+    assert.equal(back.data.result, 'ignored')
+    assert.equal((await api('/api/account/marketing', { session: buyer })).data.status, 'unsubscribed')
+
+    // A late event older than a fresh signup in the store is ignored.
+    await api('/api/account/profile', { session: buyer, method: 'PATCH', body: { name: 'W', marketing: true } })
+    const stale = await postResend({ ...evt, data: { ...evt.data, updated_at: new Date(Date.now() - 3_600_000).toISOString() } }, 'msg_contact_3')
+    assert.equal(stale.data.result, 'ignored: older than their latest signup')
+    assert.equal((await api('/api/account/marketing', { session: buyer })).data.status, 'subscribed')
+  })
+
+  it('a missed unsubscribe webhook is caught before a sync could resubscribe someone', async () => {
+    const list = new Map<string, boolean>()
+    setListProvider({ name: 'Test list', get: async (e) => (list.has(e) ? { unsubscribed: !list.get(e) } : null), upsert: async ({ email, subscribed }) => void list.set(email, subscribed) })
+    const u = await signUp('missed@example.com')
+    await api('/api/account/profile', { session: u, method: 'PATCH', body: { name: 'M', marketing: true } })
+    await syncMarketingContacts()
+    // Unsubscribed in Resend, webhook lost; then something makes the contact pending again (for example a bounce flag cleared).
+    list.set('missed@example.com', false)
+    await q(`update marketing_contacts set sync_status = 'pending', change_seq = change_seq + 1 where email = 'missed@example.com'`)
+    await syncMarketingContacts()
+    assert.equal(list.get('missed@example.com'), false, 'not resubscribed')
+    assert.equal((await api('/api/account/marketing', { session: u })).data.status, 'unsubscribed')
+    assert.deepEqual((await events('missed@example.com')).map((e) => e.source), ['account_settings', 'resend_unsubscribe'])
+
+    // Deleted in Resend: not added back by itself.
+    const del = await postResend({ type: 'contact.deleted', created_at: new Date().toISOString(), data: { email: 'missed@example.com', unsubscribed: true } }, 'msg_del_1')
+    assert.equal(del.data.result, 'deleted on the list')
+    // Suppressions added in Resend are respected.
+    const sup = await postResend({ type: 'suppression.added', created_at: new Date().toISOString(), data: { email: 'missed@example.com', origin: 'complaint' } }, 'msg_sup_1')
+    assert.equal(sup.data.result, 'suppressed')
+    assert.ok(await one(`select 1 from email_suppressions where email = 'missed@example.com'`))
   })
 })

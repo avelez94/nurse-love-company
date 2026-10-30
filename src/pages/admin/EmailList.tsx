@@ -61,7 +61,7 @@ export function EmailList() {
       <PageTitle title="Email list" />
       {d && !d.provider.connected && (
         <Notice tone="warn">
-          <strong>No mailing list is connected yet.</strong> Resend is set up to send order and account emails, which is not the same as a mailing list. Every signup and unsubscribe is stored here
+          <strong>No mailing list is connected yet.</strong> A mailing list needs a Resend segment (RESEND_SEGMENT_ID), separate from Resend sending order emails. Every signup and unsubscribe is stored here
           with its wording and time, and will be sent to the list once one is connected ({d.counts.waiting} waiting). Nothing is lost in the meantime.
         </Notice>
       )}
@@ -76,7 +76,7 @@ export function EmailList() {
           <li>Some places (for example the EU and UK) may not treat consent as freely given when it is a condition for receiving something. Decide whether to offer freebies there on these terms.</li>
           <li>Marketing emails need your physical mailing address and a working unsubscribe link (US CAN-SPAM). Your mailing list provider usually adds these; check before sending.</li>
           <li>Mention the email list and how you use addresses in your privacy policy (Settings, Policies) before publishing freebies.</li>
-          <li>Decide whether your provider should send a confirmation email first (double opt in) and what happens to people who unsubscribe there; unsubscribes made in the provider are not copied back here yet.</li>
+          <li>Decide whether your provider should send a confirmation email first (double opt in). Unsubscribes made in Resend come back here through its webhook once the contact events are turned on for it.</li>
           <li>The wording customers agree to is shown below. Changing it is a code change that creates a new version, so earlier records keep their exact words.</li>
         </ul>
       </details>

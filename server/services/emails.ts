@@ -2,7 +2,7 @@ import { Webhook } from 'svix'
 import type { SessionUser } from '../auth.js'
 import { one, q } from '../db/pool.js'
 import { kickDispatcher } from '../email/outbox.js'
-import { contactSuppressed } from './consent.js'
+import { contactSuppressed, ingestContactEvent, type ResendContactEvent } from './consent.js'
 import { AUTOMATION_TYPES, defaultTemplates, templateInfo, validateTemplate, type EmailType, type TemplateText } from '../email/templates.js'
 import { config } from '../env.js'
 import { audit } from '../lib/audit.js'
@@ -136,6 +136,8 @@ export async function ingestResendEvent(svixId: string, evt: { type: string; cre
     [svixId, email?.id ?? null, resendId, evt.type, JSON.stringify(evt), evt.created_at ?? null],
   )
   if (!inserted) return 'duplicate'
+  // Email list changes made in Resend (unsubscribes, deletions, suppressions).
+  if (evt.type.startsWith('contact.') || evt.type === 'suppression.added') return ingestContactEvent(evt as ResendContactEvent)
   const map = statusFor[evt.type]
   if (email && map) {
     // Events can arrive out of order; never move a status backwards.

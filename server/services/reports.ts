@@ -15,7 +15,9 @@
   Average order    (Gross sales − discounts) ÷ paid orders. Excludes shipping and tax.
   New customers    Customers whose first ever paid order falls in the range.
   Free claims      Freebie Corner resources claimed at $0. Reported on their own
-                   and never counted as paid orders, sales or customers.
+                   and never counted as paid orders, sales or paying customers.
+  Customers        Everyone with a completed order in the range (paid or free),
+                   split into paying customers and freebie only customers.
 
   None of these numbers is profit: product costs, shipping labels, platform
   fees and other expenses are not included.
@@ -133,7 +135,13 @@ export async function revenueReport(r: Range) {
       where oi.is_freebie and o.status in ${PAID} and o.paid_at >= $1 and o.paid_at < $2 ${demoAll}`,
     params,
   )
-  return { range: { from: r.from, to: r.to }, previousRange: { from: prev.from, to: prev.to }, current, previous, byProduct, byCategory, recentOrders: recent, lowStock, daily, freeClaims }
+  const people = await one<{ total: number; paying: number }>(
+    `select count(distinct o.user_id)::int as total, count(distinct o.user_id) filter (where not o.is_free_claim)::int as paying
+       from orders o where o.status in ${PAID} and o.paid_at >= $1 and o.paid_at < $2 and o.user_id is not null ${demoAll}`,
+    params,
+  )
+  const customers = { total: people!.total, paying: people!.paying, freebieOnly: people!.total - people!.paying }
+  return { range: { from: r.from, to: r.to }, previousRange: { from: prev.from, to: prev.to }, current, previous, byProduct, byCategory, recentOrders: recent, lowStock, daily, freeClaims, customers }
 }
 
 /** CSV with protection against spreadsheet formula injection. */
