@@ -248,7 +248,8 @@
   position: relative;
   display: grid;
   gap: var(--space-3);
-  justify-items: center;
+  /* Full width lines, centered by text-align. Shrink to fit sizing made some browsers break "With" onto its own line. */
+  justify-items: stretch;
   width: min(100%, 640px);
   margin-inline: auto;
   padding: var(--space-7) var(--space-6) var(--space-6);
