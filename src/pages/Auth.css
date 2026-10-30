@@ -1,0 +1,40 @@
+.auth {
+  padding-block: var(--space-7) var(--space-8);
+  display: grid;
+  place-items: center;
+}
+.auth__card {
+  width: min(100%, 440px);
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+.auth__heart {
+  width: 34px;
+  height: 34px;
+  color: var(--raspberry);
+}
+.auth__title {
+  font-size: var(--text-2xl);
+}
+.auth__intro {
+  color: var(--burgundy-soft);
+}
+.auth__links {
+  display: grid;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+.auth__links a {
+  color: var(--raspberry);
+  font-weight: 700;
+}
+@media (max-width: 520px) {
+  .auth__card {
+    padding: var(--space-5) var(--space-4);
+  }
+}

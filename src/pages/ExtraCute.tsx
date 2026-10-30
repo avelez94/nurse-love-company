@@ -1,4 +1,5 @@
-import { categories, productsIn } from '../data/catalog'
+import { categories } from '../data/catalog'
+import { useStore } from '../lib/store'
 import { site } from '../data/site'
 import type { CategoryId } from '../data/types'
 import { ShipsLabel } from '../components/Labels'
@@ -17,8 +18,9 @@ const tabs: Array<{ id: Tab; label: string; route: string }> = [
 
 /* Physical merchandise. Kept separate from digital downloads. */
 export function ExtraCute({ tab }: { tab: Tab }) {
+  const { productsIn } = useStore()
   const category = tab === 'all' ? null : categories.find((c) => c.id === tab)
-  const list = tab === 'all' ? productsIn('apparel', 'accessories', 'pens') : productsIn(tab as CategoryId)
+  const list = tab === 'all' ? productsIn('apparel', 'accessories', 'pens', 'other').filter((p) => p.type === 'physical') : productsIn(tab as CategoryId)
   return (
     <>
       <PageHeader
@@ -39,7 +41,7 @@ export function ExtraCute({ tab }: { tab: Tab }) {
             </a>
           ))}
         </nav>
-        <p className="shop__count">{list.length} example items</p>
+        <p className="shop__count">{list.length} {list.length === 1 ? 'item' : 'items'}</p>
         {list.length > 0 ? (
           <div className="product-grid" key={tab}>
             {list.map((p, i) => (

@@ -43,6 +43,13 @@ export const categories: Category[] = [
     type: 'physical',
     route: 'pens',
   },
+  {
+    id: 'other',
+    title: 'More favorites',
+    tagline: 'Other resources and favorites.',
+    type: 'physical',
+    route: 'shop',
+  },
 ]
 
 export function getCategory(id: CategoryId): Category {

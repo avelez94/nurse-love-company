@@ -1,7 +1,8 @@
-import { Menu, Search, ShoppingBag } from 'lucide-react'
+import { Menu, Search, ShoppingBag, User } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { site } from '../data/site'
 import { useCart } from '../lib/cart'
+import { useSession } from '../lib/session'
 import { href, type Route } from '../lib/router'
 import { useUI } from '../lib/ui'
 import { Dialog } from './Dialog'
@@ -20,6 +21,7 @@ function isActive(route: Route, target: string) {
 export function Header({ route }: { route: Route }) {
   const { open, overlay, close } = useUI()
   const { count, bump } = useCart()
+  const { user } = useSession()
   const [bumping, setBumping] = useState(false)
   const first = useRef(true)
 
@@ -70,10 +72,13 @@ export function Header({ route }: { route: Route }) {
             <button type="button" className="icon-button search-trigger--icon" aria-label="Search" onClick={() => open({ kind: 'search' })}>
               <Search aria-hidden="true" size={22} />
             </button>
+            <a className="icon-button site-header__account" href={href(user ? (user.role === 'admin' ? 'admin' : 'account') : 'sign-in')} aria-label={user ? (user.role === 'admin' ? 'Store admin' : 'My account') : 'Sign in'} title={user ? 'My account' : 'Sign in'}>
+              <User aria-hidden="true" size={22} />
+            </a>
             <button
               type="button"
               className={`icon-button bag-button ${bumping ? 'is-bumping' : ''}`}
-              aria-label={`Demo bag, ${count} ${count === 1 ? 'item' : 'items'}`}
+              aria-label={`Bag, ${count} ${count === 1 ? 'item' : 'items'}`}
               onClick={() => open({ kind: 'bag' })}
             >
               <ShoppingBag aria-hidden="true" size={23} />
@@ -107,6 +112,7 @@ export function Header({ route }: { route: Route }) {
             <li><a href={href('accessories')} onClick={close}>Accessories</a></li>
             <li><a href={href('pens')} onClick={close}>Pens</a></li>
             <li><a href={href('help')} onClick={close}>Help & contact</a></li>
+            <li><a href={href(user ? 'account' : 'sign-in')} onClick={close}>{user ? 'My account' : 'Sign in'}</a></li>
           </ul>
           <button type="button" className="button button--outline button--small mobile-nav__finder" onClick={() => open({ kind: 'finder' })}>
             {site.hero.secondary}

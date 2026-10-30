@@ -1,0 +1,648 @@
+import { ArrowDown, ArrowUp, Copy, Eye, FileUp, ImagePlus, Plus, Rocket, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { api, errorMessage, fileHeaders, newKey, uploadFile } from '../../lib/api'
+import { href, navigate } from '../../lib/router'
+import { toProduct, type ApiProduct } from '../../lib/store'
+import { useUI } from '../../lib/ui'
+import { Dialog } from '../../components/Dialog'
+import { RichTextEditor } from '../../components/RichTextEditor'
+import { Checkbox, Confirm, dateTime, Empty, FormError, Loading, money, MoneyInput, Notice, Pill, ProgressBar, Select, TextArea, TextInput, useApiData } from '../../components/ui'
+import { ProductView } from '../Product'
+import { slugify } from './slug'
+import { PageTitle } from './AdminApp'
+
+interface ListRow {
+  id: string
+  slug: string
+  title: string
+  category: string
+  type: string
+  status: string
+  active: boolean
+  archived_at: string | null
+  featured: boolean
+  price_cents: number | null
+  sale_price_cents: number | null
+  is_demo: boolean
+  inventory_quantity: number
+  low_stock_threshold: number
+  variant_stock: number
+  variant_count: number
+  version_number: number | null
+  image_id: string | null
+}
+
+const categoryOptions = [
+  { value: 'nurse-inserts', label: 'Nurse Binder Inserts' },
+  { value: 'np-inserts', label: 'NP Binder Inserts' },
+  { value: 'apparel', label: 'Apparel' },
+  { value: 'accessories', label: 'Accessories' },
+  { value: 'pens', label: 'Pens' },
+  { value: 'other', label: 'Other' },
+] as const
+
+export function Products() {
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState('active')
+  const q = new URLSearchParams({ search, status }).toString()
+  const { data, error, loading } = useApiData<{ products: ListRow[] }>(`/api/admin/products?${q}`)
+  return (
+    <>
+      <PageTitle title="Products">
+        <a className="button button--small" href={href('admin-product-new')}>
+          <Plus size={16} aria-hidden="true" /> New product
+        </a>
+      </PageTitle>
+      <div className="filters">
+        <label className="field field--grow">
+          <span className="field__label">Search</span>
+          <input className="input" type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Title, slug or SKU" />
+        </label>
+        <Select label="Show" value={status} onChange={setStatus} options={[{ value: 'active', label: 'All except archived' }, { value: 'published', label: 'Published' }, { value: 'draft', label: 'Drafts' }, { value: 'inactive', label: 'Inactive' }, { value: 'archived', label: 'Archived' }, { value: 'all', label: 'Everything' }]} />
+      </div>
+      {error && <FormError message={error} />}
+      {loading && !data ? (
+        <Loading />
+      ) : !data?.products.length ? (
+        <Empty title="No products match">
+          <a className="button button--small" href={href('admin-product-new')}>Create a product</a>
+        </Empty>
+      ) : (
+        <div className="data-table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr><th></th><th>Product</th><th>Type</th><th>Status</th><th className="num">Price</th><th className="num">Stock / file</th></tr>
+            </thead>
+            <tbody>
+              {data.products.map((p) => {
+                const stock = p.variant_count ? p.variant_stock : p.inventory_quantity
+                return (
+                  <tr key={p.id}>
+                    <td>{p.image_id ? <img className="thumb" src={`/api/media/${p.image_id}`} alt="" /> : <span className="thumb" />}</td>
+                    <td>
+                      <a href={href(`admin-product-${p.id}`)}>{p.title}</a>
+                      {p.is_demo && <span className="demo-tag">Demo</span>}
+                      {p.featured && <span className="demo-tag">Featured</span>}
+                      <br />
+                      <span className="muted">/{p.slug}</span>
+                    </td>
+                    <td>{p.type === 'digital' ? 'Digital' : 'Physical'}</td>
+                    <td className="status-line">
+                      {p.archived_at ? <Pill value="archived" /> : <Pill value={p.status} />}
+                      {!p.active && !p.archived_at && <Pill value="inactive" />}
+                    </td>
+                    <td className="num">{p.price_cents === null ? 'Not set' : money(p.sale_price_cents ?? p.price_cents)}</td>
+                    <td className="num">{p.type === 'digital' ? (p.version_number ? `File v${p.version_number}` : 'No file yet') : stock <= p.low_stock_threshold ? <strong>{stock} (low)</strong> : stock}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </>
+  )
+}
+
+type Form = {
+  title: string
+  slug: string
+  category: string
+  collection: string
+  type: 'digital' | 'physical'
+  short_description: string
+  description: unknown
+  price_cents: number | null
+  sale_price_cents: number | null
+  featured: boolean
+  sort_order: number
+  page_count: number | null
+  page_size: string
+  orientation: string
+  file_format: string
+  usage_attributes: string[]
+  app_compatibility: string[]
+  show_binder_notice: boolean
+  sku: string
+  weight_grams: number | null
+  shipping_info: string
+  inventory_quantity: number
+  low_stock_threshold: number
+  out_of_stock_behavior: string
+}
+
+const blank: Form = {
+  title: '', slug: '', category: 'nurse-inserts', collection: '', type: 'digital', short_description: '', description: { type: 'doc', content: [] }, price_cents: null, sale_price_cents: null, featured: false, sort_order: 0,
+  page_count: null, page_size: '', orientation: '', file_format: '', usage_attributes: [], app_compatibility: [], show_binder_notice: true,
+  sku: '', weight_grams: null, shipping_info: '', inventory_quantity: 0, low_stock_threshold: 3, out_of_stock_behavior: 'show_sold_out',
+}
+
+interface Detail {
+  product: Form & { id: string; status: string; active: boolean; archived_at: string | null; is_demo: boolean; current_version_id: string | null; updated_at: string }
+  images: Array<{ id: string; kind: 'gallery' | 'sample'; alt: string; width: number | null; height: number | null; sort_order: number; variant_id: string | null }>
+  variants: Array<{ id: string; title: string; options: { size?: string; color?: string }; sku: string | null; price_cents: number | null; inventory_quantity: number; active: boolean }>
+  versions: Array<{ id: string; version_number: number; file_name: string; file_size: number; notes: string; released_at: string; released_by: string }>
+  uploads: Array<{ id: string; file_name: string; file_size: number; created_at: string; uploaded_by: string }>
+  releases: Array<{ id: string; version_id: string; notify: boolean; affected_count: number; granted_count: number; created_by: string; created_at: string }>
+  affected: { items: number; customers: number }
+  orderCount: number
+}
+
+const size = (b: number) => (b > 1024 * 1024 ? `${(b / 1024 / 1024).toFixed(1)} MB` : `${Math.ceil(b / 1024)} KB`)
+const listToText = (l: string[]) => l.join(', ')
+const textToList = (t: string) => t.split(',').map((x) => x.trim()).filter(Boolean)
+
+export function ProductEditor({ id }: { id: string }) {
+  const isNew = id === 'new'
+  const { data, error, loading, reload } = useApiData<Detail>(isNew ? null : `/api/admin/products/${id}`)
+  const { showToast } = useUI()
+  const [form, setForm] = useState<Form>(blank)
+  const [slugTouched, setSlugTouched] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  const [preview, setPreview] = useState<ApiProduct | null>(null)
+  const [confirmAction, setConfirmAction] = useState<null | 'archive' | 'deactivate'>(null)
+
+  useEffect(() => {
+    if (data) {
+      const p = data.product
+      setForm({ ...blank, ...Object.fromEntries(Object.entries(p).filter(([k]) => k in blank)), page_size: p.page_size ?? '', orientation: p.orientation ?? '', file_format: p.file_format ?? '', sku: p.sku ?? '' } as Form)
+      setSlugTouched(true)
+    }
+  }, [data])
+
+  const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v, ...(k === 'title' && !slugTouched ? { slug: slugify(String(v)) } : {}) }))
+
+  const save = async (e?: FormEvent) => {
+    e?.preventDefault()
+    setSaving(true)
+    setSaveError('')
+    const body = { ...form, page_size: form.page_size || null, orientation: form.orientation || null, file_format: form.file_format || null, sku: form.sku || null }
+    try {
+      if (isNew) {
+        const created = await api<{ id: string }>('/api/admin/products', { body })
+        showToast('Draft saved. Add photos, files and details, then publish when ready.')
+        navigate(`admin-product-${created.id}`)
+      } else {
+        await api(`/api/admin/products/${id}`, { method: 'PUT', body })
+        showToast('Product saved. Listing edits never grant new downloads.')
+        await reload()
+      }
+    } catch (err) {
+      setSaveError(errorMessage(err))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const act = async (action: string) => {
+    setSaveError('')
+    try {
+      if (action === 'duplicate') {
+        const copy = await api<{ id: string }>(`/api/admin/products/${id}/duplicate`, { method: 'POST' })
+        showToast('Duplicated as a new draft.')
+        navigate(`admin-product-${copy.id}`)
+        return
+      }
+      await api(`/api/admin/products/${id}/${action}`, { method: 'POST' })
+      showToast({ publish: 'Published to the shop.', unpublish: 'Moved back to draft. It is no longer in the shop.', activate: 'Activated.', deactivate: 'Deactivated. New purchases are blocked.', archive: 'Archived. Order history and downloads are kept.', unarchive: 'Restored from the archive.' }[action] ?? 'Done.')
+      await reload()
+    } catch (err) {
+      setSaveError(errorMessage(err))
+    }
+  }
+
+  const openPreview = async () => {
+    try {
+      const res = await api<{ product: ApiProduct }>(`/api/admin/products/${id}/preview`)
+      setPreview(res.product)
+    } catch (err) {
+      setSaveError(errorMessage(err))
+    }
+  }
+
+  if (!isNew && loading && !data) return <Loading />
+  if (error) return <FormError message={error} />
+  const p = data?.product
+
+  return (
+    <>
+      <PageTitle title={isNew ? 'New product' : form.title || 'Product'} back={{ label: 'Products', route: 'admin-products' }} />
+      {p && (
+        <div className="status-line">
+          {p.archived_at ? <Pill value="archived" /> : <Pill value={p.status} />}
+          {!p.active && <Pill value="inactive" />}
+          {p.is_demo && <span className="demo-tag">Demo product</span>}
+          <span className="muted">Last saved {dateTime(p.updated_at)} • in {data!.orderCount} orders</span>
+        </div>
+      )}
+      {p?.is_demo && <Notice tone="warn">This is a demo product created for the preview. Its price and file are placeholders.</Notice>}
+
+      <form className="admin-cols" onSubmit={save}>
+        <div>
+          <section className="panel form-stack">
+            <h2 className="panel__title">Listing</h2>
+            <TextInput label="Product title" value={form.title} onChange={(v) => set('title', v)} maxLength={160} required />
+            <TextInput label="URL slug" value={form.slug} onChange={(v) => { setSlugTouched(true); set('slug', v.toLowerCase()) }} hint={`Shop address: #product-${form.slug || 'your-slug'}`} maxLength={100} />
+            <TextArea label="Short description" value={form.short_description} onChange={(v) => set('short_description', v)} maxLength={300} rows={2} hint="Shown on product cards. Up to 300 characters." />
+            <RichTextEditor label="Full description" value={form.description} onChange={(d) => set('description', d)} hint="Bold, italic, lists, links and a few approved font styles and sizes." />
+          </section>
+
+          {form.type === 'digital' ? (
+            <section className="panel form-stack">
+              <h2 className="panel__title">Digital details</h2>
+              <p className="muted">Only fill in what is confirmed for this product. Empty fields show "To be confirmed" in the shop.</p>
+              <div className="form-grid">
+                <TextInput label="Number of pages" value={form.page_count === null ? '' : String(form.page_count)} onChange={(v) => set('page_count', v ? Number(v.replace(/\D/g, '')) || null : null)} />
+                <Select label="Page size" value={form.page_size} onChange={(v) => set('page_size', v)} options={[{ value: '', label: 'Not set' }, ...['US Letter (8.5 × 11 in)', 'A4 (210 × 297 mm)', 'A5 (148 × 210 mm)', 'Half Letter (5.5 × 8.5 in)'].map((s) => ({ value: s, label: s }))]} />
+                <Select label="Orientation" value={form.orientation} onChange={(v) => set('orientation', v)} options={[{ value: '', label: 'Not set' }, { value: 'portrait', label: 'Portrait' }, { value: 'landscape', label: 'Landscape' }]} />
+                <TextInput label="File format" value={form.file_format} onChange={(v) => set('file_format', v)} placeholder="PDF" maxLength={40} />
+              </div>
+              <TextInput label="Confirmed uses" value={listToText(form.usage_attributes)} onChange={(v) => set('usage_attributes', textToList(v))} hint="Comma separated, for example: Printable, Fillable. Only list what you have confirmed." />
+              <TextInput label="Confirmed app compatibility" value={listToText(form.app_compatibility)} onChange={(v) => set('app_compatibility', textToList(v))} hint="Comma separated. Leave empty if not confirmed." />
+              <Checkbox label='Show "Inserts only • Binder not included"' checked={form.show_binder_notice} onChange={(v) => set('show_binder_notice', v)} />
+              <p className="muted">File size is calculated automatically from the released file.</p>
+            </section>
+          ) : (
+            <section className="panel form-stack">
+              <h2 className="panel__title">Physical details</h2>
+              <div className="form-grid">
+                <TextInput label="SKU" value={form.sku} onChange={(v) => set('sku', v)} maxLength={64} />
+                <TextInput label="Weight (grams)" value={form.weight_grams === null ? '' : String(form.weight_grams)} onChange={(v) => set('weight_grams', v ? Number(v.replace(/\D/g, '')) : null)} />
+                <TextInput label="Inventory" value={String(form.inventory_quantity)} onChange={(v) => set('inventory_quantity', Number(v.replace(/[^\d-]/g, '')) || 0)} hint="Used when the product has no variants." />
+                <TextInput label="Low stock alert at" value={String(form.low_stock_threshold)} onChange={(v) => set('low_stock_threshold', Number(v.replace(/\D/g, '')) || 0)} />
+              </div>
+              <Select label="When sold out" value={form.out_of_stock_behavior} onChange={(v) => set('out_of_stock_behavior', v)} options={[{ value: 'show_sold_out', label: 'Show as sold out' }, { value: 'hide', label: 'Hide from the shop' }, { value: 'allow_backorder', label: 'Keep selling (backorder)' }]} />
+              <TextArea label="Shipping information" value={form.shipping_info} onChange={(v) => set('shipping_info', v)} maxLength={500} rows={2} />
+            </section>
+          )}
+
+          {!isNew && data && form.type === 'physical' && <Variants productId={id} variants={data.variants} reload={reload} />}
+          {!isNew && data && <Images productId={id} images={data.images} variants={data.variants} reload={reload} />}
+          {!isNew && data && form.type === 'digital' && <Files productId={id} data={data} reload={reload} />}
+        </div>
+
+        <div>
+          <section className="panel form-stack">
+            <h2 className="panel__title">Organization</h2>
+            <Select label="Product type" value={form.type} onChange={(v) => set('type', v)} options={[{ value: 'digital', label: 'Digital download' }, { value: 'physical', label: 'Physical item (ships)' }]} hint={data?.orderCount ? 'Cannot change after the product has been ordered.' : undefined} />
+            <Select label="Category" value={form.category} onChange={(v) => set('category', v)} options={categoryOptions.map((c) => ({ value: c.value, label: c.label }))} />
+            <TextInput label="Collection" value={form.collection} onChange={(v) => set('collection', v)} maxLength={80} />
+            <TextInput label="Display order" value={String(form.sort_order)} onChange={(v) => set('sort_order', Number(v.replace(/[^\d-]/g, '')) || 0)} hint="Lower numbers appear first." />
+            <Checkbox label="Featured product" checked={form.featured} onChange={(v) => set('featured', v)} />
+          </section>
+          <section className="panel form-stack">
+            <h2 className="panel__title">Price</h2>
+            <MoneyInput label="Price" cents={form.price_cents} onChange={(c) => set('price_cents', c)} hint="Leave empty until the price is approved. Products without a price cannot be bought." />
+            <MoneyInput label="Sale price (optional)" cents={form.sale_price_cents} onChange={(c) => set('sale_price_cents', c)} />
+          </section>
+        </div>
+
+        <div className="sticky-actions" style={{ gridColumn: '1 / -1' }}>
+          <button type="submit" className="button button--small" disabled={saving}>
+            {saving ? 'Saving...' : isNew ? 'Save draft' : 'Save changes'}
+          </button>
+          {!isNew && p && (
+            <>
+              <button type="button" className="button button--outline button--small" onClick={openPreview}>
+                <Eye size={16} aria-hidden="true" /> Preview
+              </button>
+              {!p.archived_at && (p.status === 'draft' ? <button type="button" className="button button--outline button--small" onClick={() => act('publish')}>Publish</button> : <button type="button" className="button button--outline button--small" onClick={() => act('unpublish')}>Move to draft</button>)}
+              {!p.archived_at && (p.active ? <button type="button" className="button button--outline button--small" onClick={() => setConfirmAction('deactivate')}>Deactivate</button> : <button type="button" className="button button--outline button--small" onClick={() => act('activate')}>Activate</button>)}
+              <button type="button" className="button button--outline button--small" onClick={() => act('duplicate')}>
+                <Copy size={16} aria-hidden="true" /> Duplicate
+              </button>
+              {p.archived_at ? <button type="button" className="button button--outline button--small" onClick={() => act('unarchive')}>Restore</button> : <button type="button" className="button button--outline button--small" onClick={() => setConfirmAction('archive')}>Archive</button>}
+            </>
+          )}
+          <span className="spacer" />
+          <FormError message={saveError} />
+        </div>
+      </form>
+
+      <Confirm
+        open={Boolean(confirmAction)}
+        title={confirmAction === 'archive' ? 'Archive this product?' : 'Deactivate this product?'}
+        confirmLabel={confirmAction === 'archive' ? 'Archive' : 'Deactivate'}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={async () => {
+          const a = confirmAction!
+          setConfirmAction(null)
+          await act(a)
+        }}
+      >
+        <p>It disappears from the shop and new purchases are blocked. Existing customers keep their order records, receipts and any eligible downloads. Nothing is deleted.</p>
+      </Confirm>
+
+      <Dialog open={Boolean(preview)} onClose={() => setPreview(null)} title="Preview (not public)" variant="wide">
+        {preview && (
+          <div className="admin-preview">
+            <Notice tone="warn">This is how the product page will look. Buying is switched off in preview.{p?.status === 'draft' ? ' This product is a draft and is not in the shop.' : ''}</Notice>
+            <ProductView product={toProduct(preview)} preview />
+          </div>
+        )}
+      </Dialog>
+    </>
+  )
+}
+
+function Variants({ productId, variants, reload }: { productId: string; variants: Detail['variants']; reload: () => void }) {
+  type Row = { id?: string; title: string; size: string; color: string; sku: string; price_cents: number | null; inventory_quantity: number; active: boolean }
+  const toRows = () => variants.map((v) => ({ id: v.id, title: v.title, size: v.options.size ?? '', color: v.options.color ?? '', sku: v.sku ?? '', price_cents: v.price_cents, inventory_quantity: v.inventory_quantity, active: v.active }))
+  const [rows, setRows] = useState<Row[]>(toRows)
+  const [error, setError] = useState('')
+  const [saved, setSaved] = useState('')
+  useEffect(() => setRows(toRows()), [variants])
+  const update = (i: number, patch: Partial<Row>) => setRows((r) => r.map((x, j) => (j === i ? { ...x, ...patch, title: patch.size !== undefined || patch.color !== undefined ? [patch.size ?? x.size, patch.color ?? x.color].filter(Boolean).join(' / ') || x.title : (patch.title ?? x.title) } : x)))
+  const save = async () => {
+    setError('')
+    try {
+      await api(`/api/admin/products/${productId}/variants`, { method: 'PUT', body: { variants: rows.map((r) => ({ ...r, sku: r.sku || null })) } })
+      setSaved('Variants saved.')
+      reload()
+    } catch (err) {
+      setError(errorMessage(err))
+    }
+  }
+  return (
+    <section className="panel form-stack">
+      <div className="panel__head">
+        <h2 className="panel__title">Variants (size and color)</h2>
+        <button type="button" className="button button--outline button--small" onClick={() => setRows([...rows, { title: '', size: '', color: '', sku: '', price_cents: null, inventory_quantity: 0, active: true }])}>
+          <Plus size={16} aria-hidden="true" /> Add variant
+        </button>
+      </div>
+      {!rows.length && <p className="muted">No variants. Add them only for real options such as shirt sizes.</p>}
+      {rows.map((r, i) => (
+        <div className="variant-row" key={r.id ?? `new-${i}`}>
+          <TextInput label="Name" value={r.title} onChange={(v) => update(i, { title: v })} maxLength={80} />
+          <TextInput label="Size" value={r.size} onChange={(v) => update(i, { size: v })} maxLength={30} />
+          <TextInput label="Color" value={r.color} onChange={(v) => update(i, { color: v })} maxLength={30} />
+          <TextInput label="SKU" value={r.sku} onChange={(v) => update(i, { sku: v })} maxLength={64} />
+          <MoneyInput label="Price (optional)" cents={r.price_cents} onChange={(c) => update(i, { price_cents: c })} />
+          <TextInput label="Stock" value={String(r.inventory_quantity)} onChange={(v) => update(i, { inventory_quantity: Number(v.replace(/[^\d-]/g, '')) || 0 })} />
+          <button type="button" className="icon-button" aria-label={`Remove variant ${r.title}`} onClick={() => setRows(rows.filter((_, j) => j !== i))}>
+            <Trash2 size={18} aria-hidden="true" />
+          </button>
+        </div>
+      ))}
+      <FormError message={error} />
+      <div className="button-row">
+        <button type="button" className="button button--small" onClick={save}>Save variants</button>
+        {saved && <span role="status">{saved}</span>}
+      </div>
+      <p className="muted">Variants with past orders are switched off instead of deleted, so order history stays intact.</p>
+    </section>
+  )
+}
+
+function Images({ productId, images, variants, reload }: { productId: string; images: Detail['images']; variants: Detail['variants']; reload: () => void }) {
+  const [list, setList] = useState(images)
+  const [progress, setProgress] = useState<{ name: string; value: number } | null>(null)
+  const [error, setError] = useState('')
+  const [saved, setSaved] = useState('')
+  const input = useRef<HTMLInputElement>(null)
+  useEffect(() => setList(images), [images])
+
+  const upload = async (files: FileList | null, kind: 'gallery' | 'sample') => {
+    if (!files?.length) return
+    setError('')
+    for (const f of Array.from(files)) {
+      if (!['image/png', 'image/jpeg', 'image/webp'].includes(f.type)) {
+        setError(`${f.name} is not a PNG, JPG or WebP image.`)
+        continue
+      }
+      if (f.size > 10 * 1024 * 1024) {
+        setError(`${f.name} is larger than 10 MB.`)
+        continue
+      }
+      try {
+        setProgress({ name: f.name, value: 0 })
+        await uploadFile(`/api/admin/products/${productId}/images?kind=${kind}`, f, { headers: fileHeaders(f, { 'x-alt-text': '' }), withCredentials: true, onProgress: (v) => setProgress({ name: f.name, value: v }) })
+      } catch (err) {
+        setError(`${f.name}: ${errorMessage(err)}`)
+      }
+    }
+    setProgress(null)
+    reload()
+  }
+
+  const move = (i: number, d: number) => {
+    const next = [...list]
+    const [x] = next.splice(i, 1)
+    next.splice(i + d, 0, x)
+    setList(next)
+  }
+  const save = async () => {
+    setError('')
+    try {
+      await api(`/api/admin/products/${productId}/images`, { method: 'PUT', body: { images: list.map((i) => ({ id: i.id, alt: i.alt, kind: i.kind, variant_id: i.variant_id })) } })
+      setSaved('Image details saved.')
+      reload()
+    } catch (err) {
+      setError(errorMessage(err))
+    }
+  }
+  const missingAlt = list.filter((i) => !i.alt.trim()).length
+  return (
+    <section className="panel form-stack">
+      <div className="panel__head">
+        <h2 className="panel__title">Photos and sample pages</h2>
+        <div className="button-row">
+          <label className="button button--outline button--small">
+            <ImagePlus size={16} aria-hidden="true" /> Add photos
+            <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onChange={(e) => { void upload(e.target.files, 'gallery'); e.target.value = '' }} />
+          </label>
+          <label className="button button--outline button--small">
+            <ImagePlus size={16} aria-hidden="true" /> Add sample pages
+            <input type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onChange={(e) => { void upload(e.target.files, 'sample'); e.target.value = '' }} />
+          </label>
+        </div>
+      </div>
+      <p className="muted">Full marketing graphics are shown whole, never cropped, and shoppers can enlarge them. Sample pages appear in "Peek inside". Images are public only while the product is published.</p>
+      {progress && <ProgressBar value={progress.value} label={`Uploading ${progress.name}`} />}
+      <FormError message={error} />
+      {missingAlt > 0 && <Notice tone="warn">{missingAlt} image{missingAlt === 1 ? ' needs' : 's need'} alt text for shoppers using screen readers.</Notice>}
+      {!list.length ? (
+        <p className="muted">No images yet. The shop shows a simple illustration until you add photos.</p>
+      ) : (
+        <div className="image-grid">
+          {list.map((img, i) => (
+            <div className="image-tile" key={img.id}>
+              <img src={`/api/media/${img.id}`} alt="" />
+              <TextInput label="Alt text" value={img.alt} onChange={(v) => setList(list.map((x) => (x.id === img.id ? { ...x, alt: v } : x)))} maxLength={250} />
+              <Select label="Shown as" value={img.kind} onChange={(v) => setList(list.map((x) => (x.id === img.id ? { ...x, kind: v } : x)))} options={[{ value: 'gallery', label: 'Product photo' }, { value: 'sample', label: 'Sample page' }]} />
+              {variants.length > 0 && (
+                <Select label="Variant" value={img.variant_id ?? ''} onChange={(v) => setList(list.map((x) => (x.id === img.id ? { ...x, variant_id: v || null } : x)))} options={[{ value: '', label: 'All variants' }, ...variants.map((v) => ({ value: v.id, label: v.title }))]} />
+              )}
+              <div className="button-row">
+                <button type="button" className="icon-button" aria-label="Move earlier" disabled={i === 0} onClick={() => move(i, -1)}><ArrowUp size={16} aria-hidden="true" /></button>
+                <button type="button" className="icon-button" aria-label="Move later" disabled={i === list.length - 1} onClick={() => move(i, 1)}><ArrowDown size={16} aria-hidden="true" /></button>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label="Delete image"
+                  onClick={async () => {
+                    await api(`/api/admin/products/${productId}/images/${img.id}`, { method: 'DELETE' })
+                    reload()
+                  }}
+                >
+                  <Trash2 size={16} aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {list.length > 0 && (
+        <div className="button-row">
+          <button type="button" className="button button--small" onClick={save}>Save image order and alt text</button>
+          {saved && <span role="status">{saved}</span>}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function Files({ productId, data, reload }: { productId: string; data: Detail; reload: () => void }) {
+  const [progress, setProgress] = useState<number | null>(null)
+  const [error, setError] = useState('')
+  const [release, setRelease] = useState<Detail['uploads'][number] | null>(null)
+  const [notes, setNotes] = useState('')
+  const [notify, setNotify] = useState(true)
+  const [understood, setUnderstood] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [impact, setImpact] = useState<{ items: number; customers: number } | null>(null)
+  const key = useMemo(() => (release ? newKey() : ''), [release])
+  const { showToast } = useUI()
+
+  const upload = async (f: File | undefined) => {
+    if (!f) return
+    setError('')
+    if (f.size > 200 * 1024 * 1024) return setError('Files must be smaller than 200 MB.')
+    try {
+      setProgress(0)
+      await uploadFile(`/api/admin/products/${productId}/files`, f, { headers: fileHeaders(f), withCredentials: true, onProgress: setProgress })
+      showToast('File uploaded privately. Customers cannot see it until you publish it as an update.')
+      reload()
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setProgress(null)
+    }
+  }
+
+  const openRelease = async (u: Detail['uploads'][number]) => {
+    setRelease(u)
+    setNotes('')
+    setNotify(true)
+    setUnderstood(false)
+    setImpact(null)
+    try {
+      setImpact(await api(`/api/admin/products/${productId}/release-impact`))
+    } catch {
+      setImpact(null)
+    }
+  }
+
+  const publish = async () => {
+    setBusy(true)
+    setError('')
+    try {
+      const r = await api<{ granted_count: number; duplicate: boolean }>(`/api/admin/products/${productId}/releases`, { body: { upload_id: release!.id, notes, notify, idempotency_key: key, confirm: true } })
+      setRelease(null)
+      showToast(r.duplicate ? 'This release was already published. Nothing was granted twice.' : `Released. ${r.granted_count} purchaser${r.granted_count === 1 ? '' : 's'} received one new download.`)
+      reload()
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const current = data.versions[0]
+  return (
+    <section className="panel form-stack">
+      <h2 className="panel__title">Downloadable file</h2>
+      <Notice>
+        Files are stored privately. Editing the listing never grants downloads. Customers get a new download only when you use <strong>Publish digital product update</strong>.
+      </Notice>
+      {current ? (
+        <p>
+          Current file: <strong>{current.file_name}</strong> • version {current.version_number} • {size(current.file_size)} • released {dateTime(current.released_at)}
+        </p>
+      ) : (
+        <p className="muted">No file released yet. Customers who buy before the first release see "Your file is being prepared", and receive their download when you publish it.</p>
+      )}
+      <label className="button button--outline button--small" style={{ justifySelf: 'start' }}>
+        <FileUp size={16} aria-hidden="true" /> Upload a new private file
+        <input type="file" accept=".pdf,.zip,.png,.jpg,.jpeg,application/pdf,application/zip,image/png,image/jpeg" hidden onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = '' }} />
+      </label>
+      <p className="field__hint">PDF, ZIP, PNG or JPG, up to 200 MB.</p>
+      {progress !== null && <ProgressBar value={progress} label="Uploading file" />}
+      <FormError message={error} />
+      {data.uploads.length > 0 && (
+        <div className="data-table-wrap">
+          <table className="data-table">
+            <thead><tr><th>Uploaded, not released</th><th className="num">Size</th><th></th></tr></thead>
+            <tbody>
+              {data.uploads.map((u) => (
+                <tr key={u.id}>
+                  <td>{u.file_name}<br /><span className="muted">{dateTime(u.created_at)} by {u.uploaded_by}</span></td>
+                  <td className="num">{size(u.file_size)}</td>
+                  <td className="num">
+                    <button type="button" className="button button--small" onClick={() => openRelease(u)}>
+                      <Rocket size={16} aria-hidden="true" /> Publish digital product update
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {data.versions.length > 0 && (
+        <details>
+          <summary><strong>Version history</strong> ({data.versions.length})</summary>
+          <div className="data-table-wrap">
+            <table className="data-table">
+              <thead><tr><th>Version</th><th>File</th><th>Notes</th><th>Released</th><th className="num">New downloads granted</th></tr></thead>
+              <tbody>
+                {data.versions.map((v) => {
+                  const r = data.releases.find((x) => x.version_id === v.id)
+                  return (
+                    <tr key={v.id}>
+                      <td>v{v.version_number}</td>
+                      <td>{v.file_name}<br /><span className="muted">{size(v.file_size)}</span></td>
+                      <td>{v.notes || 'None'}</td>
+                      <td>{dateTime(v.released_at)}<br /><span className="muted">{v.released_by}</span></td>
+                      <td className="num">{r ? `${r.granted_count} of ${r.affected_count}${r.notify ? ', notified' : ''}` : 'Initial file'}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      )}
+      <Confirm open={Boolean(release)} title="Publish digital product update" confirmLabel="Publish update" busy={busy} disabled={!understood} onClose={() => setRelease(null)} onConfirm={publish}>
+        <p>
+          New file: <strong>{release?.file_name}</strong> becomes version {(current?.version_number ?? 0) + 1}. Versions cannot be changed after release.
+        </p>
+        <Notice>
+          {impact ? (
+            <>
+              <strong>{impact.items}</strong> eligible purchase{impact.items === 1 ? '' : 's'} from <strong>{impact.customers}</strong> customer{impact.customers === 1 ? '' : 's'} will each receive <strong>one</strong> new download of this version. Unused older downloads are replaced, not added to.
+            </>
+          ) : (
+            'Counting affected purchasers...'
+          )}
+        </Notice>
+        <TextArea label="Update notes (shown to customers)" value={notes} onChange={setNotes} maxLength={2000} rows={3} />
+        <Checkbox label="Email affected customers through Resend" checked={notify} onChange={setNotify} hint="Respects each customer's product update email preference." />
+        <Checkbox label="I understand this grants one new download to each eligible purchaser." checked={understood} onChange={setUnderstood} />
+        <FormError message={error} />
+      </Confirm>
+    </section>
+  )
+}

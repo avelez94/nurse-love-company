@@ -5,7 +5,10 @@ import { site } from '../data/site'
 import type { Freebie, Product } from '../data/types'
 import { useCart } from '../lib/cart'
 import { offerDownload } from '../lib/download'
+import { api, errorMessage } from '../lib/api'
 import { formatPrice } from '../lib/format'
+import { useSession } from '../lib/session'
+import { displayPrice, useStore } from '../lib/store'
 import { href, navigate } from '../lib/router'
 import { buildSamplePlannerPdf } from '../../shared/samplePdf'
 import { search, searchSuggestions } from '../lib/search'
@@ -13,20 +16,20 @@ import { useUI } from '../lib/ui'
 import { Dialog } from './Dialog'
 import { Gallery } from './Gallery'
 import { Heart } from './illustrations/Objects'
-import { ExampleLabel, ProductLabels } from './Labels'
+import { ExampleLabel, Price, ProductLabels } from './Labels'
 import { PeekInside } from './PeekInside'
 import { ProductArt } from './ProductArt'
 import { SamplePageView } from './SamplePageView'
 import { TutorialHelpLink } from './TutorialCard'
 import './Overlays.css'
 
-/** Adds a sample item to the demo bag with a friendly confirmation. */
+/** Adds an item to the bag with a friendly confirmation. */
 export function useAddToBag() {
   const { add } = useCart()
   const { showToast, open } = useUI()
-  return (product: Product) => {
-    add(product)
-    showToast(`${product.title} is in your demo bag.`, { label: 'View bag', onClick: () => open({ kind: 'bag' }) })
+  return (product: Product, variantId: string | null = null) => {
+    add(product, variantId)
+    showToast(`${product.title} is in your bag.`, { label: 'View bag', onClick: () => open({ kind: 'bag' }) })
   }
 }
 
@@ -51,7 +54,8 @@ const kindLabel = { digital: 'Digital download', physical: 'Ships to you', freeb
 function SearchDialog({ open, initial, onClose }: { open: boolean; initial: string; onClose: () => void }) {
   const [query, setQuery] = useState(initial)
   const input = useRef<HTMLInputElement>(null)
-  const results = useMemo(() => search(query), [query])
+  const { products, tutorials } = useStore()
+  const results = useMemo(() => search(query, products, tutorials), [query, products, tutorials])
 
   useEffect(() => {
     if (open) setQuery(initial)
@@ -247,42 +251,86 @@ function FinderDialog({ open, onClose }: { open: boolean; onClose: () => void })
   )
 }
 
-/* Demo bag */
+/* Bag */
 
 function BagDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { lines, count, remove, setQuantity, clear } = useCart()
+  const { lines, count, remove, setQuantity, clear, checkoutItems } = useCart()
+  const { user } = useSession()
+  const { payments, status } = useStore()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  useEffect(() => {
+    if (open) setError('')
+  }, [open])
+
+  const subtotal = lines.reduce((n, l) => n + (displayPrice(l.product, l.variant).now ?? 0) * l.quantity, 0)
+  const unpriced = lines.some((l) => displayPrice(l.product, l.variant).now === null)
+  const paymentsReady = payments === 'test' || payments === 'live'
+  const digitalLine = lines.find((l) => l.product.type === 'digital')
+
+  const checkout = async () => {
+    setError('')
+    if (!user) {
+      onClose()
+      navigate('sign-in')
+      return
+    }
+    setBusy(true)
+    try {
+      const res = await api<{ url: string }>('/api/checkout', { body: { items: checkoutItems } })
+      window.location.assign(res.url)
+    } catch (err) {
+      setError(errorMessage(err))
+      setBusy(false)
+    }
+  }
+
   return (
     <Dialog
       open={open}
       onClose={onClose}
-      title="Your demo bag"
+      title="Your bag"
       variant="drawer"
       footer={
         lines.length > 0 && (
           <div className="bag__footer">
             <div className="bag__total">
-              <span>Total</span>
-              <span>Pricing to be added</span>
+              <span>Subtotal</span>
+              <span>{unpriced ? 'Pricing to be added' : formatPrice(subtotal)}</span>
             </div>
-            <button type="button" className="button" disabled aria-describedby="bag-checkout-note">
-              Checkout not connected
-            </button>
-            <p id="bag-checkout-note" className="bag__note">
-              This is a demonstration bag. Nothing is purchased and no payment details are collected.
-            </p>
+            <p className="bag__note">Shipping and any sales tax are calculated at checkout. Prices are confirmed by the store when you check out.</p>
+            {error && (
+              <p className="form-error" role="alert">
+                {error}
+              </p>
+            )}
+            {status === 'offline' ? (
+              <p className="bag__note">Checkout needs the store server, which is not connected in this preview.</p>
+            ) : !paymentsReady ? (
+              <>
+                <button type="button" className="button" disabled aria-describedby="bag-checkout-note">
+                  Checkout not connected yet
+                </button>
+                <p id="bag-checkout-note" className="bag__note">
+                  Payments are awaiting setup{payments === 'live-blocked' ? ' and launch approval' : ''}. Nothing will be charged and no payment details are collected.
+                </p>
+              </>
+            ) : (
+              <button type="button" className="button" onClick={checkout} disabled={busy || unpriced}>
+                <ShoppingBag aria-hidden="true" size={18} />
+                {busy ? 'Opening secure checkout...' : user ? 'Check out securely' : 'Sign in to check out'}
+              </button>
+            )}
+            {paymentsReady && payments === 'test' && <p className="bag__note">Test mode: use a Stripe test card. No real money moves.</p>}
           </div>
         )
       }
     >
-      <p className="bag__demo">
-        <ShoppingBag aria-hidden="true" size={18} />
-        Demonstration only. Sample items stay in this browser.
-      </p>
       {lines.length === 0 ? (
         <div className="bag__empty">
           <Heart className="bag__empty-heart" />
-          <p className="bag__empty-title">Your demo bag is empty</p>
-          <p className="muted">Add a sample item to see how the bag will work.</p>
+          <p className="bag__empty-title">Your bag is empty</p>
+          <p className="muted">Find something you love and it will wait for you here.</p>
           <div className="chip-row">
             <a className="chip" href={href('shop')} onClick={onClose}>Digital resources</a>
             <a className="chip" href={href('extra-cute')} onClick={onClose}>Apparel & accessories</a>
@@ -294,8 +342,8 @@ function BagDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
             {count} {count === 1 ? 'item' : 'items'}
           </p>
           <ul className="bag__list">
-            {lines.map(({ product, quantity }) => (
-              <li key={product.id} className="bag-line">
+            {lines.map(({ key, product, variant, quantity }) => (
+              <li key={key} className="bag-line">
                 <a className="bag-line__media" href={href(`product-${product.slug}`)} onClick={onClose} tabIndex={-1} aria-hidden="true">
                   <ProductArt image={product.gallery[0]} />
                 </a>
@@ -303,23 +351,26 @@ function BagDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
                   <a className="bag-line__title" href={href(`product-${product.slug}`)} onClick={onClose}>
                     {product.title}
                   </a>
+                  {variant && <span className="bag-line__type">{variant.title}</span>}
                   <span className="bag-line__type">{product.type === 'digital' ? 'Digital download • Binder not included' : 'Ships to you'}</span>
-                  <span className="bag-line__price">{formatPrice(product.priceCents)}</span>
+                  <span className="bag-line__price">
+                    <Price product={product} variant={variant} />
+                  </span>
                   <div className="bag-line__controls">
                     {product.type === 'physical' ? (
                       <div className="qty" role="group" aria-label={`Quantity for ${product.title}`}>
-                        <button type="button" className="icon-button" aria-label="Decrease quantity" onClick={() => setQuantity(product.id, quantity - 1)}>
+                        <button type="button" className="icon-button" aria-label="Decrease quantity" onClick={() => setQuantity(key, quantity - 1)}>
                           <Minus aria-hidden="true" size={16} />
                         </button>
                         <span className="qty__value" aria-live="polite">{quantity}</span>
-                        <button type="button" className="icon-button" aria-label="Increase quantity" disabled={quantity >= 10} onClick={() => setQuantity(product.id, quantity + 1)}>
+                        <button type="button" className="icon-button" aria-label="Increase quantity" disabled={quantity >= 10} onClick={() => setQuantity(key, quantity + 1)}>
                           <Plus aria-hidden="true" size={16} />
                         </button>
                       </div>
                     ) : (
-                      <span className="qty__fixed">Qty 1</span>
+                      <span className="qty__fixed">Qty 1 • one download</span>
                     )}
-                    <button type="button" className="bag-line__remove" onClick={() => remove(product.id)}>
+                    <button type="button" className="bag-line__remove" onClick={() => remove(key)}>
                       <Trash2 aria-hidden="true" size={16} />
                       Remove<span className="visually-hidden"> {product.title}</span>
                     </button>
@@ -328,20 +379,36 @@ function BagDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
               </li>
             ))}
           </ul>
-          {(() => {
-            const digital = lines.find((l) => l.product.type === 'digital')
-            return digital ? (
-              <div className="bag__help">
-                <TutorialHelpLink category={digital.product.category} onNavigate={onClose} />
-              </div>
-            ) : null
-          })()}
+          {digitalLine && (
+            <div className="bag__help">
+              <TutorialHelpLink category={digitalLine.product.category} onNavigate={onClose} />
+            </div>
+          )}
           <button type="button" className="bag__clear" onClick={clear}>
-            Empty demo bag
+            Empty bag
           </button>
         </>
       )}
     </Dialog>
+  )
+}
+
+/** Variant picker for physical items with sizes or colors. */
+export function VariantPicker({ product, value, onChange }: { product: Product; value: string | null; onChange: (id: string) => void }) {
+  if (!product.variants?.length) return null
+  return (
+    <fieldset className="variant-picker">
+      <legend>Choose an option</legend>
+      <div className="chip-row">
+        {product.variants.map((v) => (
+          <button key={v.id} type="button" className="chip" aria-pressed={value === v.id} disabled={!v.inStock} onClick={() => onChange(v.id)}>
+            {v.title}
+            {!v.inStock && <span className="visually-hidden"> (sold out)</span>}
+            {!v.inStock && <span aria-hidden="true"> • sold out</span>}
+          </button>
+        ))}
+      </div>
+    </fieldset>
   )
 }
 
@@ -350,7 +417,14 @@ function BagDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
 function QuickView({ product, onClose }: { product: Product | null; onClose: () => void }) {
   const addToBag = useAddToBag()
   const [added, setAdded] = useState(false)
-  useEffect(() => setAdded(false), [product])
+  const [variantId, setVariantId] = useState<string | null>(null)
+  useEffect(() => {
+    setAdded(false)
+    setVariantId(null)
+  }, [product])
+  const variant = product?.variants?.find((v) => v.id === variantId) ?? null
+  const needsVariant = Boolean(product?.variants?.length) && !variant
+  const soldOut = product?.inStock === false
   return (
     <Dialog open={Boolean(product)} onClose={onClose} title={product?.title ?? 'Quick view'} variant="wide">
       {product && (
@@ -360,21 +434,26 @@ function QuickView({ product, onClose }: { product: Product | null; onClose: () 
             <ProductLabels product={product} />
             <p className="quick-view__category">{getCategory(product.category).title}</p>
             <p>{product.summary}</p>
-            <p className="quick-view__price">{formatPrice(product.priceCents)}</p>
-            <p className="muted quick-view__variants">
-              {product.variants ? 'Choose your options below.' : 'Sizes, colors and options will be listed once confirmed.'}
+            <p className="quick-view__price">
+              <Price product={product} variant={variant} />
             </p>
+            {product.variants?.length ? (
+              <VariantPicker product={product} value={variantId} onChange={setVariantId} />
+            ) : (
+              <p className="muted quick-view__variants">Sizes, colors and options will be listed once confirmed.</p>
+            )}
             <div className="quick-view__actions">
               <button
                 type="button"
                 className={`button ${added ? 'is-added' : ''}`}
+                disabled={needsVariant || soldOut || displayPrice(product, variant).now === null}
                 onClick={() => {
-                  addToBag(product)
+                  addToBag(product, variantId)
                   setAdded(true)
                 }}
               >
                 {added ? <Heart className="button__heart" /> : <ShoppingBag aria-hidden="true" size={18} />}
-                {added ? 'Added to demo bag' : 'Add to demo bag'}
+                {soldOut ? 'Sold out' : needsVariant ? 'Choose an option' : added ? 'Added to bag' : 'Add to bag'}
               </button>
               <a className="arrow-link" href={href(`product-${product.slug}`)} onClick={onClose}>
                 Full details <ArrowRight className="arrow" aria-hidden="true" size={18} />

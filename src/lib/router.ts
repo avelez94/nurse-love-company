@@ -16,11 +16,70 @@ export type Route =
   | { name: 'story' }
   | { name: 'help' }
   | { name: 'product'; slug: string }
+  | { name: 'auth'; mode: 'sign-in' | 'sign-up' | 'forgot-password' | 'reset-password'; token?: string }
+  | { name: 'checkout'; result: 'success' | 'canceled' }
+  | { name: 'account'; view: AccountView; param?: string }
+  | { name: 'admin'; view: AdminView; param?: string }
   | { name: 'not-found'; hash: string }
 
+export type AccountView = 'overview' | 'orders' | 'order' | 'downloads' | 'settings' | 'support'
+export type AdminView =
+  | 'overview'
+  | 'products'
+  | 'product'
+  | 'orders'
+  | 'order'
+  | 'customers'
+  | 'customer'
+  | 'emails'
+  | 'email'
+  | 'templates'
+  | 'tutorials'
+  | 'tutorial'
+  | 'settings'
+  | 'audit'
+  | 'support'
+
+const accountViews: Record<string, AccountView> = { account: 'overview', 'account-orders': 'orders', 'account-downloads': 'downloads', 'account-settings': 'settings', 'account-support': 'support' }
+const adminViews: Record<string, AdminView> = {
+  admin: 'overview',
+  'admin-products': 'products',
+  'admin-orders': 'orders',
+  'admin-customers': 'customers',
+  'admin-emails': 'emails',
+  'admin-email-templates': 'templates',
+  'admin-tutorials': 'tutorials',
+  'admin-settings': 'settings',
+  'admin-audit': 'audit',
+  'admin-support': 'support',
+}
+const adminDetail: Array<[string, AdminView]> = [
+  ['admin-product-', 'product'],
+  ['admin-order-', 'order'],
+  ['admin-customer-', 'customer'],
+  ['admin-email-', 'email'],
+  ['admin-tutorial-', 'tutorial'],
+]
+
 export function parseHash(raw: string): Route {
-  const hash = decodeURIComponent(raw.replace(/^#/, ''))
+  const [path, query = ''] = decodeURIComponent(raw.replace(/^#/, '')).split('?')
+  const hash = path
+  const params = new URLSearchParams(query)
+  if (hash in accountViews) return { name: 'account', view: accountViews[hash] }
+  if (hash.startsWith('account-order-')) return { name: 'account', view: 'order', param: hash.slice('account-order-'.length) }
+  if (hash in adminViews) return { name: 'admin', view: adminViews[hash] }
+  for (const [prefix, view] of adminDetail) if (hash.startsWith(prefix)) return { name: 'admin', view, param: hash.slice(prefix.length) }
   switch (hash) {
+    case 'sign-in':
+    case 'sign-up':
+    case 'forgot-password':
+      return { name: 'auth', mode: hash }
+    case 'reset-password':
+      return { name: 'auth', mode: 'reset-password', token: params.get('token') ?? undefined }
+    case 'checkout-success':
+      return { name: 'checkout', result: 'success' }
+    case 'checkout-canceled':
+      return { name: 'checkout', result: 'canceled' }
     case '':
     case 'home':
       return { name: 'home' }

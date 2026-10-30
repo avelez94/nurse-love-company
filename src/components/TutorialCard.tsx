@@ -1,6 +1,7 @@
 import { ArrowRight, PlayCircle } from 'lucide-react'
 import type { CategoryId, Tutorial } from '../data/types'
-import { formatDuration, getTutorialCategory, tutorialForProductCategory } from '../data/tutorials'
+import { formatDuration, getTutorialCategory } from '../data/tutorials'
+import { useStore } from '../lib/store'
 import { href } from '../lib/router'
 import { TutorialThumb } from './TutorialThumb'
 import './Tutorials.css'
@@ -31,7 +32,8 @@ export function TutorialCard({ tutorial, style }: { tutorial: Tutorial; style?: 
 
 /** "Need help getting started? Watch the tutorial" for product pages, the bag and help. */
 export function TutorialHelpLink({ category, onNavigate, showTitle }: { category: CategoryId; onNavigate?: () => void; showTitle?: boolean }) {
-  const tutorial = tutorialForProductCategory(category)
+  const { tutorialForCategory } = useStore()
+  const tutorial = tutorialForCategory(category)
   if (!tutorial) return null
   return (
     <a className="tutorial-help" href={href(`tutorial-${tutorial.slug}`)} onClick={onNavigate}>

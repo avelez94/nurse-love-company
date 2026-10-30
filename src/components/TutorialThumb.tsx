@@ -12,8 +12,8 @@ export function TutorialThumb({ tutorial, size = 'md' }: { tutorial: Tutorial; s
   return (
     <span className={`tutorial-thumb tutorial-thumb--${size}`}>
       <span className="tutorial-thumb__art" role="img" aria-label={`${t.alt}. Illustrative thumbnail.`}>
-        {t.kind === 'photo' ? (
-          <img src={t.src} alt="" width={t.width} height={t.height} loading="lazy" />
+        {t.kind === 'photo' || t.kind === 'url' ? (
+          <img src={t.src} alt="" width={t.kind === 'photo' ? t.width : 1280} height={t.kind === 'photo' ? t.height : 720} loading="lazy" />
         ) : t.name === 'tablet' ? (
           <Tablet className="tutorial-thumb__tablet" />
         ) : t.name === 'printing' ? (
@@ -25,10 +25,12 @@ export function TutorialThumb({ tutorial, size = 'md' }: { tutorial: Tutorial; s
       <span className="tutorial-thumb__play" aria-hidden="true">
         <Play size={size === 'lg' ? 30 : 22} fill="currentColor" />
       </span>
-      <span className="tutorial-thumb__duration">
-        <span className="visually-hidden">Length </span>
-        {formatDuration(tutorial.durationSeconds)}
-      </span>
+      {tutorial.durationSeconds ? (
+        <span className="tutorial-thumb__duration">
+          <span className="visually-hidden">Length </span>
+          {formatDuration(tutorial.durationSeconds)}
+        </span>
+      ) : null}
     </span>
   )
 }

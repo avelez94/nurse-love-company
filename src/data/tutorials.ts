@@ -161,7 +161,8 @@ export function relatedTutorials(t: Tutorial, count = 3): Tutorial[] {
   return [...same, ...shared, ...rest].slice(0, count)
 }
 
-export function formatDuration(seconds: number): string {
+export function formatDuration(seconds: number | null): string {
+  if (seconds === null || !Number.isFinite(seconds)) return ''
   const m = Math.floor(seconds / 60)
   const s = Math.round(seconds % 60)
   return `${m}:${String(s).padStart(2, '0')}`

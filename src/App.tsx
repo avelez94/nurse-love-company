@@ -1,14 +1,18 @@
-import { useEffect, useRef } from 'react'
-import { getCategory, getProduct } from './data/catalog'
-import { getTutorial } from './data/tutorials'
+import { lazy, Suspense, useEffect, useRef } from 'react'
+import { getCategory } from './data/catalog'
 import { site } from './data/site'
 import { BackToTop, ToastHost } from './components/Chrome'
 import { Footer } from './components/Footer'
 import { Header } from './components/Header'
 import { Overlays } from './components/Overlays'
+import { Loading } from './components/ui'
 import { CartProvider } from './lib/cart'
 import { useRoute, type Route } from './lib/router'
+import { SessionProvider } from './lib/session'
+import { StoreProvider, useStore } from './lib/store'
 import { UIProvider, useUI } from './lib/ui'
+import { AccountArea, CheckoutResult } from './pages/account/Account'
+import { ForgotPassword, ResetPassword, SignIn, SignUp } from './pages/Auth'
 import { Collection } from './pages/Collection'
 import { ExtraCute } from './pages/ExtraCute'
 import { Home } from './pages/Home'
@@ -17,7 +21,11 @@ import { Shop } from './pages/Shop'
 import { Tutorials, TutorialWatch } from './pages/Tutorials'
 import { Freebies, Help, NotFound, Story } from './pages/Simple'
 
-function titleFor(route: Route): string {
+// The admin dashboard (and its rich text editor) loads only for admins.
+const AdminApp = lazy(() => import('./pages/admin/AdminApp'))
+
+function useTitle(route: Route): string {
+  const { getProduct, getTutorial } = useStore()
   switch (route.name) {
     case 'home':
       return `${site.name} | ${site.statement}`
@@ -39,6 +47,14 @@ function titleFor(route: Route): string {
       return `Help & contact | ${site.name}`
     case 'product':
       return `${getProduct(route.slug)?.title ?? 'Product'} | ${site.name}`
+    case 'auth':
+      return `${{ 'sign-in': 'Sign in', 'sign-up': 'Create account', 'forgot-password': 'Reset password', 'reset-password': 'Choose a new password' }[route.mode]} | ${site.name}`
+    case 'checkout':
+      return `Checkout | ${site.name}`
+    case 'account':
+      return `My account | ${site.name}`
+    case 'admin':
+      return `Store admin | ${site.name}`
     case 'not-found':
       return `Page not found | ${site.name}`
   }
@@ -66,9 +82,30 @@ function Page({ route }: { route: Route }) {
       return <Help />
     case 'product':
       return <Product slug={route.slug} />
+    case 'auth':
+      if (route.mode === 'sign-in') return <SignIn />
+      if (route.mode === 'sign-up') return <SignUp />
+      if (route.mode === 'forgot-password') return <ForgotPassword />
+      return <ResetPassword token={route.token} />
+    case 'checkout':
+      return <CheckoutResult result={route.result} />
+    case 'account':
+      return <AccountArea view={route.view} param={route.param} />
+    case 'admin':
+      return null
     case 'not-found':
       return <NotFound />
   }
+}
+
+function OfflineBanner() {
+  const { status } = useStore()
+  if (status !== 'offline') return null
+  return (
+    <p className="offline-banner" role="status">
+      Design preview: the store server is not connected, so example products are shown and accounts and checkout are unavailable.
+    </p>
+  )
 }
 
 function Shell() {
@@ -77,9 +114,13 @@ function Shell() {
   const main = useRef<HTMLElement>(null)
   const first = useRef(true)
   const key = JSON.stringify(route)
+  const title = useTitle(route)
 
   useEffect(() => {
-    document.title = titleFor(route)
+    document.title = title
+  }, [title])
+
+  useEffect(() => {
     if (first.current) {
       first.current = false
       return
@@ -89,11 +130,21 @@ function Shell() {
     main.current?.focus({ preventScroll: true })
   }, [key])
 
+  if (route.name === 'admin') {
+    return (
+      <Suspense fallback={<Loading label="Loading store admin..." />}>
+        <AdminApp view={route.view} param={route.param} />
+        <ToastHost />
+      </Suspense>
+    )
+  }
+
   return (
     <>
       <a className="skip-link" href="#main" onClick={(e) => { e.preventDefault(); main.current?.focus() }}>
         Skip to content
       </a>
+      <OfflineBanner />
       <Header route={route} />
       <main id="main" ref={main} tabIndex={-1} className="page-enter" key={key}>
         <Page route={route} />
@@ -109,9 +160,13 @@ function Shell() {
 export function App() {
   return (
     <UIProvider>
-      <CartProvider>
-        <Shell />
-      </CartProvider>
+      <SessionProvider>
+        <StoreProvider>
+          <CartProvider>
+            <Shell />
+          </CartProvider>
+        </StoreProvider>
+      </SessionProvider>
     </UIProvider>
   )
 }

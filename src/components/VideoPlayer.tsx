@@ -31,6 +31,40 @@ export function VideoPlayer({ video, captions, title }: { video: TutorialVideo; 
     return () => v.textTracks.removeEventListener?.('addtrack', apply)
   }, [captionsOn, trackUrls])
 
+  // Adaptive streaming (Mux): Safari plays HLS natively, other browsers use hls.js.
+  const hlsSrc = video.kind === 'hls' ? video.src : null
+  const [streamError, setStreamError] = useState('')
+  useEffect(() => {
+    const v = el.current
+    if (!v || !hlsSrc) return
+    if (v.canPlayType('application/vnd.apple.mpegurl')) {
+      v.src = hlsSrc
+      return
+    }
+    let destroyed = false
+    let hls: { destroy: () => void } | null = null
+    import('hls.js')
+      .then(({ default: Hls }) => {
+        if (destroyed) return
+        if (!Hls.isSupported()) {
+          setStreamError('This browser cannot play this video. The written instructions below cover the same steps.')
+          return
+        }
+        const h = new Hls({ capLevelToPlayerSize: true })
+        h.on(Hls.Events.ERROR, (_e, data) => {
+          if (data.fatal) setStreamError('The video could not load. Please refresh the page or try again later.')
+        })
+        h.loadSource(hlsSrc)
+        h.attachMedia(v)
+        hls = h
+      })
+      .catch(() => setStreamError('The video player could not load.'))
+    return () => {
+      destroyed = true
+      hls?.destroy()
+    }
+  }, [hlsSrc])
+
   const fullscreen = async () => {
     const v = el.current as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null
     try {
@@ -55,14 +89,19 @@ export function VideoPlayer({ video, captions, title }: { video: TutorialVideo; 
   return (
     <div className="video">
       <div className="video__frame" ref={frame}>
-        <video ref={el} controls playsInline preload="metadata" poster={video.poster} aria-label={`${title} video`}>
-          <source src={video.src} type={video.type} />
+        <video ref={el} controls playsInline preload="metadata" poster={video.poster ?? undefined} aria-label={`${title} video`} crossOrigin={video.kind === 'hls' ? 'anonymous' : undefined}>
+          {video.kind === 'file' && <source src={video.src} type={video.type} />}
           {captions.map((c, i) => (
             <track key={c.srclang + i} kind="captions" label={c.label} srcLang={c.srclang} src={trackUrls[i]} default={i === 0} />
           ))}
           Your browser cannot play this video. The written instructions below cover the same steps.
         </video>
       </div>
+      {streamError && (
+        <p className="form-error" role="alert">
+          {streamError}
+        </p>
+      )}
       {captions.length > 0 && (
         <div className="video__tools">
           <button type="button" className="chip" aria-pressed={captionsOn} onClick={() => setCaptionsOn((on) => !on)}>

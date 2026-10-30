@@ -1,0 +1,234 @@
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { products as exampleProducts } from '../data/catalog'
+import type { CategoryId, ImageRef, Product, SamplePage, Tutorial, TutorialCategoryId, Variant } from '../data/types'
+import { tutorials as exampleTutorials } from '../data/tutorials'
+import { plainText, sanitizeDoc, type RichDoc } from '../../shared/richtext'
+import { api } from './api'
+
+/*
+  Live catalog from the store API. If the API cannot be reached (for example
+  the static design preview), the bundled example catalog is shown instead and
+  the page says so.
+*/
+
+interface ApiImage {
+  id: string
+  url: string
+  alt: string
+  width: number | null
+  height: number | null
+  kind: 'gallery' | 'sample'
+  variantId: string | null
+}
+
+export interface ApiProduct {
+  id: string
+  slug: string
+  title: string
+  category: CategoryId
+  collection: string
+  type: 'digital' | 'physical'
+  shortDescription: string
+  description: unknown
+  priceCents: number | null
+  salePriceCents: number | null
+  featured: boolean
+  isDemo: boolean
+  images: ApiImage[]
+  variants: Variant[]
+  inStock: boolean
+  digital: Product['digital']
+}
+
+export interface ApiTutorial {
+  id: string
+  slug: string
+  title: string
+  category: TutorialCategoryId
+  summary: string
+  instructions: unknown
+  transcript: string
+  featured: boolean
+  durationSeconds: number | null
+  isPlaceholder: boolean
+  status?: string
+  video: Tutorial['video']
+  thumbnail: string | null
+  captions: Array<{ label: string; srclang: string; src: string }>
+  products: Array<{ id: string; slug: string; title: string }>
+}
+
+const photo = (img: ApiImage): ImageRef => ({ kind: 'photo', src: img.url, alt: img.alt, width: img.width ?? 1200, height: img.height ?? 900, fit: 'contain' })
+
+const defaultArt: Record<string, ImageRef['kind'] extends never ? never : string> = {
+  apparel: 'tee',
+  accessories: 'earrings-drop',
+  pens: 'pens-pair',
+  other: 'pens-trio',
+}
+
+export function toProduct(p: ApiProduct): Product {
+  const example = exampleProducts.find((e) => e.slug === p.slug)
+  const gallery = p.images.filter((i) => i.kind === 'gallery')
+  const samples = p.images.filter((i) => i.kind === 'sample')
+  const doc = sanitizeDoc(p.description)
+  const fallbackGallery: ImageRef[] = example?.gallery ?? [
+    p.type === 'digital'
+      ? { kind: 'illustration', name: p.category === 'np-inserts' ? 'pages-np' : 'pages-nurse', caption: p.title.slice(0, 18), alt: `Illustrated insert pages for ${p.title}. Illustrative image.` }
+      : { kind: 'illustration', name: (defaultArt[p.category] ?? 'pens-trio') as 'tee', alt: `Illustration for ${p.title}. Illustrative image.` },
+  ]
+  const fallbackPages: SamplePage[] = example?.samplePages ?? [{ kind: 'illustration', title: p.title.slice(0, 22), layout: 'lined' }]
+  return {
+    id: p.id,
+    slug: p.slug,
+    title: p.title,
+    category: p.category,
+    audience: p.category === 'np-inserts' ? 'Nurse practitioner students and NPs' : p.type === 'digital' ? 'Nursing students and nurses' : 'All nurses and nursing students',
+    type: p.type,
+    summary: p.shortDescription,
+    description: plainText(doc as RichDoc),
+    descriptionDoc: doc,
+    gallery: gallery.length ? gallery.map(photo) : fallbackGallery,
+    samplePages: samples.length ? samples.map((s) => ({ kind: 'photo', title: s.alt || 'Sample page', src: s.url, alt: s.alt || `Sample page from ${p.title}`, width: s.width ?? 850, height: s.height ?? 1100 })) : p.type === 'digital' ? fallbackPages : [],
+    priceCents: p.priceCents,
+    salePriceCents: p.salePriceCents,
+    fileFormat: p.digital?.fileFormat ?? null,
+    appCompatibility: p.digital?.apps.length ? p.digital.apps : null,
+    variants: p.variants.length ? p.variants : null,
+    availability: p.inStock ? (p.isDemo ? 'example' : 'available') : 'sold-out',
+    deliveryRef: null,
+    isExample: p.isDemo,
+    isDemo: p.isDemo,
+    inStock: p.inStock,
+    featured: p.featured,
+    digital: p.digital,
+    keywords: example?.keywords ?? [p.collection, p.category].filter(Boolean),
+  }
+}
+
+const tutorialProductCategories: Record<TutorialCategoryId, CategoryId[]> = {
+  'np-binder': ['np-inserts'],
+  'nurse-binder': ['nurse-inserts'],
+  'printing-assembly': ['nurse-inserts', 'np-inserts'],
+  'digital-files': ['nurse-inserts', 'np-inserts'],
+}
+
+const thumbArt: Record<TutorialCategoryId, 'pages-np' | 'pages-nurse' | 'printing' | 'tablet'> = {
+  'np-binder': 'pages-np',
+  'nurse-binder': 'pages-nurse',
+  'printing-assembly': 'printing',
+  'digital-files': 'tablet',
+}
+
+export function toTutorial(t: ApiTutorial): Tutorial {
+  return {
+    id: t.id,
+    slug: t.slug,
+    title: t.title,
+    category: t.category,
+    summary: t.summary,
+    durationSeconds: t.durationSeconds,
+    video: t.video,
+    captions: t.captions.map((c) => ({ label: c.label, srclang: c.srclang, src: c.src })),
+    thumbnail: t.thumbnail ? { kind: 'url', src: t.thumbnail, alt: `Thumbnail for ${t.title}` } : { kind: 'illustration', name: thumbArt[t.category], alt: `Illustrated thumbnail for ${t.title}` },
+    steps: [],
+    instructions: sanitizeDoc(t.instructions),
+    transcript: t.transcript ? t.transcript.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean) : null,
+    productCategories: tutorialProductCategories[t.category] ?? [],
+    links: t.products.map((p) => ({ label: p.title, route: `product-${p.slug}` })),
+    relatedProducts: t.products,
+    featured: t.featured,
+    published: true,
+    isExample: t.isPlaceholder,
+    placeholderVideo: t.isPlaceholder,
+    keywords: t.title.toLowerCase().split(/\s+/),
+  }
+}
+
+type Status = 'loading' | 'live' | 'offline'
+
+interface StoreValue {
+  status: Status
+  products: Product[]
+  tutorials: Tutorial[]
+  featuredIds: string[]
+  supportEmail: string
+  payments: 'test' | 'live' | 'live-blocked' | 'not-configured' | 'unknown'
+  reload: () => Promise<void>
+  getProduct: (slug: string) => Product | undefined
+  productById: (id: string) => Product | undefined
+  productsIn: (...cats: CategoryId[]) => Product[]
+  getTutorial: (slug: string) => Tutorial | undefined
+  tutorialForCategory: (cat: CategoryId) => Tutorial | undefined
+}
+
+const Ctx = createContext<StoreValue | null>(null)
+
+export function StoreProvider({ children }: { children: ReactNode }) {
+  const [status, setStatus] = useState<Status>('loading')
+  const [products, setProducts] = useState<Product[]>([])
+  const [tutorials, setTutorials] = useState<Tutorial[]>([])
+  const [featuredIds, setFeatured] = useState<string[]>([])
+  const [supportEmail, setSupport] = useState('')
+  const [payments, setPayments] = useState<StoreValue['payments']>('unknown')
+
+  const reload = useCallback(async () => {
+    try {
+      const [cat, tut, st] = await Promise.all([
+        api<{ products: ApiProduct[]; featuredIds: string[]; store: { supportEmail: string } }>('/api/catalog'),
+        api<{ tutorials: ApiTutorial[] }>('/api/tutorials'),
+        api<{ payments: StoreValue['payments'] }>('/api/status'),
+      ])
+      setProducts(cat.products.map(toProduct))
+      setTutorials(tut.tutorials.map(toTutorial))
+      setFeatured(cat.featuredIds)
+      setSupport(cat.store.supportEmail)
+      setPayments(st.payments)
+      setStatus('live')
+    } catch {
+      setProducts(exampleProducts)
+      setTutorials(exampleTutorials)
+      setStatus('offline')
+    }
+  }, [])
+
+  useEffect(() => {
+    void reload()
+  }, [reload])
+
+  const value = useMemo<StoreValue>(() => {
+    const getProduct = (slug: string) => products.find((p) => p.slug === slug)
+    return {
+      status,
+      products,
+      tutorials,
+      featuredIds,
+      supportEmail,
+      payments,
+      reload,
+      getProduct,
+      productById: (id) => products.find((p) => p.id === id),
+      productsIn: (...cats) => products.filter((p) => cats.includes(p.category)),
+      getTutorial: (slug) => tutorials.find((t) => t.slug === slug),
+      tutorialForCategory: (cat) => {
+        const matches = tutorials.filter((t) => t.productCategories.includes(cat))
+        return matches.find((t) => t.title.startsWith('How to')) ?? matches[0]
+      },
+    }
+  }, [status, products, tutorials, featuredIds, supportEmail, payments, reload])
+
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>
+}
+
+export function useStore() {
+  const v = useContext(Ctx)
+  if (!v) throw new Error('useStore must be inside StoreProvider')
+  return v
+}
+
+/** Price shown to customers: sale price when set. */
+export function displayPrice(p: Pick<Product, 'priceCents' | 'salePriceCents'>, variant?: Variant | null) {
+  if (variant?.priceCents !== null && variant?.priceCents !== undefined) return { now: variant.priceCents, was: null }
+  if (p.salePriceCents !== null && p.salePriceCents !== undefined && p.priceCents !== null) return { now: p.salePriceCents, was: p.priceCents }
+  return { now: p.priceCents, was: null }
+}

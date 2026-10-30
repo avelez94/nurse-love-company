@@ -1,10 +1,20 @@
 import { site } from '../data/site'
 import { href } from '../lib/router'
+import { useStore } from '../lib/store'
 import { Heart } from './illustrations/Objects'
 import { Wordmark } from './Wordmark'
 import './Footer.css'
 
 export function Footer() {
+  const { status, payments } = useStore()
+  const notice =
+    status === 'offline'
+      ? site.prototypeNotice
+      : payments === 'live'
+        ? null
+        : payments === 'test'
+          ? 'Test mode. Payments use Stripe test cards and no real money moves.'
+          : 'Preview store. Checkout is not connected yet, so nothing can be purchased.'
   return (
     <footer className="site-footer">
       <div className="container site-footer__inner">
@@ -26,10 +36,12 @@ export function Footer() {
             </li>
           </ul>
         </nav>
-        <p className="site-footer__notice">
-          {site.prototypeNotice}
-          <Heart className="site-footer__heart" />
-        </p>
+        {notice && (
+          <p className="site-footer__notice">
+            {notice}
+            <Heart className="site-footer__heart" />
+          </p>
+        )}
       </div>
     </footer>
   )

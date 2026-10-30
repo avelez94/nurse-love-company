@@ -303,3 +303,11 @@ button {
 main:focus {
   outline: none;
 }
+
+.offline-banner {
+  background: var(--burgundy);
+  color: var(--white);
+  font-size: var(--text-sm);
+  text-align: center;
+  padding: 8px var(--gutter-r) 8px var(--gutter);
+}

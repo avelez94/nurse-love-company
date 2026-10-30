@@ -1,16 +1,17 @@
 import { ArrowRight, Check, ShoppingBag } from 'lucide-react'
 import { useState } from 'react'
-import { getCategory, products } from '../data/catalog'
+import { getCategory } from '../data/catalog'
 import type { Product as ProductRecord } from '../data/types'
 import { Heart } from '../components/illustrations/Objects'
 import { Gallery } from '../components/Gallery'
-import { ProductLabels } from '../components/Labels'
-import { useAddToBag } from '../components/Overlays'
+import { Price, ProductLabels } from '../components/Labels'
+import { useAddToBag, VariantPicker } from '../components/Overlays'
 import { PeekInside } from '../components/PeekInside'
 import { ProductCard } from '../components/ProductCard'
 import { TutorialHelpLink } from '../components/TutorialCard'
-import { formatPrice } from '../lib/format'
+import { RichText } from '../components/RichText'
 import { href } from '../lib/router'
+import { displayPrice, useStore } from '../lib/store'
 import { NotFound } from './Simple'
 
 function Detail({ term, value }: { term: string; value: string | null }) {
@@ -22,18 +23,30 @@ function Detail({ term, value }: { term: string; value: string | null }) {
   )
 }
 
+const kb = (bytes: number) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`)
+
 export function Product({ slug }: { slug: string }) {
-  const product = products.find((p) => p.slug === slug)
+  const { getProduct, status } = useStore()
+  const product = getProduct(slug)
+  if (!product && status === 'loading') return <div className="container page-loading" role="status">Loading product...</div>
   if (!product) return <NotFound />
   return <ProductView product={product} key={product.id} />
 }
 
-function ProductView({ product }: { product: ProductRecord }) {
+/** The product page body. In admin preview mode, buying is switched off. */
+export function ProductView({ product, preview = false }: { product: ProductRecord; preview?: boolean }) {
   const category = getCategory(product.category)
   const addToBag = useAddToBag()
+  const { products } = useStore()
   const [added, setAdded] = useState(false)
+  const [variantId, setVariantId] = useState<string | null>(null)
+  const variant = product.variants?.find((v) => v.id === variantId) ?? null
   const isDigital = product.type === 'digital'
-  const related = products.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 3)
+  const needsVariant = Boolean(product.variants?.length) && !variant
+  const soldOut = product.inStock === false
+  const unpriced = displayPrice(product, variant).now === null
+  const d = product.digital
+  const related = preview ? [] : products.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 3)
 
   return (
     <>
@@ -57,7 +70,9 @@ function ProductView({ product }: { product: ProductRecord }) {
           <ProductLabels product={product} />
           <h1 className="product__title">{product.title}</h1>
           <p className="product__category">{category.title}</p>
-          <p className="product__price">{formatPrice(product.priceCents)}</p>
+          <p className="product__price">
+            <Price product={product} variant={variant} />
+          </p>
           <p className="product__summary">{product.summary}</p>
 
           {isDigital && (
@@ -65,19 +80,20 @@ function ProductView({ product }: { product: ProductRecord }) {
               <strong>Inserts only.</strong> This is a digital download. Binder not included.
             </p>
           )}
-          {!isDigital && !product.variants && <p className="muted product__variants">Sizes, colors and options will be listed once confirmed.</p>}
+          {!isDigital && (product.variants?.length ? <VariantPicker product={product} value={variantId} onChange={setVariantId} /> : <p className="muted product__variants">Sizes, colors and options will be listed once confirmed.</p>)}
 
           <div className="product__actions">
             <button
               type="button"
               className={`button ${added ? 'is-added' : ''}`}
+              disabled={preview || soldOut || needsVariant || unpriced || (isDigital && added)}
               onClick={() => {
-                addToBag(product)
+                addToBag(product, variantId)
                 setAdded(true)
               }}
             >
               {added ? <Heart className="button__heart" /> : <ShoppingBag aria-hidden="true" size={18} />}
-              {added ? (isDigital ? 'In your demo bag' : 'Add another to demo bag') : 'Add to demo bag'}
+              {soldOut ? 'Sold out' : unpriced ? 'Pricing to be added' : needsVariant ? 'Choose an option' : added ? (isDigital ? 'In your bag' : 'Add another') : 'Add to bag'}
             </button>
             {isDigital && (
               <button
@@ -93,9 +109,16 @@ function ProductView({ product }: { product: ProductRecord }) {
               </button>
             )}
           </div>
-          <p className="muted product__demo-note">
-            <Check aria-hidden="true" size={16} /> Demonstration bag only. Purchasing is not enabled in this preview.
-          </p>
+          {isDigital && (
+            <p className="muted product__demo-note">
+              <Check aria-hidden="true" size={16} /> Each purchase includes one download of the latest version, in your account after payment.
+            </p>
+          )}
+          {product.isDemo && (
+            <p className="muted product__demo-note">
+              <Check aria-hidden="true" size={16} /> Demo listing for the preview. The price and file are placeholders.
+            </p>
+          )}
 
           {isDigital && <TutorialHelpLink category={product.category} />}
 
@@ -104,17 +127,22 @@ function ProductView({ product }: { product: ProductRecord }) {
             <dl>
               <Detail term="Type" value={isDigital ? 'Digital download' : 'Physical item, ships to you'} />
               <Detail term="Made for" value={product.audience} />
+              {isDigital && <Detail term="Pages" value={d?.pageCount ? String(d.pageCount) : null} />}
+              {isDigital && <Detail term="Page size" value={d?.pageSize ? `${d.pageSize}${d.orientation ? `, ${d.orientation}` : ''}` : null} />}
               {isDigital && <Detail term="File format" value={product.fileFormat} />}
+              {isDigital && <Detail term="File size" value={d?.fileSizeBytes ? kb(d.fileSizeBytes) : null} />}
+              {isDigital && <Detail term="Use" value={d?.usage.length ? d.usage.join(', ') : null} />}
               {isDigital && <Detail term="Works with" value={product.appCompatibility?.join(', ') ?? null} />}
+              {isDigital && d?.versionNumber && <Detail term="Version" value={`Version ${d.versionNumber}${d.versionReleasedAt ? `, updated ${new Date(d.versionReleasedAt).toLocaleDateString()}` : ''}`} />}
               {isDigital && <Detail term="Binder" value="Not included" />}
-              {!isDigital && <Detail term="Options" value={product.variants ? product.variants.map((v) => v.label).join(', ') : null} />}
-              <Detail term="Status" value={product.isExample ? 'Example listing for the preview' : null} />
+              {!isDigital && <Detail term="Options" value={product.variants ? product.variants.map((v) => v.title).join(', ') : null} />}
+              {product.isExample && <Detail term="Status" value={product.isDemo ? 'Demo listing for the preview' : 'Example listing for the preview'} />}
             </dl>
           </section>
 
           <section className="overview" aria-labelledby="overview-title">
             <h2 id="overview-title" className="details__title">Overview</h2>
-            <p>{product.description}</p>
+            {product.descriptionDoc ? <RichText doc={product.descriptionDoc} /> : <p>{product.description}</p>}
           </section>
         </div>
       </article>

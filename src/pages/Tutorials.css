@@ -205,3 +205,28 @@
     padding-inline: var(--gutter) var(--gutter-r);
   }
 }
+.watch__instructions ol {
+  counter-reset: step;
+  list-style: none;
+  padding: 0;
+  gap: var(--space-3);
+}
+.watch__instructions ol > li {
+  counter-increment: step;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: var(--space-3);
+}
+.watch__instructions ol > li::before {
+  content: counter(step);
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid var(--raspberry);
+  color: var(--raspberry);
+  background: var(--white);
+  font-weight: 700;
+  font-size: var(--text-sm);
+}

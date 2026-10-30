@@ -1,6 +1,7 @@
 import { Search, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { categories, productsIn } from '../data/catalog'
+import { categories } from '../data/catalog'
+import { useStore } from '../lib/store'
 import { site } from '../data/site'
 import type { CategoryId } from '../data/types'
 import { DigitalLabel } from '../components/Labels'
@@ -13,12 +14,13 @@ const filters: Array<{ id: CategoryId; label: string }> = [
   { id: 'np-inserts', label: 'NP Binder Inserts' },
 ]
 
-const all = productsIn('nurse-inserts', 'np-inserts')
 
 /* Digital shop: every downloadable resource, with collection filters and search. */
 export function Shop() {
   const [selected, setSelected] = useState<CategoryId[]>([])
   const [query, setQuery] = useState('')
+  const { products, status } = useStore()
+  const all = useMemo(() => products.filter((p) => p.type === 'digital'), [products])
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -27,7 +29,7 @@ export function Shop() {
         (selected.length === 0 || selected.includes(p.category)) &&
         (!q || [p.title, p.summary, ...p.keywords].join(' ').toLowerCase().includes(q)),
     )
-  }, [selected, query])
+  }, [all, selected, query])
 
   const toggle = (id: CategoryId) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
   const hasFilters = selected.length > 0 || query.trim() !== ''
@@ -74,7 +76,7 @@ export function Shop() {
           </div>
         </div>
         <p className="shop__count" aria-live="polite">
-          Showing {results.length} of {all.length} example resources
+          {status === 'loading' ? 'Loading resources...' : `Showing ${results.length} of ${all.length} resources`}
         </p>
         {results.length > 0 ? (
           <div className="product-grid" key={selected.join() + query}>

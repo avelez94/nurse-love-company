@@ -1,5 +1,6 @@
-import { categories, freebies, getCategory, products } from '../data/catalog'
-import { getTutorialCategory, tutorials } from '../data/tutorials'
+import { categories, freebies, getCategory } from '../data/catalog'
+import type { Product, Tutorial } from '../data/types'
+import { getTutorialCategory } from '../data/tutorials'
 
 /* Local search across the sample catalog, freebies and site pages. */
 
@@ -31,7 +32,8 @@ const pageEntries: Entry[] = [
   { id: 'page-help', kind: 'page', title: 'Help & contact', detail: 'Questions and contact', route: 'help', haystack: 'help contact questions faq support' },
 ]
 
-const entries: Entry[] = [
+function buildEntries(products: Product[], tutorials: Tutorial[]): Entry[] {
+  return [
   ...products.map<Entry>((p) => ({
     id: p.id,
     kind: p.type,
@@ -57,9 +59,11 @@ const entries: Entry[] = [
     haystack: [t.title, t.summary, getTutorialCategory(t.category).title, 'tutorial video how to', ...t.keywords].join(' ').toLowerCase(),
   })),
   ...pageEntries,
-]
+  ]
+}
 
-export function search(query: string): SearchResult[] {
+export function search(query: string, products: Product[], tutorials: Tutorial[]): SearchResult[] {
+  const entries = buildEntries(products, tutorials)
   const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean)
   if (terms.length === 0) return []
   return entries

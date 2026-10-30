@@ -1,18 +1,9 @@
 import { ArrowRight, Info, PlayCircle } from 'lucide-react'
-import { useState } from 'react'
-import { products } from '../data/catalog'
+import { useEffect, useState } from 'react'
 import type { Tutorial, TutorialCategoryId } from '../data/types'
-import {
-  captionText,
-  featuredTutorial,
-  formatDuration,
-  getTutorial,
-  getTutorialCategory,
-  MIN_TUTORIALS_FOR_FILTERS,
-  relatedTutorials,
-  tutorialCategories,
-  tutorials,
-} from '../data/tutorials'
+import { captionText, formatDuration, getTutorialCategory, MIN_TUTORIALS_FOR_FILTERS, tutorialCategories } from '../data/tutorials'
+import { RichText } from '../components/RichText'
+import { useStore } from '../lib/store'
 import { TutorialCard } from '../components/TutorialCard'
 import { TutorialThumb } from '../components/TutorialThumb'
 import { VideoPlayer } from '../components/VideoPlayer'
@@ -35,16 +26,17 @@ function BinderNote() {
 function PlaceholderNote({ tutorial }: { tutorial: Tutorial }) {
   if (!tutorial.isExample && !tutorial.placeholderVideo) return null
   return (
-    <span className="label label--example">
+    <span className="label label--example label--wrap">
       <Info aria-hidden="true" />
-      Example tutorial{tutorial.placeholderVideo ? ' • placeholder video' : ''}
+      {tutorial.placeholderVideo ? 'Placeholder video • not the owner\'s recording' : 'Example tutorial'}
     </span>
   )
 }
 
 export function Tutorials() {
   const [filter, setFilter] = useState<TutorialCategoryId | 'all'>('all')
-  const featured = featuredTutorial()
+  const { tutorials, status } = useStore()
+  const featured = tutorials.find((t) => t.featured) ?? tutorials[0]
   const showFilters = tutorials.length >= MIN_TUTORIALS_FOR_FILTERS
   const usedCategories = tutorialCategories.filter((c) => tutorials.some((t) => t.category === c.id))
   const list = filter === 'all' ? tutorials.filter((t) => t !== featured) : tutorials.filter((t) => t.category === filter)
@@ -107,7 +99,7 @@ export function Tutorials() {
           )}
         </div>
         <p className="shop__count" aria-live="polite">
-          {filter === 'all' ? `${tutorials.length} tutorials` : `${list.length} ${list.length === 1 ? 'tutorial' : 'tutorials'} in ${getTutorialCategory(filter).title}`}
+          {status === 'loading' ? 'Loading tutorials...' : filter === 'all' ? `${tutorials.length} ${tutorials.length === 1 ? 'tutorial' : 'tutorials'}` : `${list.length} ${list.length === 1 ? 'tutorial' : 'tutorials'} in ${getTutorialCategory(filter).title}`}
         </p>
         {list.length > 0 ? (
           <div className="tutorial-grid" key={filter}>
@@ -124,19 +116,56 @@ export function Tutorials() {
             </button>
           </div>
         )}
-        <p className="muted shop__fineprint">All tutorials shown are examples with a short placeholder video. The real videos will replace them before launch.</p>
+        {tutorials.some((t) => t.placeholderVideo) && <p className="muted shop__fineprint">Tutorials marked "placeholder video" use a short stand in clip until the owner's own recordings are added.</p>}
       </section>
     </>
   )
 }
 
+/** Transcript from the tutorial, or else the caption file's text. */
+function Transcript({ paragraphs, captionSrc }: { paragraphs: string[]; captionSrc?: string }) {
+  const [fromCaptions, setFromCaptions] = useState<string[]>([])
+  useEffect(() => {
+    if (paragraphs.length || !captionSrc) return
+    let live = true
+    fetch(captionSrc)
+      .then((r) => (r.ok ? r.text() : ''))
+      .then((t) => live && setFromCaptions(t ? captionText(t) : []))
+      .catch(() => {})
+    return () => {
+      live = false
+    }
+  }, [paragraphs, captionSrc])
+  const lines = paragraphs.length ? paragraphs : fromCaptions
+  if (!lines.length) return null
+  return (
+    <details className="faq watch__transcript">
+      <summary>Transcript</summary>
+      {lines.map((p, i) => (
+        <p key={i}>{p}</p>
+      ))}
+    </details>
+  )
+}
+
+function relatedTutorials(all: Tutorial[], t: Tutorial, count = 3) {
+  const others = all.filter((x) => x.id !== t.id)
+  const same = others.filter((x) => x.category === t.category)
+  const rest = others.filter((x) => x.category !== t.category)
+  return [...same, ...rest].slice(0, count)
+}
+
 export function TutorialWatch({ slug }: { slug: string }) {
+  const { getTutorial, tutorials, products, status } = useStore()
   const tutorial = getTutorial(slug)
+  if (!tutorial && status === 'loading') return <div className="container page-loading" role="status">Loading tutorial...</div>
   if (!tutorial) return <NotFound />
   const category = getTutorialCategory(tutorial.category)
   const transcript = tutorial.transcript ?? tutorial.captions.flatMap((c) => (c.vtt ? captionText(c.vtt) : []))
-  const related = relatedTutorials(tutorial)
-  const relatedProducts = products.filter((p) => tutorial.productCategories.includes(p.category)).slice(0, 3)
+  const related = relatedTutorials(tutorials, tutorial)
+  const relatedProducts = tutorial.relatedProducts?.length
+    ? tutorial.relatedProducts
+    : products.filter((p) => tutorial.productCategories.includes(p.category) && p.type === 'digital').slice(0, 3)
 
   return (
     <>
@@ -164,7 +193,11 @@ export function TutorialWatch({ slug }: { slug: string }) {
         </header>
 
         <div className="watch__player">
-          <VideoPlayer video={tutorial.video} captions={tutorial.captions} title={tutorial.title} />
+          {tutorial.video ? (
+            <VideoPlayer video={tutorial.video} captions={tutorial.captions} title={tutorial.title} />
+          ) : (
+            <p className="notice">The video for this tutorial is not available right now. The written instructions below cover the same steps.</p>
+          )}
         </div>
         <BinderNote />
 
@@ -173,20 +206,17 @@ export function TutorialWatch({ slug }: { slug: string }) {
             <section aria-labelledby="steps-title" className="watch__section">
               <h2 id="steps-title" className="watch__heading">Written instructions</h2>
               {tutorial.isExample && <p className="muted watch__small">Sample steps for the preview. Final instructions will come from Nurse Love Company.</p>}
-              <ol className="steps">
-                {tutorial.steps.map((s, i) => (
-                  <li key={i}>{s}</li>
-                ))}
-              </ol>
+              {tutorial.steps.length > 0 ? (
+                <ol className="steps">
+                  {tutorial.steps.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ol>
+              ) : (
+                <RichText doc={tutorial.instructions} className="watch__instructions" />
+              )}
             </section>
-            {transcript.length > 0 && (
-              <details className="faq watch__transcript">
-                <summary>Transcript</summary>
-                {transcript.map((p, i) => (
-                  <p key={i}>{p}</p>
-                ))}
-              </details>
-            )}
+            <Transcript paragraphs={transcript} captionSrc={tutorial.captions[0]?.src} />
           </div>
 
           {(tutorial.links.length > 0 || relatedProducts.length > 0) && (

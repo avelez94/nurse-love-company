@@ -4,7 +4,7 @@
   and the UI shows an honest "to be confirmed" state instead of guessing.
 */
 
-export type CategoryId = 'nurse-inserts' | 'np-inserts' | 'apparel' | 'accessories' | 'pens'
+export type CategoryId = 'nurse-inserts' | 'np-inserts' | 'apparel' | 'accessories' | 'pens' | 'other'
 
 export type ProductType = 'digital' | 'physical'
 
@@ -63,8 +63,25 @@ export type SamplePage =
 
 export interface Variant {
   id: string
-  label: string
-  options: string[]
+  title: string
+  options: Record<string, string>
+  priceCents: number | null
+  inStock: boolean
+  imageIds: string[]
+}
+
+/** Confirmed digital file details, shown only when the owner has entered them. */
+export interface DigitalInfo {
+  pageCount: number | null
+  pageSize: string | null
+  orientation: string | null
+  fileFormat: string | null
+  fileSizeBytes: number | null
+  usage: string[]
+  apps: string[]
+  binderNotice: boolean
+  versionNumber: number | null
+  versionReleasedAt: string | null
 }
 
 export type Availability = 'example' | 'available' | 'coming-soon' | 'sold-out'
@@ -97,6 +114,13 @@ export interface Product {
   isExample: boolean
   /** Extra words that help local search. */
   keywords: string[]
+  /** Fields below come from the live store. */
+  salePriceCents?: number | null
+  inStock?: boolean
+  digital?: DigitalInfo | null
+  descriptionDoc?: unknown
+  isDemo?: boolean
+  featured?: boolean
 }
 
 export interface Category {
@@ -137,6 +161,12 @@ export type TutorialVideo =
       poster?: string
     }
   | {
+      /** Adaptive streaming (Mux). Played with hls.js where the browser needs it. */
+      kind: 'hls'
+      src: string
+      poster?: string | null
+    }
+  | {
       /** A video hosted elsewhere (YouTube, Vimeo). Use a privacy friendly embed URL. */
       kind: 'embed'
       url: string
@@ -153,6 +183,7 @@ export interface CaptionTrack {
 
 export type TutorialThumbnail =
   | { kind: 'illustration'; name: 'pages-np' | 'pages-nurse' | 'printing' | 'tablet'; alt: string }
+  | { kind: 'url'; src: string; alt: string }
   | { kind: 'photo'; src: string; alt: string; width: number; height: number }
 
 export interface Tutorial {
@@ -162,8 +193,8 @@ export interface Tutorial {
   category: TutorialCategoryId
   summary: string
   /** Length of the video in seconds, taken from the actual file. */
-  durationSeconds: number
-  video: TutorialVideo
+  durationSeconds: number | null
+  video: TutorialVideo | null
   captions: CaptionTrack[]
   thumbnail: TutorialThumbnail
   /** Written, step by step instructions shown under the video. */
@@ -181,4 +212,7 @@ export interface Tutorial {
   /** True while the video is the temporary placeholder. */
   placeholderVideo: boolean
   keywords: string[]
+  /** Formatted written instructions from the admin editor. */
+  instructions?: unknown
+  relatedProducts?: Array<{ id: string; slug: string; title: string }>
 }

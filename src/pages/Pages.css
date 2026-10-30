@@ -439,3 +439,8 @@
     grid-template-columns: 1fr;
   }
 }
+.page-loading {
+  padding-block: var(--space-8);
+  text-align: center;
+  color: var(--ink-muted);
+}

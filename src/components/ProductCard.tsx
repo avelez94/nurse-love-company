@@ -1,9 +1,8 @@
 import { ArrowRight, BookOpen, Eye } from 'lucide-react'
 import type { Product } from '../data/types'
-import { formatPrice } from '../lib/format'
 import { href } from '../lib/router'
 import { useUI } from '../lib/ui'
-import { ProductLabels } from './Labels'
+import { Price, ProductLabels } from './Labels'
 import { ProductArt } from './ProductArt'
 import './ProductCard.css'
 
@@ -22,7 +21,7 @@ export function ProductCard({ product, style }: { product: Product; style?: Reac
           <a href={link}>{product.title}</a>
         </h3>
         <p className="product-card__summary">{product.summary}</p>
-        <p className="product-card__price">{formatPrice(product.priceCents)}</p>
+        <p className="product-card__price"><Price product={product} /></p>
         <div className="product-card__actions">
           {isDigital ? (
             <button type="button" className="button button--outline button--small" onClick={() => open({ kind: 'peek', product })}>

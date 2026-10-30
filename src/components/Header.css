@@ -304,3 +304,8 @@
     font-size: 1.45rem;
   }
 }
+@media (max-width: 820px) {
+  .site-header__account {
+    display: none;
+  }
+}

@@ -1,5 +1,6 @@
 import { ArrowRight } from 'lucide-react'
-import { getCategory, productsIn } from '../data/catalog'
+import { getCategory } from '../data/catalog'
+import { useStore } from '../lib/store'
 import { DigitalLabel } from '../components/Labels'
 import { ProductCard } from '../components/ProductCard'
 import { href } from '../lib/router'
@@ -8,6 +9,7 @@ import { PageHeader } from './PageHeader'
 export function Collection({ id }: { id: 'nurse-inserts' | 'np-inserts' }) {
   const category = getCategory(id)
   const other = getCategory(id === 'nurse-inserts' ? 'np-inserts' : 'nurse-inserts')
+  const { productsIn } = useStore()
   const list = productsIn(id)
   return (
     <>
@@ -23,7 +25,7 @@ export function Collection({ id }: { id: 'nurse-inserts' | 'np-inserts' }) {
         }
       />
       <section className="container shop" aria-label={`${category.title} resources`}>
-        <p className="shop__count">{list.length} example resources</p>
+        <p className="shop__count">{list.length} {list.length === 1 ? 'resource' : 'resources'}</p>
         <div className="product-grid">
           {list.map((p, i) => (
             <ProductCard key={p.id} product={p} style={{ animationDelay: `${i * 40}ms` }} />
