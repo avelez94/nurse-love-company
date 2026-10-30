@@ -36,6 +36,9 @@
   align-items: center;
   gap: var(--space-3);
 }
+.admin__bar-tools .chip {
+  white-space: nowrap;
+}
 .admin__who {
   font-size: var(--text-sm);
   color: var(--ink-muted);

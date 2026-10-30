@@ -1,4 +1,4 @@
-import { BarChart3, ClipboardList, ExternalLink, FileVideo, LifeBuoy, LogOut, Mail, Menu, Package, ScrollText, Settings as SettingsIcon, Users, X } from 'lucide-react'
+import { BarChart3, ClipboardList, ExternalLink, FileVideo, LifeBuoy, LogOut, Mail, Menu, Package, ScrollText, Settings as SettingsIcon, UserRound, Users, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { href, navigate, type AdminView } from '../../lib/router'
 import { useSession } from '../../lib/session'
@@ -65,6 +65,9 @@ export default function AdminApp({ view, param }: { view: AdminView; param?: str
             View store <ExternalLink size={14} aria-hidden="true" />
           </a>
           <span className="admin__who">{user.email}</span>
+          <a className="icon-button" href={href('account-settings')} aria-label="My account: profile and password" title="My account: profile and password">
+            <UserRound size={20} aria-hidden="true" />
+          </a>
           <button
             type="button"
             className="icon-button"
