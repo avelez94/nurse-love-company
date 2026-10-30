@@ -682,3 +682,29 @@
   display: grid;
   gap: var(--space-2);
 }
+
+/* Replacement file */
+.replace-file {
+  display: grid;
+  gap: var(--space-2);
+}
+.replace-file__note {
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--blush);
+  border: 1px solid var(--pink-deep);
+  font-size: var(--text-sm);
+}
+.update-status {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: #eaf6ef;
+  border: 1px solid #c4e3cf;
+  color: #1f5c3c;
+}
+.update-status p {
+  margin: 0;
+}

@@ -21,6 +21,7 @@ import { publicRoutes } from './routes/public.js'
 import { webhookRoutes } from './routes/webhooks.js'
 import { automationRoutes } from './routes/automations.js'
 import { runAutomations } from './services/automations.js'
+import { runUpdateNotifications } from './services/updates.js'
 
 export function createApp() {
   const app = new Hono<AppEnv>()
@@ -93,11 +94,12 @@ export function createApp() {
     if (!config.cronSecret || given.length !== want.length || !timingSafeEqual(given, want)) return c.json({ error: 'Not authorized.' }, 401)
     await requeueStalled()
     const automations = await runAutomations()
+    const updateNotifications = await runUpdateNotifications()
     await drainOutbox(100)
     await pruneRateLimits()
     const uploadsCleaned = await cleanAbandonedUploads()
     const couponBannersStopped = await recheckCoupons()
-    return c.json({ ok: true, uploadsCleaned, couponBannersStopped, automations }, 200, { 'cache-control': 'no-store' })
+    return c.json({ ok: true, uploadsCleaned, couponBannersStopped, automations, updateNotifications }, 200, { 'cache-control': 'no-store' })
   })
 
   // Staging gate: the whole staging site, dashboards included, needs the

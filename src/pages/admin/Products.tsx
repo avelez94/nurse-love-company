@@ -1,6 +1,6 @@
-import { ArrowDown, ArrowUp, Copy, Eye, FileUp, ImagePlus, Plus, Rocket, Trash2 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { api, errorMessage, newKey, uploadAsset } from '../../lib/api'
+import { ArrowDown, ArrowUp, Copy, Eye, FileUp, ImagePlus, Plus, Trash2 } from 'lucide-react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { api, errorMessage, uploadAsset } from '../../lib/api'
 import { href, navigate } from '../../lib/router'
 import { toProduct, type ApiProduct } from '../../lib/store'
 import { useUI } from '../../lib/ui'
@@ -145,7 +145,9 @@ interface Detail {
   variants: Array<{ id: string; title: string; options: { size?: string; color?: string }; sku: string | null; price_cents: number | null; inventory_quantity: number; active: boolean }>
   versions: Array<{ id: string; version_number: number; file_name: string; file_size: number; notes: string; released_at: string; released_by: string }>
   uploads: Array<{ id: string; file_name: string; file_size: number; created_at: string; uploaded_by: string }>
-  releases: Array<{ id: string; version_id: string; notify: boolean; affected_count: number; granted_count: number; created_by: string; created_at: string }>
+  releases: Array<{ id: string; version_id: string; notify: boolean; trigger: string; affected_count: number; granted_count: number; created_by: string; created_at: string }>
+  releaseStatus: Record<string, Record<'queued' | 'sent' | 'skipped' | 'held' | 'failed' | 'canceled', number>>
+  emailConfigured: boolean
   affected: { items: number; customers: number }
   orderCount: number
   fileLimitMb?: number
@@ -165,6 +167,9 @@ export function ProductEditor({ id }: { id: string }) {
   const [saveError, setSaveError] = useState('')
   const [preview, setPreview] = useState<ApiProduct | null>(null)
   const [confirmAction, setConfirmAction] = useState<null | 'archive' | 'deactivate'>(null)
+  const [replacement, setReplacement] = useState<Detail['uploads'][number] | null>(null)
+  const [updateNotes, setUpdateNotes] = useState('')
+  const [fileResult, setFileResult] = useState<FileResult | null>(null)
   const tutorials = useApiData<{ tutorials: Array<{ id: string; title: string; status: string }> }>('/api/admin/tutorials')
 
   useEffect(() => {
@@ -188,8 +193,14 @@ export function ProductEditor({ id }: { id: string }) {
         showToast('Draft saved. Add photos, files and details, then publish when ready.')
         navigate(`admin-product-${created.id}`)
       } else {
-        await api(`/api/admin/products/${id}`, { method: 'PUT', body })
-        showToast('Product saved. Listing edits never grant new downloads.')
+        const r = await api<{ file: FileResult | null; emailConfigured: boolean }>(`/api/admin/products/${id}`, {
+          method: 'PUT',
+          body: { ...body, ...(replacement ? { replacement_upload_id: replacement.id, update_notes: updateNotes } : {}) },
+        })
+        setFileResult(r.file ? { ...r.file, emailConfigured: r.emailConfigured } : null)
+        setReplacement(null)
+        setUpdateNotes('')
+        showToast(r.file ? fileMessage(r.file) : 'Product saved. Listing edits never grant new downloads.')
         await reload()
       }
     } catch (err) {
@@ -301,7 +312,18 @@ export function ProductEditor({ id }: { id: string }) {
               hint="Pick a tutorial that walks through this product. The link appears only while the tutorial is published."
             />
           </section>
-          {!isNew && data && form.type === 'digital' && <Files productId={id} data={data} reload={reload} />}
+          {!isNew && data && form.type === 'digital' && (
+            <Files
+              productId={id}
+              data={data}
+              reload={reload}
+              replacement={replacement}
+              setReplacement={setReplacement}
+              notes={updateNotes}
+              setNotes={setUpdateNotes}
+              result={fileResult}
+            />
+          )}
         </div>
 
         <div>
@@ -640,144 +662,217 @@ function Previews({ productId, images, reload }: { productId: string; images: De
   )
 }
 
-function Files({ productId, data, reload }: { productId: string; data: Detail; reload: () => void }) {
+interface FileResult {
+  outcome: 'released' | 'first_file' | 'identical' | 'kept_for_draft' | 'already_released'
+  versionNumber?: number | null
+  releaseId?: string
+  granted?: number
+  notifications?: number
+  emailConfigured?: boolean
+}
+
+function fileMessage(f: FileResult) {
+  switch (f.outcome) {
+    case 'released':
+      return `Saved. Version ${f.versionNumber} is live: ${f.granted} eligible buyer${f.granted === 1 ? '' : 's'} have one download of it, and ${f.notifications} customer${f.notifications === 1 ? '' : 's'} who downloaded an older version will be emailed.`
+    case 'first_file':
+      return `Saved. Version ${f.versionNumber} is the product's file.`
+    case 'identical':
+      return 'Saved. The new file is identical to the current one, so nothing was released and no one was emailed.'
+    case 'kept_for_draft':
+      return 'Saved. The product is a draft, so the new file was kept and not released. Publish the product and save again to release it.'
+    default:
+      return 'Saved. This file was already released.'
+  }
+}
+
+const statusWords: Array<['queued' | 'sent' | 'skipped' | 'held' | 'failed' | 'canceled', string]> = [
+  ['queued', 'queued'],
+  ['sent', 'sent'],
+  ['skipped', 'skipped'],
+  ['held', 'held (email not connected)'],
+  ['failed', 'failed'],
+  ['canceled', 'replaced by a newer version'],
+]
+
+/**
+ * The product's downloadable file. Choosing a new file uploads it privately;
+ * nothing changes for customers until the product is saved. Saving an
+ * existing published product with a new file releases it automatically.
+ */
+function Files({
+  productId,
+  data,
+  reload,
+  replacement,
+  setReplacement,
+  notes,
+  setNotes,
+  result,
+}: {
+  productId: string
+  data: Detail
+  reload: () => void
+  replacement: Detail['uploads'][number] | null
+  setReplacement: (u: Detail['uploads'][number] | null) => void
+  notes: string
+  setNotes: (v: string) => void
+  result: FileResult | null
+}) {
   const [progress, setProgress] = useState<number | null>(null)
   const [error, setError] = useState('')
-  const [release, setRelease] = useState<Detail['uploads'][number] | null>(null)
-  const [notes, setNotes] = useState('')
-  const [notify, setNotify] = useState(true)
-  const [understood, setUnderstood] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [impact, setImpact] = useState<{ items: number; customers: number } | null>(null)
-  const key = useMemo(() => (release ? newKey() : ''), [release])
+  const [open, setOpen] = useState<string | null>(null)
   const { showToast } = useUI()
+  const notices = useApiData<{ notifications: Array<{ id: string; status: string; status_reason: string; customer_email: string; email_id: string | null; email_status: string | null; user_id: string }> }>(
+    open ? `/api/admin/products/${productId}/releases/${open}/notifications` : null,
+  )
 
   const upload = async (f: File | undefined) => {
     if (!f) return
     setError('')
     try {
       setProgress(0)
-      await uploadAsset('product_file', productId, f, { onProgress: setProgress })
-      showToast('File uploaded privately. Customers cannot see it until you publish it as an update.')
-      reload()
+      const row = await uploadAsset<Detail['uploads'][number]>('product_file', productId, f, { onProgress: setProgress })
+      setReplacement(row)
+      showToast('File uploaded privately. Press Save to use it.')
     } catch (err) {
       setError(errorMessage(err))
     } finally {
       setProgress(null)
     }
   }
-
-  const openRelease = async (u: Detail['uploads'][number]) => {
-    setRelease(u)
-    setNotes('')
-    setNotify(true)
-    setUnderstood(false)
-    setImpact(null)
-    try {
-      setImpact(await api(`/api/admin/products/${productId}/release-impact`))
-    } catch {
-      setImpact(null)
-    }
-  }
-
-  const publish = async () => {
-    setBusy(true)
+  const retry = async (releaseId: string) => {
     setError('')
     try {
-      const r = await api<{ granted_count: number; duplicate: boolean }>(`/api/admin/products/${productId}/releases`, { body: { upload_id: release!.id, notes, notify, idempotency_key: key, confirm: true } })
-      setRelease(null)
-      showToast(r.duplicate ? 'This release was already published. Nothing was granted twice.' : `Released. ${r.granted_count} purchaser${r.granted_count === 1 ? '' : 's'} received one new download.`)
+      const r = await api<{ count: number }>(`/api/admin/products/${productId}/releases/${releaseId}/notifications/retry`, { body: {} })
+      showToast(`Trying ${r.count} notification${r.count === 1 ? '' : 's'} again.`)
       reload()
+      notices.reload()
     } catch (err) {
       setError(errorMessage(err))
-    } finally {
-      setBusy(false)
     }
   }
 
   const current = data.versions[0]
+  const published = data.product.status === 'published' && !data.product.archived_at
   return (
     <section className="panel form-stack">
       <h2 className="panel__title">Downloadable file</h2>
-      <Notice>
-        Files are stored privately. Editing the listing never grants downloads. Customers get a new download only when you use <strong>Publish digital product update</strong>.
-      </Notice>
       {current ? (
         <p>
           Current file: <strong>{current.file_name}</strong> • version {current.version_number} • {size(current.file_size)} • released {dateTime(current.released_at)}
         </p>
       ) : (
-        <p className="muted">No file released yet. Customers who buy before the first release see "Your file is being prepared", and receive their download when you publish it.</p>
+        <p className="muted">No file yet. Customers who buy before the first file see "Your file is being prepared", and receive their download when you save the product with a file.</p>
       )}
-      <label className="button button--outline button--small" style={{ justifySelf: 'start' }}>
-        <FileUp size={16} aria-hidden="true" /> Upload a new private file
-        <input type="file" accept=".pdf,.zip,.png,.jpg,.jpeg,application/pdf,application/zip,image/png,image/jpeg" hidden onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = '' }} />
-      </label>
-      <p className="field__hint">PDF, ZIP, PNG or JPG, up to {data.fileLimitMb ?? 200} MB.</p>
+      <div className="replace-file">
+        <label className="button button--outline button--small" style={{ justifySelf: 'start' }}>
+          <FileUp size={16} aria-hidden="true" /> {current ? 'Choose a replacement file' : 'Choose the file'}
+          <input type="file" accept=".pdf,.zip,.png,.jpg,.jpeg,application/pdf,application/zip,image/png,image/jpeg" hidden onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = '' }} />
+        </label>
+        {current && (
+          <p className="replace-file__note">
+            Saving a new PDF will automatically update this product, make one download of the latest version available to eligible buyers, and notify customers who downloaded an older version.
+          </p>
+        )}
+      </div>
+      <p className="field__hint">PDF, ZIP, PNG or JPG, up to {data.fileLimitMb ?? 200} MB. Stored privately. Saving the same file again changes nothing.</p>
       {progress !== null && <ProgressBar value={progress} label="Uploading file" />}
+      {replacement && (
+        <Notice tone="warn">
+          <strong>{replacement.file_name}</strong> ({size(replacement.file_size)}) is uploaded and ready. It is used when you press <strong>Save changes</strong>.
+          {current && !published && ' This product is not published, so saving keeps the file without releasing it.'}{' '}
+          <button type="button" className="button button--outline button--small" onClick={() => setReplacement(null)}>Don't use this file</button>
+        </Notice>
+      )}
+      {replacement && current && published && (
+        <TextArea label="What changed (optional)" value={notes} onChange={setNotes} maxLength={2000} rows={3} hint="Shown in the update email and on My downloads. You can leave it empty." />
+      )}
       <FormError message={error} />
-      {data.uploads.length > 0 && (
+      {result && (
+        <div className="update-status" role="status">
+          <strong>{fileMessage(result)}</strong>
+          {result.outcome === 'released' && !result.emailConfigured && Boolean(result.notifications) && (
+            <p>Email sending (Resend) is not connected yet. The update and downloads are live; the emails are kept and shown as held until you retry them below.</p>
+          )}
+        </div>
+      )}
+      {!replacement && data.uploads.length > 0 && (
+        <details>
+          <summary>Uploaded earlier but never saved ({data.uploads.length})</summary>
+          <ul className="plain-list">
+            {data.uploads.map((u) => (
+              <li key={u.id}>
+                {u.file_name} <span className="muted">• {size(u.file_size)} • {dateTime(u.created_at)}</span>{' '}
+                <button type="button" className="button button--outline button--small" onClick={() => setReplacement(u)}>Use this file</button>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+      {data.versions.length > 0 && (
         <div className="data-table-wrap">
           <table className="data-table">
-            <thead><tr><th>Uploaded, not released</th><th className="num">Size</th><th></th></tr></thead>
+            <thead><tr><th>Version</th><th>File</th><th>What changed</th><th>Released</th><th>Downloads and emails</th></tr></thead>
             <tbody>
-              {data.uploads.map((u) => (
-                <tr key={u.id}>
-                  <td>{u.file_name}<br /><span className="muted">{dateTime(u.created_at)} by {u.uploaded_by}</span></td>
-                  <td className="num">{size(u.file_size)}</td>
-                  <td className="num">
-                    <button type="button" className="button button--small" onClick={() => openRelease(u)}>
-                      <Rocket size={16} aria-hidden="true" /> Publish digital product update
-                    </button>
+              {data.versions.map((v) => {
+                const r = data.releases.find((x) => x.version_id === v.id)
+                const st = r ? data.releaseStatus[r.id] : undefined
+                const total = st ? Object.values(st).reduce((a, b) => a + b, 0) : 0
+                return (
+                  <tr key={v.id}>
+                    <td>v{v.version_number}</td>
+                    <td>{v.file_name}<br /><span className="muted">{size(v.file_size)}</span></td>
+                    <td>{v.notes || <span className="muted">None</span>}</td>
+                    <td>{dateTime(v.released_at)}<br /><span className="muted">{v.released_by}</span></td>
+                    <td>
+                      {!r || (!r.notify && r.trigger === 'save') ? 'First file: no update emails' : `${r.granted_count} of ${r.affected_count} eligible buyers have one download`}
+                      {r && (r.notify || r.trigger !== 'save') && (total ? (
+                        <>
+                          <br />
+                          Emails: {statusWords.filter(([k]) => st![k]).map(([k, w]) => `${st![k]} ${w}`).join(', ')}
+                          <div className="button-row">
+                            <button type="button" className="button button--outline button--small" onClick={() => setOpen(open === r.id ? null : r.id)}>
+                              {open === r.id ? 'Hide' : 'Show'} customers
+                            </button>
+                            {(st!.held > 0 || st!.failed > 0) && (
+                              <button type="button" className="button button--small" disabled={!data.emailConfigured} onClick={() => retry(r.id)}>
+                                Retry notifications
+                              </button>
+                            )}
+                          </div>
+                          {(st!.held > 0 || st!.failed > 0) && !data.emailConfigured && <span className="muted">Connect Resend to retry.</span>}
+                        </>
+                      ) : (
+                        <><br /><span className="muted">{r.trigger === 'save' ? 'No one to email (no one downloaded an older version).' : 'Released before automatic emails.'}</span></>
+                      ))}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {open && (
+        <div className="data-table-wrap">
+          <table className="data-table">
+            <thead><tr><th>Customer</th><th>Email</th><th>Why</th></tr></thead>
+            <tbody>
+              {(notices.data?.notifications ?? []).map((n) => (
+                <tr key={n.id}>
+                  <td><a href={href(`admin-customer-${n.user_id}`)}>{n.customer_email}</a></td>
+                  <td>
+                    <Pill value={n.email_status ?? n.status} />
+                    {n.email_id && <> <a href={href(`admin-email-${n.email_id}`)}>Email log</a></>}
                   </td>
+                  <td className="muted">{n.status_reason}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
-      {data.versions.length > 0 && (
-        <details>
-          <summary><strong>Version history</strong> ({data.versions.length})</summary>
-          <div className="data-table-wrap">
-            <table className="data-table">
-              <thead><tr><th>Version</th><th>File</th><th>Notes</th><th>Released</th><th className="num">New downloads granted</th></tr></thead>
-              <tbody>
-                {data.versions.map((v) => {
-                  const r = data.releases.find((x) => x.version_id === v.id)
-                  return (
-                    <tr key={v.id}>
-                      <td>v{v.version_number}</td>
-                      <td>{v.file_name}<br /><span className="muted">{size(v.file_size)}</span></td>
-                      <td>{v.notes || 'None'}</td>
-                      <td>{dateTime(v.released_at)}<br /><span className="muted">{v.released_by}</span></td>
-                      <td className="num">{r ? `${r.granted_count} of ${r.affected_count}${r.notify ? ', notified' : ''}` : 'Initial file'}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </details>
-      )}
-      <Confirm open={Boolean(release)} title="Publish digital product update" confirmLabel="Publish update" busy={busy} disabled={!understood} onClose={() => setRelease(null)} onConfirm={publish}>
-        <p>
-          New file: <strong>{release?.file_name}</strong> becomes version {(current?.version_number ?? 0) + 1}. Versions cannot be changed after release.
-        </p>
-        <Notice>
-          {impact ? (
-            <>
-              <strong>{impact.items}</strong> eligible purchase{impact.items === 1 ? '' : 's'} from <strong>{impact.customers}</strong> customer{impact.customers === 1 ? '' : 's'} will each receive <strong>one</strong> new download of this version. Unused older downloads are replaced, not added to.
-            </>
-          ) : (
-            'Counting affected purchasers...'
-          )}
-        </Notice>
-        <TextArea label="Update notes (shown to customers)" value={notes} onChange={setNotes} maxLength={2000} rows={3} />
-        <Checkbox label="Email affected customers through Resend" checked={notify} onChange={setNotify} hint="Respects each customer's product update email preference." />
-        <Checkbox label="I understand this grants one new download to each eligible purchaser." checked={understood} onChange={setUnderstood} />
-        <FormError message={error} />
-      </Confirm>
     </section>
   )
 }

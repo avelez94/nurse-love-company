@@ -29,7 +29,7 @@ export const templateInfo: Record<EmailType, { title: string; placeholders: stri
   order_confirmation: { title: 'Order confirmation', placeholders: ['name', 'order_number', 'order_total'], buttonPath: 'order' },
   digital_available: { title: 'Digital purchase available', placeholders: ['name', 'order_number', 'product_list'], buttonPath: 'downloads' },
   shipping_confirmation: { title: 'Shipping confirmation', placeholders: ['name', 'order_number', 'carrier', 'tracking_number'], buttonPath: 'order' },
-  product_update: { title: 'Product update available', placeholders: ['name', 'product_title', 'version', 'update_notes'], buttonPath: 'downloads' },
+  product_update: { title: 'Product update available', placeholders: ['name', 'product_title', 'version', 'release_date', 'update_notes'], buttonPath: 'downloads' },
   password_reset: { title: 'Password reset', placeholders: ['name'], buttonPath: 'reset' },
   download_reminder: { title: 'Download reminder', placeholders: ['name', 'order_number'], buttonPath: 'downloads' },
   review_request_digital: { title: 'Review request (digital)', placeholders: ['name', 'order_number'], buttonPath: 'none' },
@@ -56,10 +56,10 @@ export const defaultTemplates: Record<EmailType, TemplateText> = {
     button_label: 'Track your order',
   },
   product_update: {
-    subject: 'An update to {{product_title}} is available',
-    heading: 'A new version is ready',
-    body: 'Hi {{name}},\n\nVersion {{version}} of {{product_title}} has been released.\n\n{{update_notes}}\n\nYour account now includes one download of the new version.',
-    button_label: 'Go to My Downloads',
+    subject: 'An updated version of {{product_title}} is ready 💕',
+    heading: 'Your update is ready',
+    body: 'Hi {{name}},\n\nThere is an updated version of {{product_title}} (version {{version}}, updated {{release_date}}).\n\n{{update_notes}}\n\nOne download of the updated version is ready for you in My downloads. Save the new file somewhere you can easily find it again.',
+    button_label: 'My downloads',
   },
   password_reset: {
     subject: 'Reset your Nurse Love Company password',

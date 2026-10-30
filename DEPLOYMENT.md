@@ -75,7 +75,7 @@ Both buckets are private, rather than one being public, so that publish and unpu
 3. The browser sends the file to Supabase Storage.
 4. The browser tells the store it is done. The server reads the file back from storage, checks its real type from its first bytes, its real size and its SHA-256, and only then attaches it. Anything that fails is deleted. Confirming twice attaches once.
 
-Unfinished uploads are cleaned up by the scheduled job. Product files stay invisible to customers until "Publish digital product update", as before.
+Unfinished uploads are cleaned up by the scheduled job. Product files stay invisible to customers until the product is saved with them.
 
 ### File limits and formats
 

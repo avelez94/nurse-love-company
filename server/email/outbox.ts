@@ -98,6 +98,9 @@ function resendSender(): Sender | null {
   }
 }
 
+/** Whether emails can actually be sent right now (Resend configured, or a test sender). */
+export const emailSendingConfigured = () => Boolean(sender) || Boolean(config.resend.apiKey && config.resend.from)
+
 let running: Promise<void> | null = null
 let again = false
 
@@ -137,8 +140,8 @@ export async function requeueStalled() {
   await q(`update emails set status = 'failed', failed_at = now(), failure_reason = 'Sending stopped unexpectedly five times. Use Resend to try again.'
             where status = 'sending' and claimed_at < now() - interval '5 minutes' and attempts >= 5`)
   await q(`update emails set status = 'queued' where status = 'sending' and claimed_at < now() - interval '5 minutes'`)
-  // Automation emails get up to three tries after a temporary sending failure (Resend's idempotency key stops duplicates).
-  await q(`update emails set status = 'queued', failure_reason = '' where status = 'failed' and type = any($1) and attempts < 3 and failed_at < now() - interval '10 minutes'`, [AUTOMATION_TYPES])
+  // Automation and product update emails get up to three tries after a temporary sending failure (Resend's idempotency key stops duplicates).
+  await q(`update emails set status = 'queued', failure_reason = '' where status = 'failed' and type = any($1) and attempts < 3 and failed_at < now() - interval '10 minutes'`, [[...AUTOMATION_TYPES, 'product_update']])
 }
 
 /** Claims and sends one queued email. Returns false when the queue is empty. */

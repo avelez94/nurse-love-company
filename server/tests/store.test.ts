@@ -1,4 +1,5 @@
 import './env.js'
+import { runUpdateNotifications } from '../services/updates.js'
 import assert from 'node:assert/strict'
 import { after, beforeEach, describe, it } from 'node:test'
 import type { Storage } from '../lib/storage.js'
@@ -263,8 +264,12 @@ describe('product versions', () => {
     }
     const bEnts = await entitlementsFor(b.id)
     assert.equal(bEnts.find((e) => e.source === 'purchase')!.status, 'superseded', 'unused v1 is replaced, not stacked')
-    const emails = await q('select 1 from emails where type = $1', ['product_update'])
-    assert.equal(emails.length, 2)
+    // Only the customer who downloaded the older version is emailed.
+    // Resend is not configured in these tests, so the notice is held (kept, not faked as sent).
+    await runUpdateNotifications()
+    const notices = await q<{ email: string; status: string }>('select u.email, n.status from update_notifications n join "user" u on u.id = n.user_id')
+    assert.deepEqual(notices, [{ email: 'a@example.com', status: 'held' }])
+    assert.equal((await q('select 1 from emails where type = $1', ['product_update'])).length, 0)
 
     // The new download delivers version 2, and only once.
     const aNew = (await entitlementsFor(a.id)).find((e) => e.status === 'available')!

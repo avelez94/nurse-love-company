@@ -3,4 +3,4 @@
  * the database, so a deployment whose migrations were not run says so. A test
  * keeps it in step with the files in migrations/.
  */
-export const LATEST_MIGRATION = '006_email_automations.sql'
+export const LATEST_MIGRATION = '007_update_notifications.sql'

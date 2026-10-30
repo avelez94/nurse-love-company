@@ -5,7 +5,7 @@
 */
 import { config } from '../env.js'
 import type { SessionUser } from '../auth.js'
-import { one, q, tx } from '../db/pool.js'
+import { one, q, tx, type Queryable } from '../db/pool.js'
 import { audit } from '../lib/audit.js'
 import { badRequest, conflict, notFound } from '../lib/errors.js'
 import { storage } from '../lib/storage.js'
@@ -73,9 +73,9 @@ function values(input: ProductInput) {
   return COLUMNS.map((c) => (c === 'description' ? JSON.stringify(input[c]) : input[c]))
 }
 
-async function assertUnique(slugValue: string, sku: string | null, exceptId: string | null) {
-  if (await one('select 1 from products where slug = $1 and id is distinct from $2', [slugValue, exceptId])) throw conflict('Another product already uses that URL slug.')
-  if (sku && (await one('select 1 from products where sku = $1 and id is distinct from $2', [sku, exceptId]))) throw conflict('Another product already uses that SKU.')
+async function assertUnique(slugValue: string, sku: string | null, exceptId: string | null, client?: Queryable) {
+  if (await one('select 1 from products where slug = $1 and id is distinct from $2', [slugValue, exceptId], client)) throw conflict('Another product already uses that URL slug.')
+  if (sku && (await one('select 1 from products where sku = $1 and id is distinct from $2', [sku, exceptId], client))) throw conflict('Another product already uses that SKU.')
 }
 
 export async function createProduct(actor: SessionUser, body: Record<string, unknown>, ip?: string) {
@@ -87,19 +87,20 @@ export async function createProduct(actor: SessionUser, body: Record<string, unk
   return row!
 }
 
-export async function updateProduct(actor: SessionUser, id: string, body: Record<string, unknown>, ip?: string) {
-  const before = await one<Record<string, unknown>>('select * from products where id = $1', [id])
+/** Saves the listing. With a client it runs inside the caller's transaction (the product row is locked). */
+export async function updateProduct(actor: SessionUser, id: string, body: Record<string, unknown>, ip?: string, client?: Queryable) {
+  const before = await one<Record<string, unknown>>(`select * from products where id = $1${client ? ' for update' : ''}`, [id], client)
   if (!before) throw notFound('Product')
   const input = parseProductInput(body)
   if (input.type !== before.type) {
-    const sold = await one('select 1 from order_items where product_id = $1', [id])
+    const sold = await one('select 1 from order_items where product_id = $1', [id], client)
     if (sold) throw badRequest('The product type cannot change after it has been ordered. Duplicate it instead.')
   }
-  await assertUnique(input.slug, input.sku, id)
+  await assertUnique(input.slug, input.sku, id, client)
   const sets = COLUMNS.map((c, i) => `${c} = $${i + 2}`).join(', ')
-  await q(`update products set ${sets}, updated_at = now() where id = $1`, [id, ...values(input)])
+  await q(`update products set ${sets}, updated_at = now() where id = $1`, [id, ...values(input)], client)
   const changed = COLUMNS.filter((c) => JSON.stringify(before[c] ?? null) !== JSON.stringify(c === 'description' ? input[c] : (input[c] ?? null)))
-  await audit({ actor, action: 'product.updated', entityType: 'product', entityId: id, summary: `Edited ${input.title}${changed.length ? `: ${changed.join(', ')}` : ''}. Listing edits do not grant downloads.`, data: { changed }, ip })
+  await audit({ actor, action: 'product.updated', entityType: 'product', entityId: id, summary: `Edited ${input.title}${changed.length ? `: ${changed.join(', ')}` : ''}. Listing edits do not grant downloads.`, data: { changed }, ip }, client)
 }
 
 export async function setProductState(actor: SessionUser, id: string, action: 'publish' | 'unpublish' | 'activate' | 'deactivate' | 'archive' | 'unarchive', ip?: string) {
@@ -245,10 +246,24 @@ export async function adminProductDetail(id: string) {
     q('select id, kind, alt, width, height, sort_order, variant_id, content_type, approved from product_images where product_id = $1 order by kind, sort_order', [id]),
     q('select * from product_variants where product_id = $1 order by sort_order', [id]),
     q('select id, version_number, file_name, content_type, file_size, sha256, notes, released_at, released_by from product_versions where product_id = $1 order by version_number desc', [id]),
-    q('select id, file_name, content_type, file_size, created_at, uploaded_by from product_file_uploads where product_id = $1 and released_version_id is null order by created_at desc', [id]),
-    q('select id, version_id, notify, affected_count, granted_count, created_by, created_at from product_releases where product_id = $1 order by created_at desc', [id]),
+    q(`select id, file_name, content_type, file_size, created_at, uploaded_by from product_file_uploads where product_id = $1 and released_version_id is null and outcome <> 'identical' order by created_at desc`, [id]),
+    q('select id, version_id, notify, trigger, affected_count, granted_count, created_by, created_at from product_releases where product_id = $1 order by created_at desc', [id]),
     countAffectedPurchasers(id),
   ])
   const orders = await one<{ n: number }>('select count(distinct order_id)::int as n from order_items where product_id = $1', [id])
-  return { product: p, images, variants, versions, uploads, releases, affected, orderCount: orders?.n ?? 0, fileLimitMb: Math.round(config.limits.productFileBytes / 1024 / 1024) }
+  const { releaseStatuses } = await import('./updates.js')
+  const { emailSendingConfigured } = await import('../email/outbox.js')
+  return {
+    product: p,
+    images,
+    variants,
+    versions,
+    uploads,
+    releases,
+    releaseStatus: await releaseStatuses(id),
+    emailConfigured: emailSendingConfigured(),
+    affected,
+    orderCount: orders?.n ?? 0,
+    fileLimitMb: Math.round(config.limits.productFileBytes / 1024 / 1024),
+  }
 }

@@ -15,8 +15,9 @@ import { customerDetail, listAdmins, listCustomers, saveCustomerNotes, setAdmin 
 import { emailDetail, listEmails, listTemplates, removeSuppression, resendEmail, saveTemplate } from '../services/emails.js'
 import { countAffectedPurchasers, grantReplacement, publishRelease } from '../services/entitlements.js'
 import { addShipment, requestRefund } from '../services/orders.js'
+import { kickUpdateNotifications, releaseNotifications, retryReleaseNotifications, saveProduct } from '../services/updates.js'
 import { recordDelivery, setShipmentStatus } from '../services/delivery.js'
-import { adminProductDetail, adminProductList, approveImage, createProduct, deleteImage, duplicateProduct, saveVariants, setProductState, updateImages, updateProduct } from '../services/products.js'
+import { adminProductDetail, adminProductList, approveImage, createProduct, deleteImage, duplicateProduct, saveVariants, setProductState, updateImages } from '../services/products.js'
 import { ordersCsv, revenueReport, salesCsv } from '../services/reports.js'
 import { defaultSettings, getSettings, setSetting, type Settings } from '../services/settings.js'
 import {
@@ -77,10 +78,12 @@ adminRoutes.get('/admin/reports/sales.csv', async (c) => {
 adminRoutes.get('/admin/products', async (c) => c.json({ products: await adminProductList({ search: c.req.query('search'), status: c.req.query('status') }) }))
 adminRoutes.post('/admin/products', async (c) => c.json(await createProduct(requireAdmin(c), await jsonBody(c), ip(c)), 201))
 adminRoutes.get('/admin/products/:id', async (c) => c.json(await adminProductDetail(uuid(c.req.param('id')))))
-adminRoutes.put('/admin/products/:id', async (c) => {
-  await updateProduct(requireAdmin(c), uuid(c.req.param('id')), await jsonBody(c), ip(c))
-  return c.json({ ok: true })
-})
+/** The normal Save. A staged replacement file on an existing published product is released automatically. */
+adminRoutes.put('/admin/products/:id', async (c) => c.json(await saveProduct(requireAdmin(c), uuid(c.req.param('id')), await jsonBody(c), ip(c))))
+adminRoutes.get('/admin/products/:id/releases/:releaseId/notifications', async (c) => c.json({ notifications: await releaseNotifications(uuid(c.req.param('id')), uuid(c.req.param('releaseId'))) }))
+adminRoutes.post('/admin/products/:id/releases/:releaseId/notifications/retry', async (c) =>
+  c.json(await retryReleaseNotifications(requireAdmin(c), uuid(c.req.param('id')), uuid(c.req.param('releaseId')), ip(c))),
+)
 adminRoutes.get('/admin/products/:id/preview', async (c) => {
   const p = await previewProduct(uuid(c.req.param('id')))
   if (!p) throw notFound('Product')
@@ -119,7 +122,7 @@ adminRoutes.post('/admin/products/:id/images', async (c) => {
   return c.json(await attachUpload(actor, 'product_image', id, f, { imageKind: kind, alt }, ip(c)), 201)
 })
 
-/** Private product file upload. Stays unreleased (no customer access) until "Publish digital product update". */
+/** Private product file upload. Stays unreleased (no customer access) until the product is saved with it. */
 adminRoutes.post('/admin/products/:id/files', async (c) => {
   const actor = requireAdmin(c)
   const id = uuid(c.req.param('id'))
@@ -174,6 +177,7 @@ adminRoutes.post('/admin/products/:id/releases', async (c) => {
     actor,
     ip: ip(c),
   })
+  if (result.notifications) kickUpdateNotifications()
   return c.json(result, result.duplicate ? 200 : 201)
 })
 
@@ -392,7 +396,7 @@ adminRoutes.post('/admin/email-templates/:type/preview', async (c) => {
   const type = c.req.param('type') as EmailType
   if (!(type in templateInfo)) throw notFound('Template')
   const b = await jsonBody(c)
-  const sample: Record<string, string> = { name: 'Sample Customer', order_number: 'NLC-10000', order_total: '$0.00', product_list: 'Sample Product', carrier: 'Sample Carrier', tracking_number: '0000', product_title: 'Sample Product', version: '2', update_notes: 'Sample update notes.' }
+  const sample: Record<string, string> = { name: 'Sample Customer', order_number: 'NLC-10000', order_total: '$0.00', product_list: 'Sample Product', carrier: 'Sample Carrier', tracking_number: '0000', product_title: 'Sample Product', version: '2', release_date: 'October 30, 2026', update_notes: 'What changed: sample notes.' }
   const out = renderEmail({ template: { subject: String(b.subject ?? ''), heading: String(b.heading ?? ''), body: String(b.body ?? ''), button_label: String(b.button_label ?? '') }, vars: sample, buttonUrl: `${config.appUrl}/#account` })
   return c.json(out)
 })

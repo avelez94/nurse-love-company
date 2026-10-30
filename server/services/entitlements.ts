@@ -7,8 +7,8 @@
   * An entitlement can be redeemed once. Viewing the dashboard, previewing a
     product, resending an email or resetting a password never grants or
     consumes anything.
-  * Publishing a new version (an explicit admin action) gives each eligible
-    prior purchaser exactly one new entitlement for that version. Any older
+  * Releasing a new version (saving the product with a new file) gives each
+    eligible prior purchaser exactly one new entitlement for that version. Any older
     unredeemed entitlement for the same purchase is marked "superseded", so
     unused downloads never stack and an update never restores an old version.
   * Downloads require a signed in customer who owns a paid, unrefunded order.
@@ -24,7 +24,6 @@ import { createHash, randomBytes } from 'node:crypto'
 import type { PoolClient } from 'pg'
 import type { SessionUser } from '../auth.js'
 import { one, q, tx, type Queryable } from '../db/pool.js'
-import { kickDispatcher, queueEmail } from '../email/outbox.js'
 import { config } from '../env.js'
 import { audit } from '../lib/audit.js'
 import { badRequest, conflict, HttpError, notFound } from '../lib/errors.js'
@@ -86,99 +85,133 @@ export interface ReleaseInput {
   productId: string
   uploadId: string
   notes: string
+  /** Queue update notifications for customers who downloaded an older version. */
   notify: boolean
   idempotencyKey: string
+  /** "save": the owner saved the product with a new file. "manual": the earlier release endpoint. */
+  trigger?: 'save' | 'manual'
   actor: SessionUser
   ip?: string
 }
 
+export interface ReleaseResult {
+  id: string
+  version_id: string
+  affected_count: number
+  granted_count: number
+  duplicate: boolean
+  versionNumber: number | null
+  notifications: number
+}
+
 /**
- * "Publish digital product update". Creates an immutable version and grants one
- * new entitlement per eligible prior purchase, in a single transaction.
- * Retrying with the same idempotency key returns the original release.
+ * Releases a staged file as the product's new version inside the caller's
+ * transaction: an immutable version, one new entitlement per eligible
+ * purchase (older unused downloads are superseded, never stacked), and, when
+ * notify is set, one notification row per customer who downloaded an older
+ * version. Emails are sent afterwards from those rows, so an email problem
+ * can never undo the release or remove download access.
  */
-export async function publishRelease(input: ReleaseInput) {
-  if (!input.idempotencyKey || input.idempotencyKey.length < 8) throw badRequest('Missing confirmation key. Please reopen the release dialog.')
-  const result = await tx(async (client) => {
-    const existing = await one<{ id: string; version_id: string; affected_count: number; granted_count: number }>('select id, version_id, affected_count, granted_count from product_releases where idempotency_key = $1', [input.idempotencyKey], client)
-    if (existing) return { ...existing, duplicate: true, versionNumber: null as number | null }
+export async function releaseInTx(client: PoolClient, input: ReleaseInput): Promise<ReleaseResult> {
+  const existing = await one<{ id: string; version_id: string; affected_count: number; granted_count: number }>('select id, version_id, affected_count, granted_count from product_releases where idempotency_key = $1', [input.idempotencyKey], client)
+  if (existing) return { ...existing, duplicate: true, versionNumber: null, notifications: 0 }
 
-    const product = await one<{ id: string; type: string; title: string }>('select id, type, title from products where id = $1 for update', [input.productId], client)
-    if (!product) throw notFound('Product')
-    if (product.type !== 'digital') throw badRequest('Only digital products have downloadable files.')
+  const product = await one<{ id: string; type: string; title: string }>('select id, type, title from products where id = $1 for update', [input.productId], client)
+  if (!product) throw notFound('Product')
+  if (product.type !== 'digital') throw badRequest('Only digital products have downloadable files.')
 
-    const upload = await one<{ id: string; storage_key: string; file_name: string; content_type: string; file_size: number; sha256: string; released_version_id: string | null; product_id: string }>(
-      'select * from product_file_uploads where id = $1 for update',
-      [input.uploadId],
+  const upload = await one<{ id: string; storage_key: string; file_name: string; content_type: string; file_size: number; sha256: string; released_version_id: string | null; product_id: string }>(
+    'select * from product_file_uploads where id = $1 for update',
+    [input.uploadId],
+    client,
+  )
+  if (!upload || upload.product_id !== product.id) throw notFound('Uploaded file')
+  if (upload.released_version_id) throw conflict('This file has already been released.')
+
+  const next = await one<{ n: number }>('select coalesce(max(version_number), 0) + 1 as n from product_versions where product_id = $1', [product.id], client)
+  const version = await one<{ id: string; version_number: number }>(
+    `insert into product_versions (product_id, version_number, storage_key, file_name, content_type, file_size, sha256, notes, released_by)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning id, version_number`,
+    [product.id, next!.n, upload.storage_key, upload.file_name, upload.content_type, upload.file_size, upload.sha256, input.notes, input.actor.email],
+    client,
+  )
+  await q(`update product_file_uploads set released_version_id = $2, outcome = 'released' where id = $1`, [upload.id, version!.id], client)
+  await q('update products set current_version_id = $2, updated_at = now() where id = $1', [product.id, version!.id], client)
+
+  const items = await q<{ order_item_id: string; user_id: string }>(
+    `select oi.id as order_item_id, o.user_id
+       from order_items oi join orders o on o.id = oi.order_id
+      where oi.product_id = $1 and ${eligibleItemCondition} and o.user_id is not null`,
+    [product.id],
+    client,
+  )
+
+  const release = await one<{ id: string }>(
+    `insert into product_releases (product_id, version_id, idempotency_key, notify, affected_count, created_by, trigger) values ($1,$2,$3,$4,$5,$6,$7) returning id`,
+    [product.id, version!.id, input.idempotencyKey, input.notify, items.length, input.actor.email, input.trigger ?? 'manual'],
+    client,
+  )
+
+  // Older unused downloads are replaced by the new version, never added to it.
+  await q(`update entitlements set status = 'superseded', status_changed_at = now() where product_id = $1 and status = 'available'`, [product.id], client)
+
+  let granted = 0
+  for (const it of items) {
+    const hadAny = await one('select 1 from entitlements where order_item_id = $1', [it.order_item_id], client)
+    const ins = await q(
+      `insert into entitlements (user_id, product_id, order_item_id, version_id, source, release_id)
+       values ($1,$2,$3,$4,$5,$6) on conflict do nothing returning id`,
+      [it.user_id, product.id, it.order_item_id, version!.id, hadAny ? 'update' : 'purchase', release!.id],
       client,
     )
-    if (!upload || upload.product_id !== product.id) throw notFound('Uploaded file')
-    if (upload.released_version_id) throw conflict('This file has already been released.')
+    granted += ins.length
+  }
 
-    const next = await one<{ n: number }>('select coalesce(max(version_number), 0) + 1 as n from product_versions where product_id = $1', [product.id], client)
-    const version = await one<{ id: string; version_number: number }>(
-      `insert into product_versions (product_id, version_number, storage_key, file_name, content_type, file_size, sha256, notes, released_by)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning id, version_number`,
-      [product.id, next!.n, upload.storage_key, upload.file_name, upload.content_type, upload.file_size, upload.sha256, input.notes, input.actor.email],
+  let notifications = 0
+  if (input.notify) {
+    // A newer file replaces any notification that has not gone out yet: customers get one email, about the latest version.
+    await q(
+      `update update_notifications set status = 'canceled', status_reason = $2, updated_at = now() where product_id = $1 and status in ('scheduled','held')`,
+      [product.id, `Replaced by version ${version!.version_number} before it was sent.`],
       client,
     )
-    await q('update product_file_uploads set released_version_id = $2 where id = $1', [upload.id, version!.id], client)
-    await q('update products set current_version_id = $2, updated_at = now() where id = $1', [product.id, version!.id], client)
-
-    const items = await q<{ order_item_id: string; user_id: string; email: string; name: string; product_updates: boolean | null; is_demo: boolean }>(
-      `select oi.id as order_item_id, o.user_id, u.email, u.name, cp.product_updates, o.is_demo
-         from order_items oi join orders o on o.id = oi.order_id join "user" u on u.id = o.user_id
-         left join customer_profiles cp on cp.user_id = o.user_id
-        where oi.product_id = $1 and ${eligibleItemCondition}`,
-      [product.id],
+    // Only customers who downloaded an older version, with a purchase that is still eligible, and never for demo orders.
+    const recipients = await q<{ user_id: string }>(
+      `select distinct o.user_id from order_items oi join orders o on o.id = oi.order_id
+        where oi.product_id = $1 and ${eligibleItemCondition} and o.user_id is not null and not o.is_demo
+          and exists (select 1 from entitlements e where e.user_id = o.user_id and e.product_id = $1 and e.status = 'redeemed' and e.version_id <> $2)`,
+      [product.id, version!.id],
       client,
     )
-
-    const release = await one<{ id: string }>(
-      `insert into product_releases (product_id, version_id, idempotency_key, notify, affected_count, created_by) values ($1,$2,$3,$4,$5,$6) returning id`,
-      [product.id, version!.id, input.idempotencyKey, input.notify, items.length, input.actor.email],
-      client,
-    )
-
-    // Older unused downloads are replaced by the new version, never added to it.
-    await q(`update entitlements set status = 'superseded', status_changed_at = now() where product_id = $1 and status = 'available'`, [product.id], client)
-
-    let granted = 0
-    const notified = new Set<string>()
-    for (const it of items) {
-      const hadAny = await one('select 1 from entitlements where order_item_id = $1', [it.order_item_id], client)
+    for (const r of recipients) {
       const ins = await q(
-        `insert into entitlements (user_id, product_id, order_item_id, version_id, source, release_id)
-         values ($1,$2,$3,$4,$5,$6) on conflict do nothing returning id`,
-        [it.user_id, product.id, it.order_item_id, version!.id, hadAny ? 'update' : 'purchase', release!.id],
+        `insert into update_notifications (release_id, product_id, version_id, user_id, dedupe_key) values ($1,$2,$3,$4,$5) on conflict (dedupe_key) do nothing returning id`,
+        [release!.id, product.id, version!.id, r.user_id, `update:${r.user_id}:${product.id}:${version!.id}`],
         client,
       )
-      granted += ins.length
-      if (input.notify && ins.length && it.product_updates !== false && !notified.has(it.user_id)) {
-        notified.add(it.user_id)
-        await queueEmail(
-          {
-            type: 'product_update',
-            to: it.email,
-            userId: it.user_id,
-            releaseId: release!.id,
-            isDemo: it.is_demo,
-            vars: { name: it.name, product_title: product.title, version: String(version!.version_number), update_notes: input.notes || 'See your account for details.' },
-            idempotencyKey: `product_update:${release!.id}:${it.user_id}`,
-          },
-          client,
-        )
-      }
+      notifications += ins.length
     }
-    await q('update product_releases set granted_count = $2 where id = $1', [release!.id, granted], client)
-    await audit(
-      { actor: input.actor, action: 'product.version_released', entityType: 'product', entityId: product.id, summary: `Released version ${version!.version_number} of ${product.title}. ${granted} new download${granted === 1 ? '' : 's'} granted.`, data: { versionId: version!.id, releaseId: release!.id, notify: input.notify, affected: items.length, granted }, ip: input.ip },
-      client,
-    )
-    return { id: release!.id, version_id: version!.id, affected_count: items.length, granted_count: granted, duplicate: false, versionNumber: version!.version_number }
-  })
-  kickDispatcher()
-  return result
+  }
+  await q('update product_releases set granted_count = $2 where id = $1', [release!.id, granted], client)
+  await audit(
+    {
+      actor: input.actor,
+      action: 'product.version_released',
+      entityType: 'product',
+      entityId: product.id,
+      summary: `Released version ${version!.version_number} of ${product.title}${input.trigger === 'save' ? ' by saving a new file' : ''}. ${granted} new download${granted === 1 ? '' : 's'} granted; ${notifications} customer${notifications === 1 ? '' : 's'} to notify.`,
+      data: { versionId: version!.id, releaseId: release!.id, notify: input.notify, affected: items.length, granted, notifications },
+      ip: input.ip,
+    },
+    client,
+  )
+  return { id: release!.id, version_id: version!.id, affected_count: items.length, granted_count: granted, duplicate: false, versionNumber: version!.version_number, notifications }
+}
+
+/** The earlier explicit release (kept for the API). Retrying with the same idempotency key returns the original release. */
+export async function publishRelease(input: ReleaseInput) {
+  if (!input.idempotencyKey || input.idempotencyKey.length < 8) throw badRequest('Missing confirmation key. Please reopen the release dialog.')
+  return tx((client) => releaseInTx(client, input))
 }
 
 interface EntitlementRow {

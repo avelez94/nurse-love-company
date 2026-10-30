@@ -2,7 +2,7 @@
 
 Banners, the resource quiz, the Nurse Kin button, reviews, Our Story and product previews. Nothing you create is visible to visitors until you press **Publish**.
 
-After each update is deployed, run the new files in `supabase/updates/` once, in order, in the Supabase SQL Editor (paste the whole file, click Run): `005_quiz_reviews_story_previews.sql`, then `006_email_automations.sql`.
+After each update is deployed, run the new files in `supabase/updates/` once, in order, in the Supabase SQL Editor (paste the whole file, click Run): `005_quiz_reviews_story_previews.sql`, then `006_email_automations.sql`, then `007_update_notifications.sql`.
 
 # Banners
 
@@ -151,3 +151,21 @@ When adding a shipment, choose which items (and how many) are in the box. Split 
 If something goes wrong, set the shipment to **delivery problem** and describe it. Review requests for those items are held with that reason until it is delivered. Requests held with no delivery 21 days after shipping are flagged in the table so you can check on them.
 
 Once Printful or carrier tracking is connected, delivery events will update shipments automatically (repeated or out of order events are ignored safely, and a delivered shipment never moves backwards).
+
+# Updating a digital product's file
+
+Products, open the product, **Downloadable file**.
+
+1. **Choose a replacement file.** It uploads privately; nothing changes for customers yet.
+2. Optional: write **What changed**. It appears in the email and on My downloads. You can leave it empty.
+3. Press **Save changes**. That is all: there is no separate publish or send button.
+
+When you save an existing **published** product with a new file:
+
+* it becomes the latest version;
+* every eligible buyer has one download of it (an unused older download is replaced, never added to; buyers who never downloaded still have exactly one download, now of the latest version);
+* customers who downloaded an older version get one email, "An updated version of [product] is ready 💕", with a My downloads button. Customers who never downloaded are not emailed.
+
+Nothing is released if you only upload without saving, if the save fails, if the product is a draft (the file waits until you publish and save again), or if the file is identical to the current one (checked by its content, not its name). Refunds, revocations and other purchase rules still apply. If you save a newer file before the earlier emails went out, customers get one email about the newest version.
+
+After saving, a green box shows what happened, and the version table shows each update's downloads and emails: queued, sent, skipped (for example, the customer already downloaded the new version), held (email sending not connected) or failed. **Show customers** lists them with links to the email log. **Retry notifications** sends held or failed ones again once Resend is connected. Email problems never undo an update or remove anyone's download.
