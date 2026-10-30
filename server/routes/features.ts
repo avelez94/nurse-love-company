@@ -1,3 +1,4 @@
+import { POLICY_KEYS } from '../../shared/policies.js'
 import { Hono } from 'hono'
 import { config } from '../env.js'
 import { adminOnly, clientIp, jsonBody, requireAdmin, requireUser, type AppEnv } from '../http.js'
@@ -5,7 +6,7 @@ import { rateLimit } from '../lib/rate-limit.js'
 import { serveMedia } from '../lib/stream.js'
 import { receiveUpload } from '../lib/upload.js'
 import { int, oneOf, uuid } from '../lib/validate.js'
-import { adminHelp, adminStory, publicHelp, publicStory, publishHelp, saveHelpDraft, publishStory, saveStoryDraft, STORY_UPLOAD_TARGET, storyPortrait } from '../services/content.js'
+import { adminHelp, adminPolicy, adminStory, publicPolicy, publishPolicy, savePolicyDraft, publicHelp, publicStory, publishHelp, saveHelpDraft, publishStory, saveStoryDraft, STORY_UPLOAD_TARGET, storyPortrait } from '../services/content.js'
 import { createQuiz, duplicateQuiz, getQuiz, listQuizzes, publicQuiz, publishQuiz, recordQuizEvent, saveQuizDraft, setQuizStatus } from '../services/quiz.js'
 import { adminReviews, moderateReview, myReview, productReviews, REPORT_REASONS, reportReview, reviewablePurchases, saveReview } from '../services/reviews.js'
 import { attachUpload } from '../services/uploads.js'
@@ -37,6 +38,8 @@ featureRoutes.post('/reviews/:id/report', async (c) => {
 })
 
 featureRoutes.get('/content/help', async (c) => c.json({ help: await publicHelp() }, 200, { 'cache-control': 'public, max-age=60' }))
+const policyKey = (v: string | undefined) => oneOf(v, 'Policy', POLICY_KEYS)
+featureRoutes.get('/content/policies/:key', async (c) => c.json({ policy: await publicPolicy(policyKey(c.req.param('key'))) }, 200, { 'cache-control': 'public, max-age=60' }))
 featureRoutes.get('/content/our-story', async (c) => c.json({ story: await publicStory() }, 200, { 'cache-control': 'public, max-age=60' }))
 featureRoutes.get('/content/our-story/portrait', async (c) => {
   const m = await storyPortrait('published')
@@ -85,6 +88,11 @@ featureRoutes.post('/admin/reviews/:id', async (c) => {
 featureRoutes.get('/admin/content/help', async (c) => c.json(await adminHelp()))
 featureRoutes.put('/admin/content/help', async (c) => c.json(await saveHelpDraft(requireAdmin(c), await jsonBody(c))))
 featureRoutes.post('/admin/content/help/:action', async (c) => c.json(await publishHelp(requireAdmin(c), oneOf(c.req.param('action'), 'Action', ['publish', 'unpublish'] as const), ip(c))))
+featureRoutes.get('/admin/content/policies/:key', async (c) => c.json(await adminPolicy(policyKey(c.req.param('key')))))
+featureRoutes.put('/admin/content/policies/:key', async (c) => c.json(await savePolicyDraft(requireAdmin(c), policyKey(c.req.param('key')), await jsonBody(c))))
+featureRoutes.post('/admin/content/policies/:key/:action', async (c) =>
+  c.json(await publishPolicy(requireAdmin(c), policyKey(c.req.param('key')), oneOf(c.req.param('action'), 'Action', ['publish', 'unpublish'] as const), ip(c))),
+)
 featureRoutes.get('/admin/content/our-story', async (c) => c.json(await adminStory()))
 featureRoutes.put('/admin/content/our-story', async (c) => c.json(await saveStoryDraft(requireAdmin(c), await jsonBody(c))))
 featureRoutes.get('/admin/content/our-story/portrait', async (c) => {

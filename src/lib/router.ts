@@ -15,6 +15,7 @@ export type Route =
   | { name: 'tutorial'; slug: string }
   | { name: 'story' }
   | { name: 'help' }
+  | { name: 'policy'; key: 'terms' | 'privacy' }
   | { name: 'product'; slug: string }
   | { name: 'auth'; mode: 'sign-in' | 'sign-up' | 'forgot-password' | 'reset-password' | 'admin-setup'; token?: string }
   | { name: 'checkout'; result: 'success' | 'canceled'; free?: boolean }
@@ -50,6 +51,7 @@ export type AdminView =
   | 'automations'
   | 'help'
   | 'email-list'
+  | 'policies'
 
 const accountViews: Record<string, AccountView> = { account: 'overview', 'account-orders': 'orders', 'account-downloads': 'downloads', 'account-settings': 'settings', 'account-support': 'support' }
 const adminViews: Record<string, AdminView> = {
@@ -71,6 +73,7 @@ const adminViews: Record<string, AdminView> = {
   'admin-email-automations': 'automations',
   'admin-help-faqs': 'help',
   'admin-email-list': 'email-list',
+  'admin-policies': 'policies',
 }
 const adminDetail: Array<[string, AdminView]> = [
   ['admin-product-', 'product'],
@@ -80,6 +83,7 @@ const adminDetail: Array<[string, AdminView]> = [
   ['admin-tutorial-', 'tutorial'],
   ['admin-banner-', 'banner'],
   ['admin-quiz-', 'quiz'],
+  ['admin-policy-', 'policies'],
 ]
 
 export function parseHash(raw: string): Route {
@@ -128,6 +132,9 @@ export function parseHash(raw: string): Route {
       return { name: 'story' }
     case 'help':
       return { name: 'help' }
+    case 'terms':
+    case 'privacy':
+      return { name: 'policy', key: hash }
   }
   if (hash.startsWith('tutorial-')) return { name: 'tutorial', slug: hash.slice('tutorial-'.length) }
   if (hash.startsWith('product-')) return { name: 'product', slug: hash.slice('product-'.length) }

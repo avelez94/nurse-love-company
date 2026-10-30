@@ -22,6 +22,8 @@ import { Shop } from './pages/Shop'
 import { Tutorials, TutorialWatch } from './pages/Tutorials'
 import { Freebies, Help, NotFound } from './pages/Simple'
 import { Story } from './pages/OurStory'
+import { PolicyPage } from './pages/Policy'
+import { POLICY_META } from '../shared/policies'
 import { ServerUnavailablePage } from './components/Unavailable'
 import { FloatingLaunchers } from './components/Launchers'
 import { MarketingProvider } from './lib/marketing'
@@ -50,6 +52,8 @@ function useTitle(route: Route): string {
       return `Our Story | ${site.name}`
     case 'help':
       return `Help & contact | ${site.name}`
+    case 'policy':
+      return `${POLICY_META[route.key].title} | ${site.name}`
     case 'product':
       return `${getProduct(route.slug)?.title ?? 'Product'} | ${site.name}`
     case 'auth':
@@ -93,6 +97,8 @@ function Page({ route }: { route: Route }) {
       return <Story />
     case 'help':
       return <Help />
+    case 'policy':
+      return <PolicyPage key={route.key} policyKey={route.key} />
     case 'product':
       return <Product slug={route.slug} />
     case 'auth':

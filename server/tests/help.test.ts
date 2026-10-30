@@ -116,3 +116,80 @@ describe('product duplicate', () => {
     assert.deepEqual((await q<{ approved: boolean }>('select approved from product_images where product_id = $1', [dup.data.id])).map((i) => i.approved), [false])
   })
 })
+
+describe('policies', () => {
+  beforeEach(setup)
+  after(teardown)
+
+  const fillAll = (draft: any) => ({
+    ...draft,
+    sections: draft.sections.map((s: any) => ({
+      ...s,
+      body: s.body.replace(/\[(?:[A-Z][A-Z0-9 ,&'/-]{2,}|OWNER TO [A-Z ]+:[^\]]*)\]/g, 'Owner supplied text'),
+      reviewed: true,
+    })),
+  })
+
+  it('starter drafts describe the store, stay private, and cannot publish with placeholders or unreviewed sections', async () => {
+    const admin = await signUp('owner@example.com', 'admin')
+    const buyer = await signUp('buyer@example.com')
+    assert.equal((await api('/api/content/policies/terms')).data.policy, null)
+    assert.equal((await api('/api/content/policies/nope')).status, 400)
+    assert.equal((await api('/api/admin/content/policies/terms', { session: buyer })).status, 403)
+    const d = (await api('/api/admin/content/policies/privacy', { session: admin })).data
+    assert.equal(d.title, 'Privacy Policy')
+    assert.ok(d.problems.some((p: string) => /PLACEHOLDER/.test(p)))
+    assert.ok(d.problems.some((p: string) => /not marked reviewed/.test(p)))
+    assert.ok(d.services.payments, 'connected services are shown to the owner')
+    const text = JSON.stringify(d.draft)
+    assert.match(text, /answers are not stored/)
+    assert.ok(!/—|–/.test(text), 'no dashes in starter wording')
+
+    const blocked = await api('/api/admin/content/policies/privacy/publish', { session: admin, method: 'POST', body: {} })
+    assert.equal(blocked.status, 400)
+    assert.equal((await api('/api/content/policies/privacy')).data.policy, null)
+
+    // Reviewed but a placeholder is left: still blocked.
+    const almost = fillAll(d.draft)
+    almost.sections[0].body = 'Run by [BUSINESS LEGAL NAME].'
+    await api('/api/admin/content/policies/privacy', { session: admin, method: 'PUT', body: almost })
+    assert.equal((await api('/api/admin/content/policies/privacy/publish', { session: admin, method: 'POST', body: {} })).status, 400)
+  })
+
+  it('publishes a dated snapshot without owner notes; later edits stay drafts; unpublish hides it', async () => {
+    const admin = await signUp('owner@example.com', 'admin')
+    const draft = (await api('/api/admin/content/policies/terms', { session: admin })).data.draft
+    const saved = await api('/api/admin/content/policies/terms', { session: admin, method: 'PUT', body: fillAll(draft) })
+    assert.equal(saved.status, 200, JSON.stringify(saved.data))
+    assert.deepEqual(saved.data.problems, [])
+    assert.equal((await api('/api/content/policies/terms')).data.policy, null, 'saving publishes nothing')
+    assert.equal((await api('/api/admin/content/policies/terms/publish', { session: admin, method: 'POST', body: {} })).status, 200)
+    const pub = (await api('/api/content/policies/terms')).data.policy
+    assert.ok(Date.parse(pub.lastUpdated) > Date.now() - 60_000)
+    assert.ok(pub.sections.length > 5)
+    assert.ok(!/ownerNote|reviewed/.test(JSON.stringify(pub)))
+    assert.equal((await api('/api/content/policies/privacy')).data.policy, null, 'each policy publishes separately')
+
+    const edited = (await api('/api/admin/content/policies/terms', { session: admin })).data
+    edited.draft.sections[0].body = 'Changed in draft.'
+    const after = await api('/api/admin/content/policies/terms', { session: admin, method: 'PUT', body: edited.draft })
+    assert.equal(after.data.unpublishedChanges, true)
+    assert.notEqual((await api('/api/content/policies/terms')).data.policy.sections[0].body, 'Changed in draft.')
+
+    // Unsafe links and markup are refused.
+    edited.draft.sections[0].body = 'See [this](javascript:alert(1)).'
+    assert.equal((await api('/api/admin/content/policies/terms', { session: admin, method: 'PUT', body: edited.draft })).status, 400)
+
+    await api('/api/admin/content/policies/terms/unpublish', { session: admin, method: 'POST', body: {} })
+    assert.equal((await api('/api/content/policies/terms')).data.policy, null)
+    assert.ok(await q(`select 1 from audit_log where action = 'content.policy_publish'`))
+  })
+
+  it('keeps text saved earlier in Settings as the first draft', async () => {
+    const admin = await signUp('owner@example.com', 'admin')
+    await q(`insert into app_settings (key, value) values ('policies', $1)`, [JSON.stringify({ terms: 'My earlier terms.' })])
+    const d = (await api('/api/admin/content/policies/terms', { session: admin })).data
+    assert.deepEqual(d.draft.sections.map((s: any) => s.body), ['My earlier terms.'])
+    assert.equal((await api('/api/admin/content/policies/privacy', { session: admin })).data.draft.sections.length > 5, true)
+  })
+})

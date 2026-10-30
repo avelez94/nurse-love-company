@@ -43,6 +43,28 @@ export function Footer() {
           </p>
         )}
       </div>
+      <div className="container site-footer__legal">
+        <nav aria-label="Legal">
+          <ul className="site-footer__legal-links">
+            <li>
+              <a href={href('terms')}>Terms & Conditions</a>
+            </li>
+            <li>
+              <a href={href('privacy')}>Privacy Policy</a>
+            </li>
+          </ul>
+        </nav>
+        {/* The website builder's credit. Store questions go to Help & contact, never here. */}
+        <p className="site-footer__credit">
+          <span className="visually-hidden">Website </span>
+          Made with <Heart className="site-footer__credit-heart" />
+          <span className="visually-hidden">love</span> by{' '}
+          <a href="https://alantevelez.com" target="_blank" rel="noopener noreferrer">
+            Alante
+            <span className="visually-hidden"> (website designer, opens in a new tab)</span>
+          </a>
+        </p>
+      </div>
     </footer>
   )
 }

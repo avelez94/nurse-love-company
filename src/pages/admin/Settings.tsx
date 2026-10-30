@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { api, errorMessage } from '../../lib/api'
 import { useUI } from '../../lib/ui'
 import { Checkbox, dateOnly, FormError, Loading, MoneyInput, Notice, Pill, Select, TextArea, TextInput, useApiData } from '../../components/ui'
+import { href } from '../../lib/router'
 import { PageTitle } from './AdminApp'
 
 interface Settings {
@@ -178,8 +179,9 @@ export function SettingsPage() {
             <Select label="Policy status" value={policies.status} onChange={(v) => setPolicies({ ...policies, status: v })} options={[{ value: 'awaiting_approval', label: 'Awaiting owner approval' }, { value: 'approved', label: 'Approved by the owner' }]} />
             <TextArea label="Refund policy" value={policies.refund_policy} onChange={(v) => setPolicies({ ...policies, refund_policy: v })} rows={4} />
             <TextArea label="Shipping policy" value={policies.shipping_policy} onChange={(v) => setPolicies({ ...policies, shipping_policy: v })} rows={4} />
-            <TextArea label="Terms" value={policies.terms} onChange={(v) => setPolicies({ ...policies, terms: v })} rows={4} />
-            <TextArea label="Privacy policy" value={policies.privacy} onChange={(v) => setPolicies({ ...policies, privacy: v })} rows={4} />
+            <p className="muted">
+              Terms & Conditions and the Privacy Policy are edited, previewed and published under <a href={href('admin-policies')}>Content, Policies</a>.
+            </p>
             <Select
               label="Unused downloads when a digital item is fully refunded"
               value={policies.refund_download_policy}

@@ -452,7 +452,12 @@ describe('email center', () => {
 
   it('without Resend configured, emails are logged as not sent rather than faked', async () => {
     await boughtDigital()
-    await drainOutbox()
+    // A background send started by the payment may still hold rows; wait until none are in flight.
+    for (let i = 0; i < 50; i++) {
+      await drainOutbox()
+      if (!(await q(`select 1 from emails where status in ('queued','sending')`)).length) break
+      await new Promise((r) => setTimeout(r, 20))
+    }
     const rows = await q<{ status: string }>('select status from emails')
     assert.ok(rows.length > 0)
     assert.ok(rows.every((r) => r.status === 'not_configured'))

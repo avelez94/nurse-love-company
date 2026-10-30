@@ -111,6 +111,17 @@ Fields you have never saved start with suggested wording for you to review. Noth
 
 The preview lays the page out at a real desktop, tablet or phone width and scales it to fit, so it matches the public page. Later edits stay in the draft until you publish again; **Unpublish** takes the page back to the general text.
 
+# Terms & Conditions and Privacy Policy
+
+Content, **Policies**. Choose **Terms & Conditions** or **Privacy Policy** at the top. Each starts as a draft written from how this store actually works (accounts, orders, the one download rule, updated files, freebies and the email list, reviews, the quiz, cookies and the services in use). It is a starting point, not legal advice, and publishing does not make it legally approved.
+
+* Replace every [BRACKETED] item with your own details: your business legal name, support email, refund and shipping terms, how customers may use digital files, how long you keep records, governing law, and any minimum age. Nothing like this is filled in for you.
+* Each section has a private note (never published) and a **reviewed** checkbox. Editing a section clears its checkbox so changes are always reread.
+* **Services: connected now and planned** lists what is actually connected on this site today. Name only services in use when you publish.
+* **Publish** is available only when every section is reviewed and no [BRACKETED] text is left. The public page shows "Last updated" with the publish date. Later edits stay in the draft until you publish again; **Unpublish** shows a short "being prepared" note instead.
+
+The footer links to both pages, and the bag links to them before checkout. Text saved earlier under Settings, Policies is kept and becomes the first draft. The website credit in the footer ("Made with love by Alante") is for the website builder only; customers are pointed to Help & contact for the store.
+
 # Product previews ("Peek inside")
 
 Products, open a product, **Sample previews**.

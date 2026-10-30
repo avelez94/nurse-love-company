@@ -776,3 +776,24 @@
 .help-ed__frame .help__contact {
   position: static;
 }
+
+/* Policies editor */
+.policy-ed__tabs {
+  margin-bottom: var(--space-4);
+}
+.policy-ed__tabs .chip[aria-current='page'] {
+  background: var(--raspberry);
+  border-color: var(--raspberry);
+  color: var(--white);
+}
+.policy-ed__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.policy-ed__tools {
+  display: inline-flex;
+  gap: var(--space-1);
+  margin-left: auto;
+}

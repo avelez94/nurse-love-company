@@ -237,7 +237,12 @@ describe('freebies and email list consent', () => {
     setListProvider({ name: 'Test list', get: async (e) => (list.has(e) ? { unsubscribed: !list.get(e) } : null), upsert: async ({ email, subscribed }) => void list.set(email, subscribed) })
     const u = await signUp('missed@example.com')
     await api('/api/account/profile', { session: u, method: 'PATCH', body: { name: 'M', marketing: true } })
-    await syncMarketingContacts()
+    // The save also starts a background sync; let every copy land before changing the list.
+    for (let i = 0; i < 50; i++) {
+      await syncMarketingContacts()
+      if (await one(`select 1 from marketing_contacts where email = 'missed@example.com' and sync_status = 'synced' and sync_claimed_at is null`)) break
+      await new Promise((r) => setTimeout(r, 20))
+    }
     // Unsubscribed in Resend, webhook lost; then something makes the contact pending again (for example a bounce flag cleared).
     list.set('missed@example.com', false)
     await q(`update marketing_contacts set sync_status = 'pending', change_seq = change_seq + 1 where email = 'missed@example.com'`)

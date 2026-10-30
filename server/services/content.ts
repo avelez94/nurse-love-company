@@ -11,6 +11,9 @@ import { str, uuid } from '../lib/validate.js'
 import { PUBLIC_WHERE } from './catalog.js'
 import { linkField } from './marketing.js'
 import { isPlaceholderUrl, showNurseKin, STORY_STARTERS, type StoryFeature } from '../../shared/story.js'
+import { normalizePolicy, POLICY_META, policyProblems, publishedSnapshot as policySnapshot, starterPolicy, type PolicyDraft, type PolicyKey, type PublishedPolicy } from '../../shared/policies.js'
+import { getSettings } from './settings.js'
+import { integrationStatus } from '../env.js'
 import { applyConditions, normalizeFaq, publishedSnapshot, starterFaq, type FaqContent, type PublicFaq } from '../../shared/faq.js'
 
 export const STORY_UPLOAD_TARGET = '00000000-0000-0000-0000-0000005707e5'
@@ -268,4 +271,83 @@ export async function publicHelp(): Promise<PublicFaq | null> {
     `select exists (select 1 from quizzes where status = 'published') as quiz, exists (select 1 from tutorials where status = 'published') as tutorials`,
   )
   return applyConditions(r.published, { quiz: Boolean(live?.quiz), tutorials: Boolean(live?.tutorials) })
+}
+
+/* ---------- Policies (Terms & Conditions, Privacy Policy) ---------- */
+
+/*
+  Each policy is a draft of sections the owner reviews one by one. Publish
+  stores a dated snapshot, and only when every section is reviewed and no
+  placeholder is left. Text saved earlier in Settings, Policies is kept: it
+  becomes the first draft instead of the starter wording.
+*/
+
+async function policyRow(key: PolicyKey) {
+  const existing = await one<{ draft: PolicyDraft }>(`select draft from site_content where key = $1`, [`policy_${key}`])
+  if (!existing) {
+    const earlier = (await getSettings()).policies[key].trim()
+    const draft: PolicyDraft = earlier
+      ? { intro: '', sections: [{ id: 'earlier', heading: POLICY_META[key].title, body: earlier, reviewed: false, ownerNote: 'Your earlier text from Settings, kept as it was. Split it into sections if you like.' }] }
+      : starterPolicy(key)
+    await q(`insert into site_content (key, draft) values ($1, $2) on conflict (key) do nothing`, [`policy_${key}`, JSON.stringify(draft)])
+  }
+  return (await one<{ draft: PolicyDraft; published: PublishedPolicy | null; published_at: string | null; updated_at: string; updated_by: string | null }>(
+    `select draft, published, published_at, updated_at, updated_by from site_content where key = $1`,
+    [`policy_${key}`],
+  ))!
+}
+
+function parsePolicy(b: unknown) {
+  try {
+    return normalizePolicy(b)
+  } catch (err) {
+    throw badRequest((err as Error).message)
+  }
+}
+
+export async function adminPolicy(key: PolicyKey) {
+  const r = await policyRow(key)
+  const draft = normalizePolicy(r.draft)
+  const current = r.published ? policySnapshot(draft, new Date(r.published.lastUpdated)) : null
+  return {
+    key,
+    title: POLICY_META[key].title,
+    draft,
+    published: r.published,
+    publishedAt: r.published_at,
+    updatedAt: r.updated_at,
+    updatedBy: r.updated_by,
+    problems: policyProblems(draft),
+    unpublishedChanges: !r.published || JSON.stringify(current) !== JSON.stringify(r.published),
+    services: integrationStatus(),
+  }
+}
+
+export async function savePolicyDraft(actor: SessionUser, key: PolicyKey, b: unknown) {
+  await policyRow(key)
+  const draft = parsePolicy(b)
+  await q(`update site_content set draft = $1, updated_by = $2, updated_at = now() where key = $3`, [JSON.stringify(draft), actor.email, `policy_${key}`])
+  return adminPolicy(key)
+}
+
+export async function publishPolicy(actor: SessionUser, key: PolicyKey, action: 'publish' | 'unpublish', ip?: string) {
+  const r = await policyRow(key)
+  const title = POLICY_META[key].title
+  if (action === 'publish') {
+    const draft = parsePolicy(r.draft)
+    const problems = policyProblems(draft)
+    if (problems.length) throw badRequest(`${title} is not ready to publish. ${problems.join(' ')}`)
+    const snapshot = policySnapshot(draft, new Date())
+    await q(`update site_content set published = $1, published_at = now(), updated_by = $2, updated_at = now() where key = $3`, [JSON.stringify(snapshot), actor.email, `policy_${key}`])
+  } else {
+    await q(`update site_content set published = null, updated_by = $1, updated_at = now() where key = $2`, [actor.email, `policy_${key}`])
+  }
+  await audit({ actor, action: `content.policy_${action}`, entityType: 'content', entityId: `policy_${key}`, summary: `${action === 'publish' ? 'Published' : 'Unpublished'} ${title}`, ip })
+  return adminPolicy(key)
+}
+
+/** The published policy only. Null until the owner publishes it. */
+export async function publicPolicy(key: PolicyKey): Promise<PublishedPolicy | null> {
+  const r = await one<{ published: PublishedPolicy | null }>(`select published from site_content where key = $1`, [`policy_${key}`])
+  return r?.published ?? null
 }

@@ -1,0 +1,71 @@
+/* Terms & Conditions and Privacy Policy: calm, readable long form text. */
+.policy-page {
+  padding-block: var(--space-6) var(--space-8);
+}
+.policy {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 72ch;
+  line-height: 1.7;
+}
+.policy p,
+.policy ul {
+  margin: 0;
+}
+.policy ul {
+  display: grid;
+  gap: var(--space-2);
+  padding-left: 1.25rem;
+}
+.policy li::marker {
+  color: var(--raspberry);
+}
+.policy a {
+  overflow-wrap: anywhere;
+}
+.policy__updated {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--burgundy-soft);
+}
+.policy__intro {
+  font-size: var(--text-lg);
+}
+.policy__toc {
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--white);
+  border: 1px solid var(--border);
+}
+.policy .policy__toc-title {
+  font-weight: 700;
+  margin-bottom: var(--space-2);
+}
+.policy__toc ol {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: var(--text-sm);
+}
+.policy__toc a {
+  display: inline-block;
+  padding-block: 0.3rem;
+}
+.policy__section {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  scroll-margin-top: var(--space-6);
+}
+.policy__heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--text-xl);
+  color: var(--burgundy);
+  scroll-margin-top: 96px;
+}
+.policy__heading:focus {
+  outline: none;
+}

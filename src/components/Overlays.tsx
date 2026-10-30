@@ -383,6 +383,9 @@ function BagDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
               </button>
             )}
             {paymentsReady && payments === 'test' && <p className="bag__note">Test mode: use a Stripe test card. No real money moves.</p>}
+            <p className="bag__note bag__policies">
+              Before you order, read our <a href={href('terms')} onClick={onClose}>Terms & Conditions</a> and <a href={href('privacy')} onClick={onClose}>Privacy Policy</a>.
+            </p>
           </div>
         )
       }
