@@ -13,6 +13,7 @@ import { ProductArt } from '../components/ProductArt'
 import { href } from '../lib/router'
 import { useReveal } from '../lib/useReveal'
 import { useUI } from '../lib/ui'
+import { useCategoryOpen } from '../lib/store'
 import './Home.css'
 
 const benefitIcons = { download: Download, heart: HeartIcon, laptop: Laptop }
@@ -141,12 +142,16 @@ function Collections() {
 
 function ExtraCute() {
   const ref = useReveal<HTMLElement>()
+  const open = useCategoryOpen()
+  // Only categories with something to order right now; the whole section steps aside when there are none.
+  const cards = site.extraCards.filter((card) => open(card.category))
+  if (!cards.length) return null
   return (
     <section className="section extra" ref={ref} aria-labelledby="extra-title">
       <div className="container">
         <SectionHeading id="extra-title">{site.extraHeading}</SectionHeading>
-        <div className="extra__grid">
-          {site.extraCards.map((card) => {
+        <div className={`extra__grid extra__grid--${cards.length}`}>
+          {cards.map((card) => {
             const category = getCategory(card.category as CategoryId)
             return (
               <a key={card.category} className="extra-card" href={href(category.route)}>

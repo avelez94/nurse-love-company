@@ -3,6 +3,7 @@ import { Menu, Search, ShoppingBag, User } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { site } from '../data/site'
 import { useCart } from '../lib/cart'
+import { useCategoryOpen } from '../lib/store'
 import { useSession } from '../lib/session'
 import { href, type Route } from '../lib/router'
 import { useUI } from '../lib/ui'
@@ -22,6 +23,7 @@ export function Header({ route }: { route: Route }) {
   const { open, overlay, close } = useUI()
   const { count, bump } = useCart()
   const { user } = useSession()
+  const categoryOpen = useCategoryOpen()
   const [bumping, setBumping] = useState(false)
   const first = useRef(true)
 
@@ -102,9 +104,9 @@ export function Header({ route }: { route: Route }) {
           <ul className="mobile-nav mobile-nav--small">
             <li><a href={href('nurse-binder-inserts')} onClick={close}>Nurse Binder Inserts</a></li>
             <li><a href={href('np-binder-inserts')} onClick={close}>NP Binder Inserts</a></li>
-            <li><a href={href('apparel')} onClick={close}>Apparel</a></li>
-            <li><a href={href('accessories')} onClick={close}>Accessories</a></li>
-            <li><a href={href('pens')} onClick={close}>Pens</a></li>
+            {categoryOpen('apparel') && <li><a href={href('apparel')} onClick={close}>Apparel</a></li>}
+            {categoryOpen('accessories') && <li><a href={href('accessories')} onClick={close}>Accessories</a></li>}
+            {categoryOpen('pens') && <li><a href={href('pens')} onClick={close}>Pens</a></li>}
             <li><a href={href('help')} onClick={close}>Help & contact</a></li>
             <li><a href={href(user ? 'account' : 'sign-in')} onClick={close}>{user ? 'My account' : 'Sign in'}</a></li>
           </ul>

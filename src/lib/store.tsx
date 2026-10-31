@@ -247,6 +247,17 @@ export function useStore() {
   return v
 }
 
+/**
+ * Whether a category has something customers can order right now: a published
+ * product that is available or on preorder. While the store is loading this is
+ * false (so nothing flashes in and out); in the offline design preview it is
+ * true, so the layout can still be reviewed.
+ */
+export function useCategoryOpen() {
+  const { status, products } = useStore()
+  return (category: string) => (status === 'offline' ? true : status === 'live' && products.some((p) => p.category === category && (p.inStock !== false || Boolean(p.preorder))))
+}
+
 /** Price shown to customers: sale price when set. */
 export function displayPrice(p: Pick<Product, 'priceCents' | 'salePriceCents'>, variant?: Variant | null) {
   if (variant?.priceCents !== null && variant?.priceCents !== undefined) return { now: variant.priceCents, was: null }
