@@ -297,9 +297,11 @@ export function ProductEditor({ id }: { id: string }) {
           {!isNew && data && form.type === 'physical' && <Variants productId={id} variants={data.variants} reload={reload} />}
           {!isNew && data && form.type === 'physical' && <PrintfulLinks productId={id} variantsKey={data.variants.map((v) => `${v.id}:${v.active}`).join(',')} reload={reload} />}
           {!isNew && data && <Images productId={id} images={data.images.filter((i) => i.kind === 'gallery')} variants={data.variants} reload={reload} />}
-          {!isNew && data && <Previews productId={id} images={data.images.filter((i) => i.kind !== 'gallery')} reload={reload} />}
+          {/* Sample previews and "What's included" describe digital files, so physical items do not show them. Saved values are kept. */}
+          {!isNew && data && form.type === 'digital' && <Previews productId={id} images={data.images.filter((i) => i.kind !== 'gallery')} reload={reload} />}
           <section className="panel form-stack">
-            <h2 className="panel__title">What's included and walkthrough</h2>
+            <h2 className="panel__title">{form.type === 'digital' ? "What's included and walkthrough" : 'Walkthrough video'}</h2>
+            {form.type === 'digital' && (
             <TextArea
               label="What's included"
               value={form.whats_included.join('\n')}
@@ -307,6 +309,7 @@ export function ProductEditor({ id }: { id: string }) {
               rows={5}
               hint="One item per line, for example a section name and its page count. Shown as a list on the product page. Leave empty to hide."
             />
+            )}
             <Select
               label="Walkthrough video (optional)"
               value={form.walkthrough_tutorial_id ?? ''}

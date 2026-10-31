@@ -100,7 +100,7 @@ export function ProductView({ product, preview = false }: { product: ProductReco
               {added ? <Heart className="button__heart" /> : <ShoppingBag aria-hidden="true" size={18} />}
               {soldOut ? 'Sold out' : unpriced ? 'Pricing to be added' : needsVariant ? 'Choose an option' : added ? (isDigital ? 'In your bag' : 'Add another') : product.isFreebie ? 'Add free resource to bag' : 'Add to bag'}
             </button>
-            {product.samplePages.length > 0 && (
+            {isDigital && product.samplePages.length > 0 && (
               <button type="button" className="button button--outline" onClick={() => open({ kind: 'peek', product })} aria-haspopup="dialog">
                 <BookOpen aria-hidden="true" size={18} />
                 Peek inside
@@ -130,7 +130,7 @@ export function ProductView({ product, preview = false }: { product: ProductReco
             </a>
           )}
 
-          {Boolean(product.whatsIncluded?.length) && (
+          {isDigital && Boolean(product.whatsIncluded?.length) && (
             <section className="included" aria-labelledby="included-title">
               <h2 id="included-title" className="details__title">What's included</h2>
               <ul className="included__list">
