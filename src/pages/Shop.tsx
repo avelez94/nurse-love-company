@@ -2,7 +2,7 @@ import { ServerUnavailable } from '../components/Unavailable'
 import { Search, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { categories } from '../data/catalog'
-import { useStore } from '../lib/store'
+import { useCategoryOpen, useStore } from '../lib/store'
 import { site } from '../data/site'
 import type { CategoryId } from '../data/types'
 import { DigitalLabel } from '../components/Labels'
@@ -21,6 +21,9 @@ export function Shop() {
   const [selected, setSelected] = useState<CategoryId[]>([])
   const [query, setQuery] = useState('')
   const { products, status } = useStore()
+  const categoryOpen = useCategoryOpen()
+  // Only categories of items that ship with something to order right now; the box steps aside when there are none.
+  const shipping = categories.filter((c) => c.type === 'physical' && categoryOpen(c.id))
   const all = useMemo(() => products.filter((p) => p.type === 'digital'), [products])
 
   const results = useMemo(() => {
@@ -99,18 +102,18 @@ export function Shop() {
             </div>
           </div>
         )}
-        <aside className="shop__more">
-          <p>Looking for something that ships?</p>
-          <div className="chip-row">
-            {categories
-              .filter((c) => c.type === 'physical')
-              .map((c) => (
-                <a key={c.id} className="chip" href={href(c.route)}>
-                  {c.title}
-                </a>
-              ))}
-          </div>
-        </aside>
+        {shipping.length > 0 && (
+          <aside className="shop__more">
+            <p>Looking for something that ships?</p>
+            <div className="chip-row">
+              {shipping.map((c) => (
+                  <a key={c.id} className="chip" href={href(c.route)}>
+                    {c.title}
+                  </a>
+                ))}
+            </div>
+          </aside>
+        )}
       </section>
     </>
   )

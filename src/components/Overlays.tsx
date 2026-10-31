@@ -1,7 +1,7 @@
 import { ShippingStep, type ShippingChoice } from './ShippingStep'
 import { ArrowLeft, ArrowRight, BookOpen, Download, GraduationCap, Minus, Plus, Search, Shirt, ShoppingBag, Stethoscope, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { getCategory } from '../data/catalog'
+import { categories, getCategory } from '../data/catalog'
 import { site } from '../data/site'
 import type { Freebie, Product } from '../data/types'
 import { useCart } from '../lib/cart'
@@ -9,7 +9,7 @@ import { offerDownload } from '../lib/download'
 import { api, errorMessage } from '../lib/api'
 import { formatPrice } from '../lib/format'
 import { useSession } from '../lib/session'
-import { displayPrice, useStore } from '../lib/store'
+import { displayPrice, useCategoryOpen, useStore } from '../lib/store'
 import { href, navigate } from '../lib/router'
 import { buildSamplePlannerPdf } from '../../shared/samplePdf'
 import { CONSENT_WORDING, type MarketingStatus } from '../../shared/consent'
@@ -26,6 +26,12 @@ import { TutorialHelpLink } from './TutorialCard'
 import './Overlays.css'
 
 /** Adds an item to the bag with a friendly confirmation. */
+/** Whether any category of items that ship has something to order right now. */
+function useAnyShippingCategory() {
+  const open = useCategoryOpen()
+  return categories.some((c) => c.type === 'physical' && open(c.id))
+}
+
 export function useAddToBag() {
   const { add } = useCart()
   const { showToast, open } = useUI()
@@ -54,6 +60,7 @@ export function Overlays() {
 const kindLabel = { digital: 'Digital download', physical: 'Ships to you', freebie: 'Freebie', tutorial: 'Tutorial', page: 'Page' } as const
 
 function SearchDialog({ open, initial, onClose }: { open: boolean; initial: string; onClose: () => void }) {
+  const anyShipping = useAnyShippingCategory()
   const [query, setQuery] = useState(initial)
   const input = useRef<HTMLInputElement>(null)
   const { products, tutorials } = useStore()
@@ -116,7 +123,7 @@ function SearchDialog({ open, initial, onClose }: { open: boolean; initial: stri
             <p className="muted">Check the spelling, try a shorter word, or browse a collection.</p>
             <div className="chip-row">
               <a className="chip" href={href('shop')} onClick={onClose}>All digital resources</a>
-              <a className="chip" href={href('extra-cute')} onClick={onClose}>Apparel & accessories</a>
+              {anyShipping && <a className="chip" href={href('extra-cute')} onClick={onClose}>Apparel & accessories</a>}
               <a className="chip" href={href('freebie-corner')} onClick={onClose}>The Freebie Corner</a>
             </div>
           </div>
@@ -256,6 +263,7 @@ function FinderDialog({ open, onClose }: { open: boolean; onClose: () => void })
 /* Bag */
 
 function BagDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const anyShipping = useAnyShippingCategory()
   const { lines, count, remove, setQuantity, clear, checkoutItems } = useCart()
   const { user } = useSession()
   const { payments, status, physicalSales } = useStore()
@@ -425,7 +433,7 @@ function BagDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
           <p className="muted">Find something you love and it will wait for you here.</p>
           <div className="chip-row">
             <a className="chip" href={href('shop')} onClick={onClose}>Digital resources</a>
-            <a className="chip" href={href('extra-cute')} onClick={onClose}>Apparel & accessories</a>
+            {anyShipping && <a className="chip" href={href('extra-cute')} onClick={onClose}>Apparel & accessories</a>}
           </div>
         </div>
       ) : (
