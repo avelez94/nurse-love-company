@@ -2,6 +2,8 @@ import './env.js'
 import assert from 'node:assert/strict'
 import { after, beforeEach, describe, it } from 'node:test'
 import { recheckCoupons, setPromoLookup, type PromoTerms } from '../services/marketing.js'
+import sharp from 'sharp'
+import { storage } from '../lib/storage.js'
 import { api, one, q, setup, signUp, teardown } from './helpers.js'
 
 beforeEach(async () => {
@@ -237,3 +239,28 @@ describe('marketing statistics and images', () => {
     assert.equal((await api(`/api/admin/marketing/banners/${plain}/image`, { session: a, body: png(), headers: { 'content-type': 'image/png', 'x-file-name': 'x.png' } })).status, 409)
   })
 })
+
+describe('Nurse Kin logo', () => {
+  beforeEach(setup)
+  after(teardown)
+
+  it('trims blank or transparent edges from the uploaded logo so it can fill its space', async () => {
+    const a = await signUp('owner@example.com', 'admin')
+    await api('/api/admin/marketing/popup', { session: a })
+    const logo = await sharp({ create: { width: 600, height: 400, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+      .composite([{ input: await sharp({ create: { width: 200, height: 60, channels: 4, background: { r: 200, g: 20, b: 60, alpha: 1 } } }).png().toBuffer(), left: 200, top: 170 }])
+      .png()
+      .toBuffer()
+    const up = await api('/api/admin/marketing/popup/image', { session: a, body: logo, headers: { 'content-type': 'image/png', 'x-file-name': 'nurse-kin.png' } })
+    assert.equal(up.status, 201, JSON.stringify(up.data))
+    const row = (await one<{ image_key: string; image_type: string }>(`select image_key, image_type from marketing_popup where id = 'nurse_kin'`))!
+    assert.match(row.image_key, /trimmed-.*\.png$/)
+    assert.equal(row.image_type, 'image/png')
+    const opened = await storage().open(row.image_key)
+    const chunks: Buffer[] = []
+    for await (const c of opened.stream) chunks.push(c as Buffer)
+    const meta = await sharp(Buffer.concat(chunks)).metadata()
+    assert.deepEqual([meta.width, meta.height], [200, 60])
+  })
+})
+

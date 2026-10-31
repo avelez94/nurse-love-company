@@ -17,12 +17,29 @@ import { config } from '../env.js'
 import { audit } from '../lib/audit.js'
 import { badRequest, HttpError, notFound } from '../lib/errors.js'
 import { allowed, imageSize, safeFileName, type Kind } from '../lib/files.js'
+import sharp from 'sharp'
 import { storage } from '../lib/storage.js'
 import { checkStoredUpload, type UploadedFile } from '../lib/upload.js'
 import { watermarkPreview } from '../lib/watermark.js'
 import { setStoryPortrait, STORY_UPLOAD_TARGET } from './content.js'
 import { attachMarketingImage, POPUP_UPLOAD_TARGET } from './marketing.js'
 import { processLocalVideo, recordUploadFailure, recordUploadStart } from './tutorials.js'
+
+/** Removes plain blank or transparent borders from an uploaded image (saved as PNG to keep transparency). Keeps the original when nothing can be trimmed. */
+async function trimEdges(key: string, contentType: string) {
+  try {
+    const opened = await storage().open(key)
+    const chunks: Buffer[] = []
+    for await (const c of opened.stream) chunks.push(c as Buffer)
+    const out = await sharp(Buffer.concat(chunks), { failOn: 'error' }).rotate().trim({ threshold: 12 }).png().toBuffer()
+    const trimmed = `${key.replace(/\/[^/]*$/, '')}/trimmed-${randomUUID()}.png`
+    await storage().put(trimmed, Readable.from([out]), 'image/png', out.length + 1)
+    await storage().remove(key).catch(() => {})
+    return { key: trimmed, contentType: 'image/png' }
+  } catch {
+    return { key, contentType }
+  }
+}
 
 export type Purpose = 'product_image' | 'product_file' | 'tutorial_thumbnail' | 'tutorial_video' | 'banner_image' | 'popup_image' | 'story_portrait'
 
@@ -221,7 +238,9 @@ export async function attachUpload(
     return { ok: true }
   }
   if (purpose === 'banner_image' || purpose === 'popup_image') {
-    await attachMarketingImage(purpose === 'banner_image' ? 'banner' : 'popup', targetId, f.key, f.contentType)
+    // The Nurse Kin image is usually a logo: blank or transparent edges are trimmed so it can fill its space.
+    const img = purpose === 'popup_image' ? await trimEdges(f.key, f.contentType) : { key: f.key, contentType: f.contentType }
+    await attachMarketingImage(purpose === 'banner_image' ? 'banner' : 'popup', targetId, img.key, img.contentType)
     await audit({ actor, action: `marketing.${purpose}_uploaded`, entityType: purpose === 'banner_image' ? 'banner' : 'popup', entityId: targetId, summary: `Uploaded a ${purpose === 'banner_image' ? 'banner' : 'Nurse Kin popup'} image (${f.fileName})`, ip })
     return { ok: true }
   }

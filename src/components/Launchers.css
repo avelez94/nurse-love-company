@@ -415,8 +415,12 @@ html.has-sheet {
   gap: var(--space-3);
 }
 .kin__image {
-  max-width: 140px;
-  max-height: 90px;
+  display: block;
+  justify-self: center;
+  width: min(100%, 300px);
+  max-height: 130px;
+  margin: 0;
+  padding: 0;
   object-fit: contain;
 }
 .kin__title {
