@@ -60,7 +60,7 @@ export function Footer() {
           Made with <Heart className="site-footer__credit-heart" />
           <span className="visually-hidden">love</span> by{' '}
           <a href="https://alantevelez.com" target="_blank" rel="noopener noreferrer">
-            Alante
+            Alante Velez
             <span className="visually-hidden"> (website designer, opens in a new tab)</span>
           </a>
         </p>
