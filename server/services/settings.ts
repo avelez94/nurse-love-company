@@ -14,6 +14,8 @@ export interface Settings {
   freebies: { items: Array<{ id: string; title: string; summary: string; published: boolean }> }
   shipping: { configured: boolean; flat_rate_cents: number | null; free_over_cents: number | null; countries: string[]; note: string }
   payments: { automatic_tax: boolean }
+  /** The floating "Find my resources" and Nurse Kin buttons: a one time hint per visit, and the soft glow. */
+  launchers: { hints: boolean; glow: boolean }
   policies: {
     status: 'awaiting_approval' | 'approved'
     refund_policy: string
@@ -33,6 +35,7 @@ export const defaultSettings: Settings = {
   freebies: { items: [] },
   shipping: { configured: false, flat_rate_cents: null, free_over_cents: null, countries: ['US'], note: '' },
   payments: { automatic_tax: false },
+  launchers: { hints: true, glow: true },
   policies: { status: 'awaiting_approval', refund_policy: '', shipping_policy: '', terms: '', privacy: '', refund_download_policy: 'revoke_unredeemed', digital_repurchase: 'block' },
 }
 

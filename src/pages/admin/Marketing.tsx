@@ -164,7 +164,62 @@ export function Banners() {
       )}
       <Checkbox label="Show archived banners" checked={showArchived} onChange={setShowArchived} />
       <p className="muted">Times are shown in your timezone: {timezoneLabel()}.</p>
+      <LauncherSettingsPanel />
     </>
+  )
+}
+
+/* ---------- Floating buttons ---------- */
+
+interface LauncherSettings {
+  hints: boolean
+  glow: boolean
+}
+
+/** Settings for the "Find my resources" and Nurse Kin buttons in the bottom right corner. */
+function LauncherSettingsPanel() {
+  const { data, error, reload } = useApiData<{ settings: { launchers: LauncherSettings } }>('/api/admin/settings')
+  const { showToast } = useUI()
+  const [form, setForm] = useState<LauncherSettings | null>(null)
+  const [saveError, setSaveError] = useState('')
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    if (data) setForm(data.settings.launchers)
+  }, [data])
+  if (error) return <FormError message={error} />
+  if (!form) return null
+  const save = async (next: LauncherSettings) => {
+    setForm(next)
+    setBusy(true)
+    setSaveError('')
+    try {
+      await api('/api/admin/settings/launchers', { method: 'PUT', body: next })
+      showToast('Saved. Visitors see the change within a minute.')
+      await reload()
+    } catch (err) {
+      setSaveError(errorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <section className="panel form-stack">
+      <h2 className="panel__title">Floating buttons</h2>
+      <p className="muted">The "Find my resources" and Nurse Kin buttons in the bottom right corner. They appear only while the quiz or Nurse Kin is published.</p>
+      <Checkbox
+        label="Show a one time tip"
+        checked={form.hints}
+        onChange={(v) => !busy && save({ ...form, hints: v })}
+        hint="After about 20 seconds of browsing, a small speech bubble may invite visitors to one of the buttons, at most once per visit. It never opens a panel by itself."
+      />
+      <Checkbox
+        label="Soft pink glow"
+        checked={form.glow}
+        onChange={(v) => !busy && save({ ...form, glow: v })}
+        hint="A gentle blush glow around both buttons, with one brief pulse when they first appear. Visitors who prefer reduced motion see no pulse."
+      />
+      <FormError message={saveError} />
+    </section>
   )
 }
 

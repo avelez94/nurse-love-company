@@ -1,4 +1,4 @@
-/* Floating launchers: small labeled pills in the bottom right corner. No badges, dots or attention animations. */
+/* Floating launchers: small labeled pills in the bottom right corner. No badges or dots; the optional glow pulses once on arrival, then stays still. */
 .launchers {
   position: fixed;
   right: calc(20px + env(safe-area-inset-right, 0px));
@@ -46,6 +46,112 @@ html.has-dialog .launcher-backdrop {
 .launcher-panel__close:focus-visible {
   outline: 3px solid var(--raspberry);
   outline-offset: 2px;
+}
+
+/* Soft blush glow (owner setting). One gentle pulse when the buttons first appear, then a still shadow. */
+.launchers--glow .launcher {
+  --glow: 0 0 0 1px rgb(246 201 214 / 0.55), 0 0 16px 2px rgb(246 201 214 / 0.75), var(--shadow-sm);
+  box-shadow: var(--glow);
+  transition: background-color var(--dur-fast), border-color var(--dur-fast), box-shadow var(--dur-base) var(--ease-out);
+  /* backwards, not both: once finished, hover and focus can strengthen the glow. */
+  animation: launcher-glow 1600ms var(--ease-in-out) 400ms 1 backwards;
+}
+.launchers--glow .launcher:hover,
+.launchers--glow .launcher:focus-visible {
+  box-shadow: 0 0 0 1px rgb(246 201 214 / 0.8), 0 0 22px 5px rgb(246 201 214 / 0.95), var(--shadow-sm);
+}
+@keyframes launcher-glow {
+  0% {
+    box-shadow: var(--shadow-sm);
+  }
+  45% {
+    box-shadow: 0 0 0 1px rgb(246 201 214 / 0.8), 0 0 26px 7px rgb(246 201 214 / 0.95), var(--shadow-sm);
+  }
+  100% {
+    box-shadow: var(--glow);
+  }
+}
+
+/* The once per visit invitation: a small speech bubble above the buttons. */
+.launcher-hint {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  max-width: min(280px, calc(100vw - 40px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+  margin-bottom: 6px;
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--ivory);
+  border: 1px solid var(--pink-deep);
+  box-shadow: var(--shadow-md);
+  color: var(--burgundy);
+  animation: launcher-hint-in var(--dur-section) var(--ease-out) both;
+}
+.launcher-hint::after {
+  content: '';
+  position: absolute;
+  right: 26px;
+  bottom: -7px;
+  width: 12px;
+  height: 12px;
+  background: var(--ivory);
+  border-right: 1px solid var(--pink-deep);
+  border-bottom: 1px solid var(--pink-deep);
+  rotate: 45deg;
+}
+.launcher-hint__open {
+  flex: 1;
+  min-height: 44px;
+  padding: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+}
+.launcher-hint__open:hover {
+  color: var(--raspberry-dark);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.launcher-hint__close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--burgundy-soft);
+  cursor: pointer;
+}
+.launcher-hint__close:hover {
+  background: var(--blush);
+}
+.launcher-hint__open:focus-visible,
+.launcher-hint__close:focus-visible {
+  outline: 3px solid var(--raspberry);
+  outline-offset: 1px;
+}
+@keyframes launcher-hint-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .launchers--glow .launcher,
+  .launcher-hint {
+    animation: none;
+  }
 }
 
 .launcher-panel {

@@ -12,6 +12,12 @@ import './Launchers.css'
   owner's quiz) and the Nurse Kin invitation. Nothing opens by itself. Only
   one panel is open at a time. On phones a panel is a bottom sheet that
   keeps focus inside it. Escape closes and focus returns to the launcher.
+
+  Once per browsing session, after about 20 seconds of active browsing, a
+  small speech bubble may invite the visitor to one of the launchers. It
+  never opens a panel or moves focus by itself, waits while anything else
+  has the visitor's attention, and stops for the session as soon as it is
+  dismissed or either launcher is used.
 */
 
 /* ---------- Quiz ---------- */
@@ -245,12 +251,42 @@ export function NurseKinCard({ popup, preview, titleId, onClick }: { popup: Publ
 /* ---------- Launchers ---------- */
 
 const HIDDEN_ROUTES: Array<Route['name']> = ['auth', 'checkout', 'account', 'admin', 'email-preferences']
+
+/* Invitation hint: at most one per browsing session. */
+const HINT_KEY = 'nlc-launcher-hint'
+const HINT_AFTER_SECONDS = 20
+const HINT_VISIBLE_MS = 12000
+/** Seconds without scrolling, pointer or key activity after which browsing no longer counts as active. */
+const IDLE_AFTER_MS = 15000
+const HINTS = { quiz: 'Need a little help finding your resources? ♡', kin: 'Have you met Nurse Kin? ♡' } as const
+
+/** Something else has the visitor's attention: a dialog, drawer or sheet, or a form field being typed in. */
+function attentionElsewhere() {
+  const html = document.documentElement
+  if (html.classList.contains('has-dialog') || html.classList.contains('has-sheet')) return true
+  if (document.querySelector('dialog[open], [aria-modal="true"]')) return true
+  const a = document.activeElement as HTMLElement | null
+  return Boolean(a && (a.matches('input, textarea, select') || a.isContentEditable))
+}
+
+/** A page button, link or field sits where the hint would appear above the launchers, so showing it now would cover it. */
+function hintWouldCover(stack: HTMLElement | null) {
+  if (!stack) return true
+  const s = stack.getBoundingClientRect()
+  const area = { left: Math.max(0, s.right - 290), right: s.right, top: s.top - 96, bottom: s.top }
+  return Array.from(document.querySelectorAll<HTMLElement>('main a[href], main button, main input, main select, main textarea, main [role="button"]')).some((el) => {
+    const r = el.getBoundingClientRect()
+    return r.width > 0 && r.left < area.right && r.right > area.left && r.top < area.bottom && r.bottom > area.top
+  })
+}
 const focusables = (root: HTMLElement) => Array.from(root.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])')).filter((el) => el.offsetParent !== null)
 
 export function FloatingLaunchers() {
-  const { quiz, popup } = useMarketing()
+  const { quiz, popup, launchers } = useMarketing()
   const route = useRoute()
   const [open, setOpen] = useState<'quiz' | 'kin' | null>(null)
+  const [hint, setHint] = useState<'quiz' | 'kin' | null>(null)
+  const activeSeconds = useRef(0)
   const [sheet, setSheet] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 600px)').matches)
   const [videoPlaying, setVideoPlaying] = useState(false)
   const quizBtn = useRef<HTMLButtonElement>(null)
@@ -268,12 +304,21 @@ export function FloatingLaunchers() {
     })
   }, [])
 
+  // Using either launcher, or dismissing the hint, ends hints for this session.
+  const endHints = useCallback(() => {
+    writeStore('session', HINT_KEY, 'done')
+    setHint(null)
+  }, [])
+
   // "Find your essentials" on the home page opens the quiz panel.
   useEffect(() => {
-    const onOpen = () => setOpen('quiz')
+    const onOpen = () => {
+      endHints()
+      setOpen('quiz')
+    }
     window.addEventListener('nlc:open-quiz', onOpen)
     return () => window.removeEventListener('nlc:open-quiz', onOpen)
-  }, [])
+  }, [endHints])
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 600px)')
@@ -299,6 +344,42 @@ export function FloatingLaunchers() {
     if (!visible && open) setOpen(null)
   }, [visible, open])
 
+  // Count active browsing time (tab visible, recent scrolling, pointer or key activity) across pages, then offer one hint.
+  useEffect(() => {
+    if (!visible || !launchers.hints || open || hint || readStore('session', HINT_KEY)) return
+    let last = Date.now()
+    const mark = () => (last = Date.now())
+    const events = ['pointermove', 'pointerdown', 'keydown', 'scroll', 'wheel', 'touchstart'] as const
+    events.forEach((e) => window.addEventListener(e, mark, { passive: true }))
+    const timer = window.setInterval(() => {
+      if (document.visibilityState !== 'visible' || Date.now() - last > IDLE_AFTER_MS) return
+      activeSeconds.current += 1
+      if (activeSeconds.current < HINT_AFTER_SECONDS || attentionElsewhere() || hintWouldCover(stackRef.current) || readStore('session', HINT_KEY)) return
+      const choices = [quiz ? 'quiz' : null, popup ? 'kin' : null].filter((x): x is 'quiz' | 'kin' => x !== null)
+      if (!choices.length) return
+      writeStore('session', HINT_KEY, 'shown')
+      setHint(choices[Math.floor(Math.random() * choices.length)])
+    }, 1000)
+    return () => {
+      window.clearInterval(timer)
+      events.forEach((e) => window.removeEventListener(e, mark))
+    }
+  }, [visible, launchers.hints, open, hint, quiz, popup])
+
+  // A shown hint leaves after a short while, or at once if a panel, dialog or form takes over.
+  useEffect(() => {
+    if (!hint) return
+    if (open || !visible) {
+      setHint(null)
+      return
+    }
+    const started = Date.now()
+    const timer = window.setInterval(() => {
+      if (Date.now() - started > HINT_VISIBLE_MS || attentionElsewhere()) setHint(null)
+    }, 500)
+    return () => window.clearInterval(timer)
+  }, [hint, open, visible])
+
   // Keep the back to top button clear of the launchers.
   useEffect(() => {
     const root = document.documentElement
@@ -315,7 +396,7 @@ export function FloatingLaunchers() {
       ro?.disconnect()
       root.style.removeProperty('--launcher-stack')
     }
-  }, [visible, quiz, popup])
+  }, [visible, quiz, popup, hint])
 
   // Focus the panel when it opens; lock page scrolling for the phone sheet.
   useEffect(() => {
@@ -349,7 +430,10 @@ export function FloatingLaunchers() {
     }
   }
 
-  const toggle = (which: 'quiz' | 'kin') => setOpen((cur) => (cur === which ? null : which))
+  const toggle = (which: 'quiz' | 'kin') => {
+    endHints()
+    setOpen((cur) => (cur === which ? null : which))
+  }
 
   return (
     <>
@@ -371,7 +455,28 @@ export function FloatingLaunchers() {
           {open === 'kin' && popup && <NurseKinCard popup={popup} onClick={() => sendMarketingEvent('popup', 'nurse_kin', popup.version, 'click')} />}
         </div>
       )}
-      <div className="launchers" ref={stackRef} role="group" aria-label="Helpful extras">
+      <p className="visually-hidden" aria-live="polite">
+        {hint ? `Tip: ${HINTS[hint]}` : ''}
+      </p>
+      <div className={`launchers ${launchers.glow ? 'launchers--glow' : ''}`} ref={stackRef} role="group" aria-label="Helpful extras">
+        {hint && (
+          <div className="launcher-hint">
+            <button
+              type="button"
+              className="launcher-hint__open"
+              onClick={() => {
+                const which = hint
+                endHints()
+                setOpen(which)
+              }}
+            >
+              {HINTS[hint]}
+            </button>
+            <button type="button" className="launcher-hint__close" aria-label="Dismiss this tip" onClick={endHints}>
+              <X aria-hidden="true" size={14} />
+            </button>
+          </div>
+        )}
         {popup && (
           <button ref={kinBtn} type="button" className={`launcher ${open === 'kin' ? 'is-open' : ''}`} aria-expanded={open === 'kin'} aria-controls={open === 'kin' ? panelId : undefined} onClick={() => toggle('kin')}>
             <HeartHandshake aria-hidden="true" size={18} />

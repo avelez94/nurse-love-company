@@ -71,6 +71,13 @@ Each banner shows **times shown**, **clicks**, **click rate** and **times closed
 
 Marketing, **Resource Quiz**. A "Find my resources" button in the corner of the store (and the "Find your essentials" button on the home page) opens a short quiz that suggests products. It is not a medical assessment, needs no email, and answers are never stored. The corner button is hidden until a quiz is published.
 
+**Floating buttons** (Marketing page, at the bottom). Two switches for the "Find my resources" and Nurse Kin buttons:
+
+* **Show a one time tip**: after about 20 seconds of active browsing, a small speech bubble above the buttons says "Need a little help finding your resources? ♡" or "Have you met Nurse Kin? ♡" (only for buttons that are published). At most once per visit. It never opens a panel by itself; clicking it opens that panel, and it has a close button and fades away after about 12 seconds. It waits while a panel, dialog, the bag or a video is open, while someone is typing, and while page buttons or links sit where it would appear. Closing it or using either button ends tips for that visit.
+* **Soft pink glow**: a blush glow around both buttons with one gentle pulse when they first appear. Visitors who prefer reduced motion see no pulse or fade.
+
+Neither appears on sign in, checkout, account, email preference or admin pages.
+
 1. **New quiz**, give it an internal name.
 2. **Basics:** the title, a short introduction and the wording of the final button.
 3. **Result groups:** each group is a possible result. Give it a title, a short explanation, and choose products and/or collections. Optionally add tutorials or a link to The Freebie Corner. Only published, active products are ever shown; others are marked in the list.

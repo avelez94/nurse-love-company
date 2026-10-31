@@ -16,6 +16,7 @@
     Visitors open it themselves; it never opens automatically.
   * Statistics are daily aggregate counts with no visitor identifiers.
 */
+import { getSettings } from './settings.js'
 import type { SessionUser } from '../auth.js'
 import { one, q } from '../db/pool.js'
 import { audit } from '../lib/audit.js'
@@ -503,7 +504,7 @@ export async function publicMarketing(now = Date.now()) {
           version: p.campaign_version,
         }
       : null
-  return { banners, popup }
+  return { banners, popup, launchers: (await getSettings()).launchers }
 }
 
 /** Image of a live banner or popup (admins may also see drafts). */

@@ -405,7 +405,7 @@ describe('email automations', () => {
 
     const t = await api('/api/admin/automations/download_reminder/test', { session: admin, body: { to: 'owner-inbox@example.com' } })
     assert.equal(t.status, 200)
-    await drainOutbox()
+    await settle()
     assert.equal(sent.length, 1)
     assert.equal(sent[0].to, 'owner-inbox@example.com')
     assert.match(sent[0].subject, /^\[Test\] /)

@@ -193,3 +193,18 @@ describe('policies', () => {
     assert.equal((await api('/api/admin/content/policies/privacy', { session: admin })).data.draft.sections.length > 5, true)
   })
 })
+
+describe('floating button settings', () => {
+  beforeEach(setup)
+  after(teardown)
+
+  it('hints and glow default on, are saved by admins only, and reach the storefront', async () => {
+    const admin = await signUp('owner@example.com', 'admin')
+    const buyer = await signUp('buyer@example.com')
+    assert.deepEqual((await api('/api/marketing')).data.launchers, { hints: true, glow: true })
+    assert.equal((await api('/api/admin/settings/launchers', { session: buyer, method: 'PUT', body: { hints: false } })).status, 403)
+    const r = await api('/api/admin/settings/launchers', { session: admin, method: 'PUT', body: { hints: false, extra: 'ignored' } })
+    assert.equal(r.status, 200, JSON.stringify(r.data))
+    assert.deepEqual((await api('/api/marketing')).data.launchers, { hints: false, glow: true })
+  })
+})

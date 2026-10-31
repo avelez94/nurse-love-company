@@ -54,13 +54,21 @@ export interface PublicQuiz {
   tutorials: Array<{ id: string; slug: string; title: string }>
 }
 
+/** Owner settings for the floating buttons. */
+export interface LauncherSettings {
+  hints: boolean
+  glow: boolean
+}
+
 interface MarketingValue {
   banners: PublicBanner[]
   popup: PublicPopup | null
   quiz: PublicQuiz | null
+  launchers: LauncherSettings
 }
 
-const Ctx = createContext<MarketingValue>({ banners: [], popup: null, quiz: null })
+const noLauncherExtras: LauncherSettings = { hints: false, glow: false }
+const Ctx = createContext<MarketingValue>({ banners: [], popup: null, quiz: null, launchers: noLauncherExtras })
 
 const getJson = (url: string) =>
   fetch(url, { credentials: 'same-origin' })
@@ -68,12 +76,13 @@ const getJson = (url: string) =>
     .catch(() => null)
 
 export function MarketingProvider({ children }: { children: ReactNode }) {
-  const [value, setValue] = useState<MarketingValue>({ banners: [], popup: null, quiz: null })
+  const [value, setValue] = useState<MarketingValue>({ banners: [], popup: null, quiz: null, launchers: noLauncherExtras })
   useEffect(() => {
     let alive = true
     void Promise.all([getJson('/api/marketing'), getJson('/api/quiz')]).then(([m, qz]) => {
       if (!alive) return
-      setValue({ banners: Array.isArray(m?.banners) ? m.banners : [], popup: m?.popup ?? null, quiz: qz?.quiz ?? null })
+      const l = m?.launchers
+      setValue({ banners: Array.isArray(m?.banners) ? m.banners : [], popup: m?.popup ?? null, quiz: qz?.quiz ?? null, launchers: { hints: l?.hints === true, glow: l?.glow === true } })
     })
     return () => {
       alive = false
