@@ -124,7 +124,7 @@ export function ProductView({ product, preview = false }: { product: ProductReco
           )}
 
           {isDigital && <TutorialHelpLink category={product.category} />}
-          {product.walkthrough && (
+          {isDigital && product.walkthrough && (
             <a className="arrow-link" href={href(`tutorial-${product.walkthrough.slug}`)}>
               <PlayCircle aria-hidden="true" size={18} /> Watch the walkthrough: {product.walkthrough.title}
             </a>

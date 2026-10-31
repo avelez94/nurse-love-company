@@ -297,27 +297,27 @@ export function ProductEditor({ id }: { id: string }) {
           {!isNew && data && form.type === 'physical' && <Variants productId={id} variants={data.variants} reload={reload} />}
           {!isNew && data && form.type === 'physical' && <PrintfulLinks productId={id} variantsKey={data.variants.map((v) => `${v.id}:${v.active}`).join(',')} reload={reload} />}
           {!isNew && data && <Images productId={id} images={data.images.filter((i) => i.kind === 'gallery')} variants={data.variants} reload={reload} />}
-          {/* Sample previews and "What's included" describe digital files, so physical items do not show them. Saved values are kept. */}
+          {/* Sample previews, "What's included" and walkthroughs are for digital files, so physical items do not show them. Saved values are kept. */}
           {!isNew && data && form.type === 'digital' && <Previews productId={id} images={data.images.filter((i) => i.kind !== 'gallery')} reload={reload} />}
-          <section className="panel form-stack">
-            <h2 className="panel__title">{form.type === 'digital' ? "What's included and walkthrough" : 'Walkthrough video'}</h2>
-            {form.type === 'digital' && (
-            <TextArea
-              label="What's included"
-              value={form.whats_included.join('\n')}
-              onChange={(v) => set('whats_included', v.split('\n').map((x) => x.replace(/^\s*[•*]\s*/, '')).slice(0, 25))}
-              rows={5}
-              hint="One item per line, for example a section name and its page count. Shown as a list on the product page. Leave empty to hide."
-            />
-            )}
-            <Select
-              label="Walkthrough video (optional)"
-              value={form.walkthrough_tutorial_id ?? ''}
-              onChange={(v) => set('walkthrough_tutorial_id', v || null)}
-              options={[{ value: '', label: 'None' }, ...(tutorials.data?.tutorials ?? []).filter((t) => t.status !== 'archived').map((t) => ({ value: t.id, label: `${t.title}${t.status === 'published' ? '' : ' (not published yet, hidden until it is)'}` }))]}
-              hint="Pick a tutorial that walks through this product. The link appears only while the tutorial is published."
-            />
-          </section>
+          {form.type === 'digital' && (
+            <section className="panel form-stack">
+              <h2 className="panel__title">What's included and walkthrough</h2>
+              <TextArea
+                label="What's included"
+                value={form.whats_included.join('\n')}
+                onChange={(v) => set('whats_included', v.split('\n').map((x) => x.replace(/^\s*[•*]\s*/, '')).slice(0, 25))}
+                rows={5}
+                hint="One item per line, for example a section name and its page count. Shown as a list on the product page. Leave empty to hide."
+              />
+              <Select
+                label="Walkthrough video (optional)"
+                value={form.walkthrough_tutorial_id ?? ''}
+                onChange={(v) => set('walkthrough_tutorial_id', v || null)}
+                options={[{ value: '', label: 'None' }, ...(tutorials.data?.tutorials ?? []).filter((t) => t.status !== 'archived').map((t) => ({ value: t.id, label: `${t.title}${t.status === 'published' ? '' : ' (not published yet, hidden until it is)'}` }))]}
+                hint="Pick a tutorial that walks through this product. The link appears only while the tutorial is published."
+              />
+            </section>
+          )}
           {!isNew && data && form.type === 'digital' && (
             <Files
               productId={id}
