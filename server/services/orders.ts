@@ -21,6 +21,7 @@ import { badRequest, conflict, HttpError, notFound } from '../lib/errors.js'
 import { stripe, type Stripe } from '../lib/stripe.js'
 import { applyRefundToEntitlements, grantPurchaseEntitlements } from './entitlements.js'
 import { getSettings } from './settings.js'
+import { kickPrintful, linksForLines, physicalSales, queuePrintfulOrder, useQuote } from './printful.js'
 
 export interface CartLine {
   productId: string
@@ -80,19 +81,16 @@ export async function priceCart(user: SessionUser | null, lines: CartLine[], cli
       }
     } else {
       if (qty > 10) throw badRequest(`You can order up to 10 of ${p.title}.`)
-      const variants = await q<{ id: string; title: string; sku: string | null; price_cents: number | null; inventory_quantity: number; active: boolean }>('select * from product_variants where product_id = $1 and active', [p.id], client)
-      let stock = p.inventory_quantity
+      const variants = await q<{ id: string; title: string; sku: string | null; price_cents: number | null; active: boolean }>('select * from product_variants where product_id = $1 and active', [p.id], client)
       if (variants.length) {
         const v = variants.find((x) => x.id === l.variantId)
         if (!v) throw badRequest(`Please choose an option for ${p.title}.`)
         variantTitle = v.title
         sku = v.sku ?? sku
         if (v.price_cents !== null) price = v.price_cents
-        stock = v.inventory_quantity
       } else if (l.variantId) throw badRequest('That option is not available.')
-      if (p.out_of_stock_behavior !== 'allow_backorder' && stock < qty) {
-        throw conflict(stock <= 0 ? `${p.title}${variantTitle ? ` (${variantTitle})` : ''} is sold out.` : `Only ${stock} of ${p.title} left in stock.`, 'out_of_stock')
-      }
+      // Printful makes every physical item: it must be linked to an exact Printful variant that can be made now. No local stock is kept.
+      await linksForLines([{ product_id: p.id, variant_id: l.variantId ?? null, title: p.title, variant_title: variantTitle, quantity: qty }])
     }
     // Only Freebie Corner products are ever $0; anything else at $0 is a mistake, not a giveaway.
     if (p.is_freebie) price = 0
@@ -165,7 +163,7 @@ async function claimFreebies(user: SessionUser, lines: CartLine[], joinList: boo
 }
 
 /** Creates a pending order and a Stripe Checkout Session in test mode, or completes a free claim. */
-export async function createCheckout(user: SessionUser, lines: CartLine[], opts: { joinList?: boolean; ip?: string } = {}) {
+export async function createCheckout(user: SessionUser, lines: CartLine[], opts: { joinList?: boolean; ip?: string; shipping?: { quote_id?: unknown; option_id?: unknown } } = {}) {
   const joinList = opts.joinList === true
   const firstLook = await priceCart(user, lines)
   if (firstLook.every((l) => l.is_freebie)) return claimFreebies(user, lines, joinList, opts.ip)
@@ -176,28 +174,64 @@ export async function createCheckout(user: SessionUser, lines: CartLine[], opts:
   const settings = await getSettings()
   // The signup is applied only when the payment completes.
   const marketingRequest = joinList ? JSON.stringify({ version: hasFreebie ? 'freebie-v1' : 'checkout-v1', ip: opts.ip ?? null }) : null
-  const hasPhysical = priced.some((l) => l.product_type === 'physical')
-  if (hasPhysical && (!settings.shipping.configured || settings.shipping.flat_rate_cents === null)) {
-    throw new HttpError(503, 'Shipping rates have not been set up yet, so items that ship cannot be purchased right now.', 'shipping_not_configured')
+  const physicalLines = priced.filter((l) => l.product_type === 'physical')
+  const hasPhysical = physicalLines.length > 0
+  // Items that ship: Printful must be ready, and the customer must have a current Printful quote for exactly these items and their address.
+  let shipping: Awaited<ReturnType<typeof useQuote>> | null = null
+  if (hasPhysical) {
+    const sales = await physicalSales()
+    if (!sales.open) throw new HttpError(409, sales.reason, 'physical_sales_closed')
+    shipping = await useQuote(user.id, physicalLines, opts.shipping)
+    await linksForLines(physicalLines.map((l) => ({ ...l, title: l.title, variant_title: l.variant_title })), { refresh: true })
   }
   const subtotal = priced.reduce((n, l) => n + l.unit_price_cents * l.quantity, 0)
 
   const order = await tx(async (client) => {
     const o = await one<{ id: string; order_number: string }>(
-      `insert into orders (user_id, email, customer_name, status, fulfillment_status, subtotal_cents, total_cents, marketing_request)
-       values ($1,$2,$3,'pending',$4,$5,$5,$6) returning id, order_number`,
-      [user.id, user.email, user.name, hasPhysical ? 'unfulfilled' : 'not_required', subtotal, marketingRequest],
+      `insert into orders (user_id, email, customer_name, status, fulfillment_status, subtotal_cents, total_cents, marketing_request, shipping_address, shipping_method)
+       values ($1,$2,$3,'pending',$4,$5,$5,$6,$7,$8) returning id, order_number`,
+      [
+        user.id,
+        user.email,
+        user.name,
+        hasPhysical ? 'unfulfilled' : 'not_required',
+        subtotal,
+        marketingRequest,
+        // Stored in the same shape as addresses Stripe collected, so order pages and receipts read it the same way.
+        shipping
+          ? JSON.stringify({
+              name: shipping.address.name,
+              phone: shipping.address.phone,
+              address: { line1: shipping.address.address1, line2: shipping.address.address2 || null, city: shipping.address.city, state: shipping.address.state_code || null, postal_code: shipping.address.zip, country: shipping.address.country_code },
+            })
+          : null,
+        shipping ? JSON.stringify({ quote_id: shipping.quoteId, option: shipping.option, items: shipping.items }) : null,
+      ],
       client,
     )
     await insertItems(client, o!.id, priced)
     return o!
   })
 
-  const freeShipping = settings.shipping.free_over_cents !== null && subtotal >= settings.shipping.free_over_cents
+  // The address was entered and quoted before payment, so Stripe does not ask again; a customer record carries it for tax and receipts.
+  const customer = shipping
+    ? await s.customers.create(
+        {
+          email: user.email,
+          name: shipping.address.name,
+          shipping: {
+            name: shipping.address.name,
+            phone: shipping.address.phone || undefined,
+            address: { line1: shipping.address.address1, line2: shipping.address.address2 || undefined, city: shipping.address.city, state: shipping.address.state_code || undefined, postal_code: shipping.address.zip, country: shipping.address.country_code },
+          },
+        },
+        { idempotencyKey: `customer:${order.id}` },
+      )
+    : null
   const session = await s.checkout.sessions.create(
     {
       mode: 'payment',
-      customer_email: user.email,
+      ...(customer ? { customer: customer.id } : { customer_email: user.email }),
       client_reference_id: order.id,
       metadata: { order_id: order.id, order_number: order.order_number },
       payment_intent_data: { metadata: { order_id: order.id, order_number: order.order_number } },
@@ -211,10 +245,21 @@ export async function createCheckout(user: SessionUser, lines: CartLine[], opts:
       })),
       allow_promotion_codes: true,
       automatic_tax: { enabled: settings.payments.automatic_tax },
-      ...(hasPhysical
+      ...(shipping
         ? {
-            shipping_address_collection: { allowed_countries: settings.shipping.countries as Stripe.Checkout.SessionCreateParams.ShippingAddressCollection.AllowedCountry[] },
-            shipping_options: [{ shipping_rate_data: { type: 'fixed_amount', display_name: 'Standard shipping', fixed_amount: { amount: freeShipping ? 0 : settings.shipping.flat_rate_cents!, currency: 'usd' } } }],
+            // Exactly the Printful option the customer chose, at the quoted price.
+            shipping_options: [
+              {
+                shipping_rate_data: {
+                  type: 'fixed_amount',
+                  display_name: shipping.option.name,
+                  fixed_amount: { amount: shipping.option.rate_cents, currency: 'usd' },
+                  ...(shipping.option.min_days && shipping.option.max_days
+                    ? { delivery_estimate: { minimum: { unit: 'business_day', value: shipping.option.min_days }, maximum: { unit: 'business_day', value: shipping.option.max_days } } }
+                    : {}),
+                },
+              },
+            ],
           }
         : {}),
       success_url: `${config.appUrl}/#checkout-success`,
@@ -288,7 +333,7 @@ async function markPaid(session: Stripe.Checkout.Session) {
     await q(
       `update orders set status = 'paid', paid_at = now(), updated_at = now(),
          subtotal_cents = $2, discount_cents = $3, shipping_cents = $4, tax_cents = $5, total_cents = $6,
-         billing_details = $7, shipping_address = $8, stripe_payment_intent_id = $9, stripe_checkout_session_id = $10
+         billing_details = $7, shipping_address = coalesce(shipping_address, $8), stripe_payment_intent_id = $9, stripe_checkout_session_id = $10
        where id = $1`,
       [
         order.id,
@@ -308,16 +353,15 @@ async function markPaid(session: Stripe.Checkout.Session) {
       await q(`insert into order_notes (order_id, body, author_email) values ($1,$2,'system')`, [order.id, `Payment subtotal (${money(session.amount_subtotal)}) did not match the order subtotal (${money(order.subtotal_cents)}). Please review.`], client)
     }
 
-    // Inventory for physical items.
     const items = await q<{ id: string; product_id: string; variant_id: string | null; product_type: string; quantity: number; title_snapshot: string }>('select * from order_items where order_id = $1', [order.id], client)
-    for (const it of items.filter((i) => i.product_type === 'physical')) {
-      const left = it.variant_id
-        ? await one<{ n: number }>('update product_variants set inventory_quantity = inventory_quantity - $2 where id = $1 returning inventory_quantity as n', [it.variant_id, it.quantity], client)
-        : await one<{ n: number }>('update products set inventory_quantity = inventory_quantity - $2 where id = $1 returning inventory_quantity as n', [it.product_id, it.quantity], client)
-      if (left && left.n < 0) await q(`insert into order_notes (order_id, body, author_email) values ($1,$2,'system')`, [order.id, `${it.title_snapshot} is now oversold (stock ${left.n}).`], client)
+    const quoted = (await one<{ m: { option?: { rate_cents: number } } | null }>('select shipping_method as m from orders where id = $1', [order.id], client))!.m
+    if (quoted?.option && td?.amount_shipping !== undefined && td.amount_shipping !== quoted.option.rate_cents) {
+      await q(`insert into order_notes (order_id, body, author_email) values ($1,$2,'system')`, [order.id, `Shipping paid (${money(td.amount_shipping ?? 0)}) differs from the Printful quote (${money(quoted.option.rate_cents)}). Please review.`], client)
     }
 
+    // Digital downloads are granted here regardless of Printful; the physical items go to Printful as a separate job.
     await grantPurchaseEntitlements(order.id, client)
+    await queuePrintfulOrder(order.id, client)
     // An email list signup chosen at checkout counts once the payment is confirmed.
     const req = (await one<{ r: { version: 'freebie-v1' | 'checkout-v1'; ip: string | null } | null }>('select marketing_request as r from orders where id = $1', [order.id], client))!.r
     if (req && order.user_id) {
@@ -362,6 +406,7 @@ async function markPaid(session: Stripe.Checkout.Session) {
   if (paidOrderId) {
     void recordFee(paidOrderId)
     kickMarketingSync()
+    kickPrintful()
   }
 }
 
@@ -510,6 +555,8 @@ export async function addShipment(
     const order = await one<{ id: string; order_number: string; email: string; customer_name: string; user_id: string | null; status: string; is_demo: boolean }>('select * from orders where id = $1 for update', [orderId], client)
     if (!order) throw notFound('Order')
     if (!['paid', 'partially_refunded'].includes(order.status)) throw badRequest('Only paid orders can be fulfilled.')
+    // Printful makes and ships these: shipments come only from Printful, never typed in by hand.
+    if (await one('select 1 from printful_orders where order_id = $1', [orderId], client)) throw conflict('Printful ships this order. Its shipments and tracking appear here automatically from Printful.', 'printful_ships')
     const hasPhysical = await one('select 1 from order_items where order_id = $1 and product_type = $2', [orderId, 'physical'], client)
     if (!hasPhysical) throw badRequest('This order has no items that ship.')
     if (input.status === 'delivered') throw badRequest('Add the shipment first, then use "Record confirmed delivery" with the delivery date.')

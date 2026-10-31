@@ -1,3 +1,4 @@
+import { physicalSales } from '../services/printful.js'
 import { Hono } from 'hono'
 import { integrationStatus } from '../env.js'
 import type { AppEnv } from '../http.js'
@@ -34,9 +35,11 @@ publicRoutes.get('/media/:id', async (c) => {
   return serveMedia(c, img.storage_key, img.content_type, img.public ? 'public, max-age=3600' : 'private, no-store')
 })
 
-publicRoutes.get('/status', (c) => {
+publicRoutes.get('/status', async (c) => {
   const s = integrationStatus()
-  return c.json({ payments: s.payments.state, email: s.email.configured, environment: s.environment })
+  const physical = await physicalSales()
+  const countries = physical.open ? (await getSettings()).shipping.countries : []
+  return c.json({ payments: s.payments.state, email: s.email.configured, environment: s.environment, physicalSales: { ...physical, countries } })
 })
 
 /* Tutorials: unlimited public viewing of published tutorials only. No account needed. */

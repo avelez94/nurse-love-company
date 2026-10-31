@@ -580,3 +580,81 @@
 .bag__needs-list p {
   margin: 0;
 }
+
+/* Shipping step for items made and shipped by our print partner */
+.ship-step {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--white);
+  border: 1px solid var(--border);
+}
+.ship-step__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--text-lg);
+}
+.ship-step__title svg {
+  color: var(--raspberry);
+}
+.ship-step__form {
+  display: grid;
+  gap: var(--space-3);
+}
+.ship-step__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr));
+  gap: var(--space-3);
+}
+.ship-step__options {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.ship-option {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+.ship-option.is-chosen {
+  border-color: var(--raspberry);
+  background: var(--blush);
+}
+.ship-option__name {
+  display: grid;
+  font-weight: 600;
+}
+.ship-option__days {
+  font-weight: 400;
+  font-size: var(--text-xs);
+  color: var(--burgundy-soft);
+}
+.ship-option__price {
+  font-weight: 700;
+}
+.bag__total--ship {
+  font-weight: 400;
+}
+.bag__total--grand {
+  font-weight: 700;
+}
+.bag__ship-closed {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--blush);
+  color: var(--burgundy);
+}

@@ -47,7 +47,9 @@ async function paidOrder(user: Session, productIds: string[]) {
   return { ...o, paidAt: new Date(paid!.paid_at) }
 }
 const jobs = (orderId: string) => q<{ kind: string; status: string; hold_reason: string; status_reason: string; product_id: string; due_at: Date | null }>('select kind, status, hold_reason, status_reason, product_id, due_at from email_jobs where order_id = $1 order by kind, product_id', [orderId])
+/** A hand recorded shipment, as for orders from before Printful (Printful orders get theirs from Printful; see printful.test.ts). */
 async function shipment(admin: Session, orderId: string, items?: Array<{ order_item_id: string; quantity: number }>, tracking = 'TRACK1') {
+  await q('delete from printful_orders where order_id = $1', [orderId])
   const r = await api(`/api/admin/orders/${orderId}/shipments`, { session: admin, body: { carrier: 'USPS', tracking_number: tracking, notify: false, items } })
   assert.equal(r.status, 201, JSON.stringify(r.data))
   return r.data.id as string

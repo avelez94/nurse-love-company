@@ -166,18 +166,40 @@ Everything is checked again right before sending. An email is skipped for items 
 
 ## Physical items and delivery (Printful)
 
-Printful tracking is **not connected yet**. Until it is, physical review requests wait as **Held: waiting for a confirmed delivery**. When you know an item was delivered (for example on the Printful or carrier tracking page):
+Shipments and tracking come from Printful automatically (see **Printful** below). Printful reports when it ships, but whether it reports a confirmed **delivery** time depends on Printful's data for that shipment. Shipped is never treated as delivered. When Printful does report a delivery time, the review request is scheduled 14 days after it automatically. When it does not, physical review requests wait as **Held: waiting for a confirmed delivery** until you confirm it:
 
 1. Open the order (Orders, or **Record delivery** in the automations table).
-2. Under the shipment, press **Record confirmed delivery**, enter the date and time it was delivered and a reason such as "USPS tracking shows delivered", and save.
+2. Under the shipment, press **Record confirmed delivery**, enter the date and time it was delivered (from the carrier's tracking page) and a reason such as "USPS tracking shows delivered", and save.
 
-The review request is then scheduled 14 days after that date. This is saved to the audit log; **Correct delivery date** fixes a mistake, also with a reason. "Shipped", "fulfilled" and estimated dates never count.
-
-When adding a shipment, choose which items (and how many) are in the box. Split shipments each get their own delivery date, and each item's review request counts from its own shipment. Items delivered together go in one email.
+This is saved to the audit log; **Correct delivery date** fixes a mistake, also with a reason. Split shipments each get their own delivery date, and each item's review request counts from its own shipment.
 
 If something goes wrong, set the shipment to **delivery problem** and describe it. Review requests for those items are held with that reason until it is delivered. Requests held with no delivery 21 days after shipping are flagged in the table so you can check on them.
 
-Once Printful or carrier tracking is connected, delivery events will update shipments automatically (repeated or out of order events are ignored safely, and a delivered shipment never moves backwards).
+# Printful: how physical orders are made and shipped
+
+Printful makes and ships every physical product. You never stock, pack, buy labels or ship anything. There is no stock count for physical items: whether an option can be bought comes from Printful.
+
+**Connect (once).** In Vercel (Settings, Environment Variables, Production) add `PRINTFUL_API_TOKEN` (a private token from the Printful developer portal, limited to your Nurse Love Company store) and `PRINTFUL_WEBHOOK_TOKEN` (32 random characters). If the token can see more than one Printful store, also add `PRINTFUL_STORE_ID`. Redeploy. Never paste the token into chat or email.
+
+**Billing (once, in Printful).** Printful charges your Printful billing method (card, PayPal or Printful Wallet) for production and shipping when an order is confirmed. That is separate from what the customer pays you through Stripe. Set it up in Printful (Settings, Billing) before confirming orders. If a charge fails, Printful does not make the order and it shows here as needing attention.
+
+**Link each product.** Open the product, **Printful** panel: choose the product in your Printful store, then pick the exact Printful variant for each option and **Save links**. For a new product with no options yet, **Create options from these Printful variants** makes one option per Printful variant and links each. Nothing is matched automatically. Options that are not linked, or that Printful cannot make right now (discontinued, out of stock, ignored, or without an approved print file), cannot be bought and show as unavailable. **Check availability** asks Printful again; it is also checked every hour and before every shipping quote.
+
+**Printful page (sidebar).** Shows the connection, **Run checks** (read only: it connects, reads products and links, and with a sample address gets a real shipping quote and a cost estimate; nothing is created or charged), and **Point Printful webhooks here** (Printful has one webhook address per store, so you are asked before replacing another). Two switches:
+
+* **Open sales of items that ship**: off until you turn it on. While off, customers can still buy digital items, and items that ship explain they are not available yet.
+* **Confirm paid orders for production automatically**: when on, each paid order is confirmed with Printful right away (and Printful charges you). When off, each paid order waits in Printful as a draft and you confirm it from the order.
+
+**What the customer sees.** In the bag, items that ship ask for the delivery address first; Printful quotes the real shipping options for those exact items and that address, and the customer picks one before paying. Stripe charges exactly that shipping price. Digital items never add shipping.
+
+**After payment.** The order goes to Printful automatically with the exact variants, approved designs, quantities, address and chosen shipping. Digital downloads are ready at once, whatever happens at Printful. On the order, the **Printful** panel shows Printful's own status and what Printful charges you. Shipments, partial shipments and tracking appear on the order and in the customer's account automatically, and the customer gets one shipping email per package.
+
+**When an order needs attention** (Printful refused it, a charge failed, it was put on hold, or Printful did not answer clearly), the admins get an email and the order shows the reason. Nothing is ever marked as shipped without Printful's shipment. On the order:
+
+* **Check with Printful** reads the latest status (safe any time).
+* **Check and continue sending** looks the order up in Printful first and only sends it if Printful does not have it, so it can never create a second Printful order.
+* **Confirm for production** confirms a draft or a failed order after you fix billing (Printful charges you).
+* **Cancel at Printful** works only before production starts (draft or pending). It does **not** refund the customer. Refunding (with **Refund**) does **not** cancel at Printful either. Do both if both are needed.
 
 # Updating a digital product's file
 

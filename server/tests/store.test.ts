@@ -369,7 +369,12 @@ describe('products and orders', () => {
     await payOrder(order.id, order.subtotal, { collected_information: { shipping_details: { name: 'Test Person', address: { line1: '1 Ship St', city: 'Shipton', state: 'NC', postal_code: '27601', country: 'US' } } } })
     const ents = await entitlementsFor(buyer.id)
     assert.equal(ents.length, 1, 'only the digital line gets a download')
-    assert.equal((await one<{ inventory_quantity: number }>('select inventory_quantity from products where id = $1', [teeId]))!.inventory_quantity, 3)
+    assert.equal((await one<{ inventory_quantity: number }>('select inventory_quantity from products where id = $1', [teeId]))!.inventory_quantity, 5, 'Printful makes physical items: no local stock is used')
+    assert.ok(await one('select 1 from printful_orders where order_id = $1', [order.id]), 'the physical items are queued for Printful')
+    const manual = await api(`/api/admin/orders/${order.id}/shipments`, { session: admin, body: { carrier: 'USPS', tracking_number: 'X', notify: false } })
+    assert.equal(manual.status, 409, 'Printful orders cannot be marked shipped by hand')
+    // The rest covers an order from before Printful, shipped by hand.
+    await q('delete from printful_orders where order_id = $1', [order.id])
 
     // Address book changes never rewrite the order.
     await api('/api/account/addresses', { session: buyer, body: { name: 'New Name', line1: '9 New Rd', city: 'Elsewhere', postal_code: '10001', country: 'US' } })

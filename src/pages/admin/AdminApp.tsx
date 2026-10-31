@@ -1,4 +1,4 @@
-import { BarChart3, BookHeart, ClipboardList, ExternalLink, FileVideo, LifeBuoy, LogOut, Mail, Megaphone, Menu, Package, ScrollText, Settings as SettingsIcon, UserRound, Users, X } from 'lucide-react'
+import { BarChart3, BookHeart, ClipboardList, ExternalLink, FileVideo, LifeBuoy, LogOut, Mail, Megaphone, Menu, Package, ScrollText, Settings as SettingsIcon, Truck, UserRound, Users, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { href, navigate, type AdminView } from '../../lib/router'
 import { useSession } from '../../lib/session'
@@ -17,6 +17,7 @@ import { QuizEditor, Quizzes } from './Quizzes'
 import { ReviewsAdmin } from './Reviews'
 import { StoryEditor } from './Story'
 import { PoliciesEditor } from './Policies'
+import { PrintfulPage } from './Printful'
 import { Overview } from './Overview'
 import { ProductEditor, Products } from './Products'
 import { SettingsPage } from './Settings'
@@ -28,6 +29,7 @@ type NavItem = { view: AdminView; label: string; route: string; icon: typeof Bar
 const nav: NavItem[] = [
   { view: 'overview', label: 'Overview', route: 'admin', icon: BarChart3, match: ['overview'] },
   { view: 'orders', label: 'Orders', route: 'admin-orders', icon: ClipboardList, match: ['orders', 'order'] },
+  { view: 'printful', label: 'Printful', route: 'admin-printful', icon: Truck, match: ['printful'] },
   { view: 'products', label: 'Products', route: 'admin-products', icon: Package, match: ['products', 'product'] },
   {
     view: 'customers',
@@ -160,6 +162,7 @@ export default function AdminApp({ view, param }: { view: AdminView; param?: str
           {view === 'automations' && <Automations />}
           {view === 'help' && <HelpFaqsEditor />}
           {view === 'email-list' && <EmailList />}
+          {view === 'printful' && <PrintfulPage />}
           {view === 'policies' && <PoliciesEditor key={param ?? 'terms'} policyKey={param === 'privacy' ? 'privacy' : 'terms'} />}
           {view === 'settings' && <SettingsPage />}
           {view === 'audit' && <Audit />}

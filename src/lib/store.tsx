@@ -163,6 +163,8 @@ interface StoreValue {
   featuredIds: string[]
   supportEmail: string
   payments: 'test' | 'live' | 'live-blocked' | 'not-configured' | 'unknown'
+  /** Items that ship (made by Printful): whether they can be ordered now, why not, and where they ship. */
+  physicalSales: { open: boolean; reason: string; countries: string[] }
   environment: 'development' | 'staging' | 'production' | 'unknown'
   reload: () => Promise<void>
   getProduct: (slug: string) => Product | undefined
@@ -182,13 +184,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [supportEmail, setSupport] = useState('')
   const [payments, setPayments] = useState<StoreValue['payments']>('unknown')
   const [environment, setEnvironment] = useState<StoreValue['environment']>('unknown')
+  const [physicalSales, setPhysicalSales] = useState<StoreValue['physicalSales']>({ open: false, reason: '', countries: [] })
 
   const reload = useCallback(async () => {
     try {
       const [cat, tut, st] = await Promise.all([
         api<{ products: ApiProduct[]; featuredIds: string[]; store: { supportEmail: string } }>('/api/catalog'),
         api<{ tutorials: ApiTutorial[] }>('/api/tutorials'),
-        api<{ payments: StoreValue['payments']; environment: StoreValue['environment'] }>('/api/status'),
+        api<{ payments: StoreValue['payments']; environment: StoreValue['environment']; physicalSales?: StoreValue['physicalSales'] }>('/api/status'),
       ])
       setProducts(cat.products.map(toProduct))
       setTutorials(tut.tutorials.map(toTutorial))
@@ -196,6 +199,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setSupport(cat.store.supportEmail)
       setPayments(st.payments)
       setEnvironment(st.environment ?? 'unknown')
+      setPhysicalSales(st.physicalSales ?? { open: false, reason: '', countries: [] })
       setStatus('live')
     } catch {
       const artifact = import.meta.env.MODE === 'artifact'
@@ -218,6 +222,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       featuredIds,
       supportEmail,
       payments,
+      physicalSales,
       environment,
       reload,
       getProduct,
@@ -229,7 +234,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return matches.find((t) => t.title.startsWith('How to')) ?? matches[0]
       },
     }
-  }, [status, products, tutorials, featuredIds, supportEmail, payments, environment, reload])
+  }, [status, products, tutorials, featuredIds, supportEmail, payments, physicalSales, environment, reload])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

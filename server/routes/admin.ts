@@ -523,6 +523,7 @@ adminRoutes.put('/admin/settings/:section', async (c) => {
       throw badRequest('That timezone is not recognized.')
     }
   }
+  if (section === 'printful' && next.physical_sales && !config.printful.apiToken) throw badRequest('Connect Printful (PRINTFUL_API_TOKEN in Vercel) before opening sales of items that ship.')
   if (section === 'homepage') next.featured_product_ids = (next.featured_product_ids as unknown[]).slice(0, 12).map((x) => uuid(x, 'product'))
   if (section === 'shipping') next.countries = (next.countries as unknown[]).slice(0, 50).map((x) => str(x, 'Country', { min: 2, max: 2 }).toUpperCase())
   if (section === 'freebies') {

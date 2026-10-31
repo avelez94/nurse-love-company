@@ -1,0 +1,99 @@
+-- Printful makes and ships every physical product. Nothing is stocked or
+-- packed by the store: availability comes from Printful, shipping is quoted
+-- by Printful for the real items and address before payment, and paid
+-- orders are sent to Printful automatically.
+
+-- Each sellable physical item (a variant, or the product itself when it has
+-- no variants) is linked by hand to one exact Printful sync variant. No
+-- mapping is ever guessed; an unlinked item cannot be bought.
+create table if not exists printful_links (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid not null references products(id) on delete cascade,
+  variant_id uuid references product_variants(id) on delete cascade,
+  sync_product_id bigint not null,
+  sync_variant_id bigint not null unique,
+  -- Printful catalog variant, used for shipping quotes.
+  catalog_variant_id bigint,
+  name text not null default '',
+  size text not null default '',
+  color text not null default '',
+  sku text not null default '',
+  -- Printful's own state for this item, refreshed from the API.
+  availability text not null default 'unknown',
+  synced boolean not null default false,
+  ignored boolean not null default false,
+  -- The approved print files on the Printful product: true when present and none failed.
+  files_ready boolean not null default false,
+  details jsonb not null default '{}',
+  checked_at timestamptz,
+  check_error text not null default '',
+  linked_by text,
+  linked_at timestamptz not null default now()
+);
+create unique index if not exists printful_links_item_idx on printful_links (product_id, coalesce(variant_id, '00000000-0000-0000-0000-000000000000'::uuid));
+
+-- Shipping options Printful quoted for a customer's real items and address.
+-- Checkout charges exactly the option they chose, and only within its time.
+create table if not exists shipping_quotes (
+  id uuid primary key default gen_random_uuid(),
+  user_id text not null references "user"(id) on delete cascade,
+  address jsonb not null,
+  -- The physical lines the quote is for: product, variant, sync variant and quantity.
+  items jsonb not null,
+  options jsonb not null,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null
+);
+create index if not exists shipping_quotes_user_idx on shipping_quotes (user_id, created_at desc);
+
+-- The quoted shipping method, kept with the order so Printful ships what was paid for.
+alter table orders add column if not exists shipping_method jsonb;
+
+-- One Printful order per store order. The unique order id and external id
+-- stop repeated payment events, overlapping workers and retries from ever
+-- creating a second Printful order.
+create table if not exists printful_orders (
+  order_id uuid primary key references orders(id),
+  external_id text not null unique,
+  state text not null default 'queued' check (state in ('queued','submitting','uncertain','draft','confirming','submitted','needs_attention','canceled','fulfilled')),
+  printful_order_id bigint unique,
+  printful_status text not null default '',
+  auto_confirm boolean not null default false,
+  -- Paid with a Stripe test card (or a demo order): only ever a Printful draft, never confirmed automatically.
+  test_mode boolean not null default false,
+  attempts integer not null default 0,
+  next_attempt_at timestamptz not null default now(),
+  claimed_at timestamptz,
+  last_error text not null default '',
+  attention_reason text not null default '',
+  attention_notified_at timestamptz,
+  costs jsonb,
+  submitted_at timestamptz,
+  confirmed_at timestamptz,
+  last_synced_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists printful_orders_work_idx on printful_orders (next_attempt_at) where state in ('queued','uncertain','draft','confirming');
+create index if not exists printful_orders_active_idx on printful_orders (last_synced_at) where state in ('submitted','needs_attention','draft');
+
+-- Webhook notifications from Printful, stored once. They only prompt a fresh
+-- read of the order from Printful's API; their contents are never trusted alone.
+create table if not exists printful_events (
+  id bigserial primary key,
+  digest text not null unique,
+  type text not null default '',
+  printful_order_id bigint,
+  outcome text not null default '',
+  payload jsonb not null default '{}',
+  received_at timestamptz not null default now()
+);
+
+-- Shipments made by Printful, matched by Printful's own shipment id.
+alter table shipments add column if not exists printful_shipment_id bigint;
+create unique index if not exists shipments_printful_idx on shipments (printful_shipment_id) where printful_shipment_id is not null;
+
+alter table printful_links enable row level security;
+alter table shipping_quotes enable row level security;
+alter table printful_orders enable row level security;
+alter table printful_events enable row level security;

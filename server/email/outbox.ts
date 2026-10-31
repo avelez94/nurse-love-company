@@ -46,6 +46,7 @@ export function accountUrl(kind: string, vars: Record<string, string>): string {
   if (kind === 'reset') return vars.url
   if (kind === 'none') return ''
   if (kind === 'downloads') return `${config.appUrl}/#account-downloads`
+  if (kind === 'admin_orders') return `${config.appUrl}/#admin-orders`
   if (kind === 'order' && vars.order_number) return `${config.appUrl}/#account-order-${encodeURIComponent(vars.order_number)}`
   return `${config.appUrl}/#account`
 }

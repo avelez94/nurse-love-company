@@ -15,6 +15,7 @@ export type EmailType =
   | 'review_request_digital'
   | 'review_request_physical'
   | 'free_order_confirmation'
+  | 'fulfillment_alert'
 
 /** Automation emails are edited under Marketing, Email Automations rather than the general template list. */
 export const AUTOMATION_TYPES: EmailType[] = ['download_reminder', 'review_request_digital', 'review_request_physical']
@@ -36,6 +37,7 @@ export const templateInfo: Record<EmailType, { title: string; placeholders: stri
   review_request_digital: { title: 'Review request (digital)', placeholders: ['name', 'order_number'], buttonPath: 'none' },
   review_request_physical: { title: 'Review request (physical)', placeholders: ['name', 'order_number'], buttonPath: 'none' },
   free_order_confirmation: { title: 'Free resource claimed', placeholders: ['name', 'order_number', 'product_list'], buttonPath: 'downloads' },
+  fulfillment_alert: { title: 'Fulfillment needs attention (to admins)', placeholders: ['name', 'order_number', 'reason'], buttonPath: 'admin_orders' },
 }
 
 export const defaultTemplates: Record<EmailType, TemplateText> = {
@@ -86,6 +88,12 @@ export const defaultTemplates: Record<EmailType, TemplateText> = {
     heading: 'Enjoy your freebie',
     body: 'Hi {{name}},\n\nThank you for claiming {{product_list}} (order {{order_number}}). It is ready for you in My downloads.\n\nEach free resource includes one download, so save your file somewhere you can easily find it again.',
     button_label: 'My downloads',
+  },
+  fulfillment_alert: {
+    subject: 'Order {{order_number}} needs your attention',
+    heading: 'A Printful order needs attention',
+    body: 'Hi {{name}},\n\nOrder {{order_number}} needs your attention before Printful can make and ship it:\n\n{{reason}}\n\nOpen the order in Store admin to check it with Printful, retry, or confirm it. Nothing has been marked as shipped.',
+    button_label: 'Open Store admin',
   },
   review_request_physical: {
     subject: 'How are you liking your Nurse Love Company order?',

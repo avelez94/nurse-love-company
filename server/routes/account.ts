@@ -231,8 +231,8 @@ accountRoutes.post('/cart/price', async (c) => {
 accountRoutes.post('/checkout', async (c) => {
   const user = requireUser(c)
   await rateLimit(`checkout:${user.id}`, 10, 60)
-  const b = await jsonBody<{ items: CartLine[]; join_list?: boolean }>(c)
-  return c.json(await createCheckout(user, b.items ?? [], { joinList: b.join_list === true, ip: clientIp(c) }))
+  const b = await jsonBody<{ items: CartLine[]; join_list?: boolean; shipping?: { quote_id?: unknown; option_id?: unknown } }>(c)
+  return c.json(await createCheckout(user, b.items ?? [], { joinList: b.join_list === true, ip: clientIp(c), shipping: b.shipping }))
 })
 
 /** The customer's email list status, so checkout shows their real preference. */

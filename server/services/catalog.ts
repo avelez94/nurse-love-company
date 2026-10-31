@@ -78,11 +78,13 @@ export async function loadProducts(where: string, params: unknown[], client?: Qu
   // Sample pages and details are public only once the owner approved the watermarked image.
   const images = await q<Row>(`select * from product_images where product_id = any($1) ${opts.publicView ? 'and approved' : ''} order by sort_order, created_at`, [ids], client)
   const variants = await q<Row>('select * from product_variants where product_id = any($1) and active order by sort_order, created_at', [ids], client)
+  // Physical items are made by Printful: available means linked to a Printful variant that can be made now. No local stock.
+  const links = await q<Row>(`select product_id, variant_id from printful_links where product_id = any($1) and availability = 'active' and synced and not ignored and files_ready`, [ids], client)
+  const makeable = (productId: string, variantId: string | null) => links.some((l) => l.product_id === productId && ((l.variant_id as string | null) ?? null) === variantId)
   return rows.map((r) => {
     const vs = variants.filter((v) => v.product_id === r.id)
     const imgs = images.filter((i) => i.product_id === r.id)
-    const backorder = r.out_of_stock_behavior === 'allow_backorder'
-    const inStock = r.type === 'digital' || backorder || (vs.length ? vs.some((v) => Number(v.inventory_quantity) > 0) : Number(r.inventory_quantity) > 0)
+    const inStock = r.type === 'digital' || (vs.length ? vs.some((v) => makeable(r.id, v.id)) : makeable(r.id, null))
     return {
       id: r.id,
       slug: String(r.slug),
@@ -107,7 +109,7 @@ export async function loadProducts(where: string, params: unknown[], client?: Qu
         title: String(v.title),
         options: (v.options as Record<string, string>) ?? {},
         priceCents: (v.price_cents as number | null) ?? null,
-        inStock: backorder || Number(v.inventory_quantity) > 0,
+        inStock: makeable(r.id, v.id),
         imageIds: imgs.filter((i) => i.variant_id === v.id).map((i) => i.id),
       })),
       digital:

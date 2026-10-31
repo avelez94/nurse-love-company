@@ -1,3 +1,4 @@
+import { ShippingStep, type ShippingChoice } from './ShippingStep'
 import { ArrowLeft, ArrowRight, BookOpen, Download, GraduationCap, Minus, Plus, Search, Shirt, ShoppingBag, Stethoscope, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { getCategory } from '../data/catalog'
@@ -257,8 +258,9 @@ function FinderDialog({ open, onClose }: { open: boolean; onClose: () => void })
 function BagDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { lines, count, remove, setQuantity, clear, checkoutItems } = useCart()
   const { user } = useSession()
-  const { payments, status } = useStore()
+  const { payments, status, physicalSales } = useStore()
   const [busy, setBusy] = useState(false)
+  const [shipping, setShipping] = useState<ShippingChoice | null>(null)
   const [error, setError] = useState('')
   useEffect(() => {
     if (open) setError('')
@@ -268,6 +270,10 @@ function BagDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const unpriced = lines.some((l) => displayPrice(l.product, l.variant).now === null)
   const paymentsReady = payments === 'test' || payments === 'live'
   const digitalLine = lines.find((l) => l.product.type === 'digital')
+  const hasPhysical = lines.some((l) => l.product.type === 'physical')
+  // Items that ship need Printful to be ready and a quoted shipping option; digital items never do.
+  const shippingBlocked = hasPhysical && !physicalSales.open
+  const needsShipping = hasPhysical && !shipping
   const freebies = lines.filter((l) => l.product.isFreebie)
   const allFree = lines.length > 0 && freebies.length === lines.length
   const [joinList, setJoinList] = useState(false)
@@ -293,7 +299,9 @@ function BagDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
     if (needsList) return
     setBusy(true)
     try {
-      const res = await api<{ url?: string; free?: boolean; orderNumber: string }>('/api/checkout', { body: { items: checkoutItems, join_list: joinList } })
+      const res = await api<{ url?: string; free?: boolean; orderNumber: string }>('/api/checkout', {
+        body: { items: checkoutItems, join_list: joinList, ...(hasPhysical && shipping ? { shipping: { quote_id: shipping.quote_id, option_id: shipping.option_id } } : {}) },
+      })
       if (res.free) {
         clear()
         onClose()
@@ -324,9 +332,26 @@ function BagDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
               <span>Subtotal</span>
               <span>{unpriced ? 'Pricing to be added' : formatPrice(subtotal)}</span>
             </div>
+            {hasPhysical && !shippingBlocked && (
+              <div className="bag__total bag__total--ship">
+                <span>Shipping{shipping ? ` (${shipping.name})` : ''}</span>
+                <span>{shipping ? (shipping.rate_cents === 0 ? 'Free' : formatPrice(shipping.rate_cents)) : 'Enter your address above'}</span>
+              </div>
+            )}
+            {hasPhysical && shipping && !unpriced && (
+              <div className="bag__total bag__total--grand">
+                <span>Total before any sales tax</span>
+                <span>{formatPrice(subtotal + shipping.rate_cents)}</span>
+              </div>
+            )}
             <p className="bag__note">
-              {allFree ? 'No payment or card details needed.' : 'Shipping and any sales tax are calculated at checkout. Prices are confirmed by the store when you check out.'}
+              {allFree ? 'No payment or card details needed.' : hasPhysical ? 'Any sales tax is added at checkout. Digital items never add shipping.' : 'Any sales tax is calculated at checkout. Digital downloads have no shipping.'}
             </p>
+            {shippingBlocked && (
+              <p className="bag__note bag__ship-closed" role="status">
+                {physicalSales.reason || 'Items that ship are not available to order yet.'} Digital items can still be ordered on their own.
+              </p>
+            )}
             {error && (
               <p className="form-error" role="alert">
                 {error}
@@ -377,9 +402,9 @@ function BagDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
                 </p>
               </>
             ) : (
-              <button type="button" className="button" onClick={checkout} disabled={busy || unpriced || (Boolean(user) && needsList)}>
+              <button type="button" className="button" onClick={checkout} disabled={busy || unpriced || shippingBlocked || (Boolean(user) && (needsList || needsShipping))}>
                 <ShoppingBag aria-hidden="true" size={18} />
-                {busy ? 'Opening secure checkout...' : user ? 'Check out securely' : 'Sign in to check out'}
+                {busy ? 'Opening secure checkout...' : !user ? 'Sign in to check out' : needsShipping && !shippingBlocked ? 'Choose shipping to check out' : 'Check out securely'}
               </button>
             )}
             {paymentsReady && payments === 'test' && <p className="bag__note">Test mode: use a Stripe test card. No real money moves.</p>}
@@ -444,6 +469,9 @@ function BagDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
               </li>
             ))}
           </ul>
+          {hasPhysical && user && status !== 'offline' && paymentsReady && physicalSales.open && (
+            <ShippingStep items={checkoutItems} countries={physicalSales.countries} onChange={setShipping} />
+          )}
           {digitalLine && (
             <div className="bag__help">
               <TutorialHelpLink category={digitalLine.product.category} onNavigate={onClose} />
@@ -468,8 +496,8 @@ export function VariantPicker({ product, value, onChange }: { product: Product; 
         {product.variants.map((v) => (
           <button key={v.id} type="button" className="chip" aria-pressed={value === v.id} disabled={!v.inStock} onClick={() => onChange(v.id)}>
             {v.title}
-            {!v.inStock && <span className="visually-hidden"> (sold out)</span>}
-            {!v.inStock && <span aria-hidden="true"> • sold out</span>}
+            {!v.inStock && <span className="visually-hidden"> (unavailable)</span>}
+            {!v.inStock && <span aria-hidden="true"> • unavailable</span>}
           </button>
         ))}
       </div>

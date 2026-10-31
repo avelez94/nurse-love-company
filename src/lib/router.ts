@@ -52,6 +52,7 @@ export type AdminView =
   | 'help'
   | 'email-list'
   | 'policies'
+  | 'printful'
 
 const accountViews: Record<string, AccountView> = { account: 'overview', 'account-orders': 'orders', 'account-downloads': 'downloads', 'account-settings': 'settings', 'account-support': 'support' }
 const adminViews: Record<string, AdminView> = {
@@ -74,6 +75,7 @@ const adminViews: Record<string, AdminView> = {
   'admin-help-faqs': 'help',
   'admin-email-list': 'email-list',
   'admin-policies': 'policies',
+  'admin-printful': 'printful',
 }
 const adminDetail: Array<[string, AdminView]> = [
   ['admin-product-', 'product'],

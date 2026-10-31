@@ -19,7 +19,7 @@ Built and ready, nothing published:
 
 ## Not built
 * **Double opt in** (a confirmation email before someone is added to the list): owner decision, usually configured in the provider.
-* **Printful fulfillment and tracking connection.** The store accepts signed delivery events at `/api/webhooks/delivery` (shape documented in `server/routes/automations.ts`); a Printful adapter that translates Printful's shipment webhooks into that shape, plus `DELIVERY_WEBHOOK_SECRET`, is still to be built. Until then, delivery dates are recorded by the owner.
+* **Printful delivery confirmation.** Printful fulfillment, shipping quotes, shipments and tracking are built (see OWNER_GUIDE, Printful). Delivery counts automatically only when Printful reports a delivery time on a shipment; if it does not for some carriers, a carrier tracking service could post confirmed deliveries to `/api/webhooks/delivery` (signed with `DELIVERY_WEBHOOK_SECRET`). Until then the owner records those delivery dates.
 * **List-Unsubscribe email header** for the automation emails (the footer link already works).
 * **Generating previews from the PDF automatically.** Previews are uploaded by hand for now (screenshots or exports), which keeps the owner in control of exactly which pages are shown.
 

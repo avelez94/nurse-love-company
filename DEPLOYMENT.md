@@ -144,6 +144,10 @@ The store keeps its own accounts (Better Auth). That is secure and needs no chan
 | `STAGING_ACCESS_PASSWORD` | Required | 24 or more random characters. Share it privately with reviewers |
 | `CRON_SECRET` | Required | 32 or more random characters. Vercel Cron sends it automatically |
 | `RESEND_SEGMENT_ID` | Optional | The Resend segment that holds the marketing email list. Without it, signups are stored and wait and no contacts are sent to Resend. The Resend webhook should include `contact.updated`, `contact.deleted` and `suppression.added` so unsubscribes made in Resend are recorded |
+| `PRINTFUL_API_TOKEN` | For physical sales | A private token from the Printful developer portal, limited to the store's account. Mark it **Sensitive**. Without it, items that ship cannot be ordered |
+| `PRINTFUL_STORE_ID` | Optional | Only if the token can see more than one Printful store |
+| `PRINTFUL_WEBHOOK_TOKEN` | With Printful | 32 or more random characters. The secret part of the webhook address registered from Store admin, Printful |
+| `PRINTFUL_WEBHOOK_SECRET` | Optional | Only for Printful's signed (API v2) webhooks: the hex `secret_key` Printful returns. When set, webhooks must carry a valid `x-pf-webhook-signature` |
 | `DELIVERY_WEBHOOK_SECRET` | Optional | Only once Printful or carrier tracking is connected: signs delivery events sent to `/api/webhooks/delivery` (see `server/routes/automations.ts`). Until then, delivery dates are recorded by the owner |
 | `STORAGE_DRIVER` | Required | `supabase` |
 | `SUPABASE_URL` | Required | `https://YOUR-PROJECT.supabase.co` |

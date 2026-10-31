@@ -240,6 +240,8 @@ export async function adminProductList(filter: { search?: string; status?: strin
             p.inventory_quantity, p.low_stock_threshold,
             (select coalesce(sum(inventory_quantity),0) from product_variants v where v.product_id = p.id and v.active) as variant_stock,
             (select count(*) from product_variants v where v.product_id = p.id and v.active) as variant_count,
+            (select greatest(count(*), 1) from product_variants v where v.product_id = p.id and v.active)::int * (case when exists (select 1 from printful_links l where l.product_id = p.id) then 1 else 0 end) as pf_items,
+            (select count(*) from printful_links l where l.product_id = p.id and l.availability = 'active' and l.synced and not l.ignored and l.files_ready)::int as pf_ready,
             (select version_number from product_versions v where v.id = p.current_version_id) as version_number,
             (select id from product_images i where i.product_id = p.id and i.kind = 'gallery' order by sort_order limit 1) as image_id
        from products p where ${where.join(' and ')} order by p.archived_at nulls first, p.sort_order, p.created_at desc`,

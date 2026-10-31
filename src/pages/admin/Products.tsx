@@ -9,6 +9,7 @@ import { RichTextEditor } from '../../components/RichTextEditor'
 import { Checkbox, Confirm, dateTime, Empty, FormError, Loading, money, MoneyInput, Notice, Pill, ProgressBar, Select, TextArea, TextInput, useApiData } from '../../components/ui'
 import { ProductView } from '../Product'
 import { slugify } from './slug'
+import { PrintfulLinks } from './PrintfulLinks'
 import { PageTitle } from './AdminApp'
 
 interface ListRow {
@@ -28,6 +29,8 @@ interface ListRow {
   low_stock_threshold: number
   variant_stock: number
   variant_count: number
+  pf_items: number
+  pf_ready: number
   version_number: number | null
   image_id: string | null
 }
@@ -71,11 +74,10 @@ export function Products() {
         <div className="data-table-wrap">
           <table className="data-table">
             <thead>
-              <tr><th></th><th>Product</th><th>Type</th><th>Status</th><th className="num">Price</th><th className="num">Stock / file</th></tr>
+              <tr><th></th><th>Product</th><th>Type</th><th>Status</th><th className="num">Price</th><th className="num">Printful / file</th></tr>
             </thead>
             <tbody>
               {data.products.map((p) => {
-                const stock = p.variant_count ? p.variant_stock : p.inventory_quantity
                 return (
                   <tr key={p.id}>
                     <td>{p.image_id ? <img className="thumb" src={`/api/media/${p.image_id}`} alt="" /> : <span className="thumb" />}</td>
@@ -92,7 +94,7 @@ export function Products() {
                       {!p.active && !p.archived_at && <Pill value="inactive" />}
                     </td>
                     <td className="num">{p.price_cents === null ? 'Not set' : money(p.sale_price_cents ?? p.price_cents)}</td>
-                    <td className="num">{p.type === 'digital' ? (p.version_number ? `File v${p.version_number}` : 'No file yet') : stock <= p.low_stock_threshold ? <strong>{stock} (low)</strong> : stock}</td>
+                    <td className="num">{p.type === 'digital' ? (p.version_number ? `File v${p.version_number}` : 'No file yet') : p.pf_items === 0 ? 'Printful: not linked' : p.pf_ready < p.pf_items ? <strong>Printful: {p.pf_ready} of {p.pf_items} ready</strong> : `Printful: ${p.pf_ready} ready`}</td>
                   </tr>
                 )
               })}
@@ -285,15 +287,15 @@ export function ProductEditor({ id }: { id: string }) {
               <div className="form-grid">
                 <TextInput label="SKU" value={form.sku} onChange={(v) => set('sku', v)} maxLength={64} />
                 <TextInput label="Weight (grams)" value={form.weight_grams === null ? '' : String(form.weight_grams)} onChange={(v) => set('weight_grams', v ? Number(v.replace(/\D/g, '')) : null)} />
-                <TextInput label="Inventory" value={String(form.inventory_quantity)} onChange={(v) => set('inventory_quantity', Number(v.replace(/[^\d-]/g, '')) || 0)} hint="Used when the product has no variants." />
-                <TextInput label="Low stock alert at" value={String(form.low_stock_threshold)} onChange={(v) => set('low_stock_threshold', Number(v.replace(/\D/g, '')) || 0)} />
               </div>
-              <Select label="When sold out" value={form.out_of_stock_behavior} onChange={(v) => set('out_of_stock_behavior', v)} options={[{ value: 'show_sold_out', label: 'Show as sold out' }, { value: 'hide', label: 'Hide from the shop' }, { value: 'allow_backorder', label: 'Keep selling (backorder)' }]} />
+              <p className="muted">Printful makes and ships this item, so there is no stock to count. Availability comes from Printful once its options are linked below.</p>
+              <Select label="When Printful cannot make it" value={form.out_of_stock_behavior === 'allow_backorder' ? 'show_sold_out' : form.out_of_stock_behavior} onChange={(v) => set('out_of_stock_behavior', v)} options={[{ value: 'show_sold_out', label: 'Show as unavailable' }, { value: 'hide', label: 'Hide from the shop' }]} />
               <TextArea label="Shipping information" value={form.shipping_info} onChange={(v) => set('shipping_info', v)} maxLength={500} rows={2} />
             </section>
           )}
 
           {!isNew && data && form.type === 'physical' && <Variants productId={id} variants={data.variants} reload={reload} />}
+          {!isNew && data && form.type === 'physical' && <PrintfulLinks productId={id} variantsKey={data.variants.map((v) => `${v.id}:${v.active}`).join(',')} reload={reload} />}
           {!isNew && data && <Images productId={id} images={data.images.filter((i) => i.kind === 'gallery')} variants={data.variants} reload={reload} />}
           {!isNew && data && <Previews productId={id} images={data.images.filter((i) => i.kind !== 'gallery')} reload={reload} />}
           <section className="panel form-stack">
@@ -443,7 +445,6 @@ function Variants({ productId, variants, reload }: { productId: string; variants
           <TextInput label="Color" value={r.color} onChange={(v) => update(i, { color: v })} maxLength={30} />
           <TextInput label="SKU" value={r.sku} onChange={(v) => update(i, { sku: v })} maxLength={64} />
           <MoneyInput label="Price (optional)" cents={r.price_cents} onChange={(c) => update(i, { price_cents: c })} />
-          <TextInput label="Stock" value={String(r.inventory_quantity)} onChange={(v) => update(i, { inventory_quantity: Number(v.replace(/[^\d-]/g, '')) || 0 })} />
           <button type="button" className="icon-button" aria-label={`Remove variant ${r.title}`} onClick={() => setRows(rows.filter((_, j) => j !== i))}>
             <Trash2 size={18} aria-hidden="true" />
           </button>

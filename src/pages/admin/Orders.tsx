@@ -8,6 +8,7 @@ import { Checkbox, Confirm, dateTime, Empty, FormError, Loading, money, MoneyInp
 import { PageTitle } from './AdminApp'
 import { formatIn } from './Automations'
 import { DeliveryDialog } from './DeliveryDialog'
+import { PrintfulOrderPanel, type PrintfulJob } from './PrintfulOrder'
 
 interface AutomationJob {
   id: string
@@ -156,6 +157,8 @@ export function OrderDetail({ id }: { id: string }) {
   const [problemFor, setProblemFor] = useState<string | null>(null)
   const [problem, setProblem] = useState('')
   const automations = useApiData<{ jobs: AutomationJob[] }>(`/api/admin/automations/jobs?order=${id}`)
+  const printfulJob = useApiData<{ printful: PrintfulJob | null }>(`/api/admin/orders/${id}/printful`)
+  const pfJob = printfulJob.data?.printful ?? null
   const overview = useApiData<{ timezone: string }>('/api/admin/automations')
   const tz = overview.data?.timezone || undefined
 
@@ -187,7 +190,7 @@ export function OrderDetail({ id }: { id: string }) {
             <RotateCcw size={16} aria-hidden="true" /> Refund
           </button>
         )}
-        {paid && physical && (
+        {paid && physical && !pfJob && printfulJob.data && (
           <button type="button" className="button button--small" onClick={() => setShipOpen(true)}>
             <PackageCheck size={16} aria-hidden="true" /> Add shipment
           </button>
@@ -262,6 +265,16 @@ export function OrderDetail({ id }: { id: string }) {
             </dl>
           </section>
 
+          {pfJob && (
+            <PrintfulOrderPanel
+              orderId={id}
+              job={pfJob}
+              onChange={() => {
+                printfulJob.reload()
+                reload()
+              }}
+            />
+          )}
           <section className="panel">
             <h2 className="panel__title">Shipping and fulfillment</h2>
             {!physical ? (
@@ -328,7 +341,8 @@ export function OrderDetail({ id }: { id: string }) {
                     </div>
                   </div>
                 ))}
-                {paid && (
+                {pfJob && !data.shipments.length && <p className="muted">No shipments yet. Printful's shipments and tracking appear here when it ships.</p>}
+                {paid && !pfJob && (
                   <Select
                     label="Fulfillment status"
                     value={o.fulfillment_status}
@@ -588,7 +602,7 @@ function RefundDialog({ open, onClose, order, items, onDone }: { open: boolean; 
   const [qty, setQty] = useState<Record<string, number>>({})
   const [amount, setAmount] = useState<number | null>(null)
   const [reason, setReason] = useState('')
-  const [restock, setRestock] = useState(true)
+  const [restock] = useState(false) // Printful makes physical items: nothing returns to stock.
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const key = useMemo(() => (open ? newKey() : ''), [open])
@@ -613,7 +627,7 @@ function RefundDialog({ open, onClose, order, items, onDone }: { open: boolean; 
   }
   return (
     <Confirm open={open} title={`Refund order ${order.order_number}`} confirmLabel={`Refund ${money(amount ?? suggested)}`} busy={busy} disabled={!(amount ?? suggested)} onClose={onClose} onConfirm={submit}>
-      <Notice tone="warn">Refunds are processed by Stripe. Follow your approved refund policy. Unused downloads for fully refunded digital lines are handled by the refund download setting in Settings.</Notice>
+      <Notice tone="warn">Refunds are processed by Stripe. Follow your approved refund policy. Unused downloads for fully refunded digital lines are handled by the refund download setting in Settings. A refund does not cancel anything at Printful; use Cancel at Printful on the order if it has not gone into production.</Notice>
       {items.map((i) => {
         const max = i.quantity - i.refunded_quantity
         if (max <= 0) return null
@@ -626,7 +640,6 @@ function RefundDialog({ open, onClose, order, items, onDone }: { open: boolean; 
       })}
       <MoneyInput label={`Amount (up to ${money(remaining)})`} cents={amount ?? suggested} onChange={setAmount} hint="Starts with the selected items. Adjust to include shipping or tax if your policy allows." />
       <TextInput label="Reason" value={reason} onChange={setReason} maxLength={500} />
-      <Checkbox label="Return refunded physical items to stock" checked={restock} onChange={setRestock} />
       <FormError message={error} />
     </Confirm>
   )

@@ -21,6 +21,7 @@ interface Services {
   email: { configured: boolean; webhook: boolean }
   storage: { driver: string; configured: boolean }
   video: { provider: string; configured: boolean }
+  printful?: { configured: boolean; webhook: boolean }
 }
 interface Detail {
   key: PolicyKey
@@ -57,7 +58,7 @@ function ServicesPanel({ s }: { s: Services }) {
           </li>
         ))}
         <li>
-          <strong>Printful</strong> (fulfillment): planned, not connected
+          <strong>Printful</strong> (makes and ships physical items): {s.printful?.configured ? 'connected' : 'built in, not connected yet'}
         </li>
         <li>
           <strong>Analytics</strong>: none in use

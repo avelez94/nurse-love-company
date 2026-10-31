@@ -3,9 +3,17 @@ import { config, paymentsState } from '../env.js'
 import { HttpError } from './errors.js'
 
 let client: Stripe | null = null
+let testClient: Stripe | null = null
+
+/** Tests only: a fake Stripe client that records what checkout sends. */
+export function setStripeForTests(fake: unknown) {
+  if (process.env.NODE_ENV !== 'test') throw new Error('Only for tests.')
+  testClient = fake as Stripe | null
+}
 
 /** The Stripe client, only when test keys (or approved live keys) are configured. */
 export function stripe(): Stripe {
+  if (testClient) return testClient
   const state = paymentsState()
   if (state === 'not-configured') throw new HttpError(503, 'Checkout is awaiting payment configuration. Nothing has been charged.', 'payments_not_configured')
   if (state === 'live-blocked') throw new HttpError(503, 'Live payments are switched off until the store owner approves launch.', 'payments_live_blocked')

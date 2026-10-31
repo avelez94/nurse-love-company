@@ -20,6 +20,8 @@ import { featureRoutes } from './routes/features.js'
 import { publicRoutes } from './routes/public.js'
 import { webhookRoutes } from './routes/webhooks.js'
 import { automationRoutes } from './routes/automations.js'
+import { printfulRoutes } from './routes/printful.js'
+import { runPrintfulMaintenance } from './services/printful.js'
 import { runAutomations } from './services/automations.js'
 import { runUpdateNotifications } from './services/updates.js'
 import { syncMarketingContacts } from './services/consent.js'
@@ -97,11 +99,13 @@ export function createApp() {
     const automations = await runAutomations()
     const updateNotifications = await runUpdateNotifications()
     const emailList = await syncMarketingContacts()
+    // Printful: due submissions, availability, and orders still in progress (in case a webhook was missed).
+    const printfulWork = await runPrintfulMaintenance().catch((err) => ({ error: String((err as Error).message) }))
     await drainOutbox(100)
     await pruneRateLimits()
     const uploadsCleaned = await cleanAbandonedUploads()
     const couponBannersStopped = await recheckCoupons()
-    return c.json({ ok: true, uploadsCleaned, couponBannersStopped, automations, updateNotifications, emailList }, 200, { 'cache-control': 'no-store' })
+    return c.json({ ok: true, uploadsCleaned, couponBannersStopped, automations, updateNotifications, emailList, printful: printfulWork }, 200, { 'cache-control': 'no-store' })
   })
 
   // Staging gate: the whole staging site, dashboards included, needs the
@@ -144,6 +148,7 @@ export function createApp() {
 
   app.route('/api', webhookRoutes)
   app.route('/api', automationRoutes)
+  app.route('/api', printfulRoutes)
   app.route('/api', publicRoutes)
   app.route('/api', accountRoutes)
   app.route('/api', marketingRoutes)

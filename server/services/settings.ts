@@ -16,6 +16,11 @@ export interface Settings {
   payments: { automatic_tax: boolean }
   /** The floating "Find my resources" and Nurse Kin buttons: a one time hint per visit, and the soft glow. */
   launchers: { hints: boolean; glow: boolean }
+  /**
+   * Printful. physical_sales: items that ship can be ordered (only once Printful is connected).
+   * auto_confirm: paid orders are confirmed for production (and charged by Printful) automatically.
+   */
+  printful: { physical_sales: boolean; auto_confirm: boolean }
   policies: {
     status: 'awaiting_approval' | 'approved'
     refund_policy: string
@@ -36,6 +41,7 @@ export const defaultSettings: Settings = {
   shipping: { configured: false, flat_rate_cents: null, free_over_cents: null, countries: ['US'], note: '' },
   payments: { automatic_tax: false },
   launchers: { hints: true, glow: true },
+  printful: { physical_sales: false, auto_confirm: false },
   policies: { status: 'awaiting_approval', refund_policy: '', shipping_policy: '', terms: '', privacy: '', refund_download_policy: 'revoke_unredeemed', digital_repurchase: 'block' },
 }
 

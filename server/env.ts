@@ -66,6 +66,19 @@ export const config = {
     liveApproved: e.LIVE_PAYMENTS_APPROVED === 'true',
   },
 
+  /** Printful makes and ships every physical product. */
+  printful: {
+    /** A private token from the Printful developer portal, limited to the store's account. */
+    apiToken: e.PRINTFUL_API_TOKEN ?? '',
+    /** Needed with an account level token: which Printful store the shop uses. */
+    storeId: e.PRINTFUL_STORE_ID ?? '',
+    /** Secret part of the webhook address Printful posts to (registered from the admin). */
+    webhookToken: e.PRINTFUL_WEBHOOK_TOKEN ?? '',
+    /** Optional: the hex secret_key Printful returns for signed (API v2) webhooks. */
+    webhookSecret: e.PRINTFUL_WEBHOOK_SECRET ?? '',
+    apiBase: (e.PRINTFUL_API_BASE ?? 'https://api.printful.com').replace(/\/$/, ''),
+  },
+
   resend: {
     apiKey: e.RESEND_API_KEY ?? '',
     from: e.RESEND_FROM ?? '',
@@ -176,6 +189,7 @@ export function deploymentProblems(): string[] {
   }
   if (deployEnv === 'staging' && config.staging.accessPassword.length < 16) p.push('STAGING_ACCESS_PASSWORD must be set (at least 16 characters) so the staging site is not open to the public.')
   if (deployEnv === 'production' && config.demoContent) p.push('DEMO_CONTENT=true is only allowed on staging. Remove it from production.')
+  if (config.printful.webhookToken && config.printful.webhookToken.length < 24) p.push('PRINTFUL_WEBHOOK_TOKEN must be at least 24 random characters, or removed.')
   if (config.adminBootstrapToken && config.adminBootstrapToken.length < 24) p.push('ADMIN_BOOTSTRAP_TOKEN must be at least 24 characters, or removed.')
   return p
 }
@@ -194,6 +208,7 @@ export function integrationStatus() {
         (config.storage.driver === 's3' ? Boolean(config.storage.s3.bucket && config.storage.s3.accessKeyId) : Boolean(config.storage.supabase.url && config.storage.supabase.serviceRoleKey)),
     },
     scheduledJobs: Boolean(config.cronSecret),
+    printful: { configured: Boolean(config.printful.apiToken), webhook: Boolean(config.printful.webhookToken || config.printful.webhookSecret) },
     video: {
       provider: config.video.provider,
       configured: config.video.provider === 'local' || Boolean(config.video.mux.tokenId && config.video.mux.tokenSecret),

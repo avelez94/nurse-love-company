@@ -150,7 +150,7 @@ function starterTerms(): PolicyDraft {
       s(
         'products',
         'What we sell',
-        'We sell two kinds of products:\n\n* Digital products, such as printable binder inserts and study resources, delivered as files you download from your account.\n* Physical merchandise, such as apparel, accessories, and pens, shipped to the address you give at checkout.\n\nEach product description explains its contents and format. Our resources are educational and organizational tools to use alongside your course materials and professional references. They are not medical advice and do not replace your coursework, professional references, or clinical judgment.',
+        'We sell two kinds of products:\n\n* Digital products, such as printable binder inserts and study resources, delivered as files you download from your account.\n* Physical merchandise, such as apparel, accessories, and pens, made to order by our print partner and shipped to the address you give at checkout.\n\nEach product description explains its contents and format. Our resources are educational and organizational tools to use alongside your course materials and professional references. They are not medical advice and do not replace your coursework, professional references, or clinical judgment.',
         'The last paragraph reuses wording from your Our Story page. Confirm it fits, and add anything your products need.',
       ),
       s(
@@ -190,8 +190,8 @@ function starterTerms(): PolicyDraft {
       s(
         'shipping',
         'Shipping and delivery',
-        'Shipping charges are shown at checkout before you pay. [OWNER TO PROVIDE: where you ship, typical processing and delivery times, who fulfills orders, and what happens if a parcel is lost or arrives damaged.]',
-        'Printful is a possible future fulfillment partner but is not connected. Do not name it here unless you start using it.',
+        'Physical items are made to order and shipped by our print partner, Printful. After you enter your address, you see the shipping options and prices for your items before you pay, and you pay the option you choose. Delivery times start once your order is made. Tracking appears in your account and by email when your order ships. [OWNER TO PROVIDE: typical production times, and what happens if a parcel is lost, damaged, or returned.]',
+        'Printful is connected in the code; check your Printful account policies for lost or damaged parcels before writing the last part.',
       ),
       s(
         'reviews',
@@ -225,7 +225,7 @@ function starterPrivacy(): PolicyDraft {
       s(
         'give',
         'Information you give us',
-        '* Account details: your name, email address, and password. Passwords are stored only in a scrambled (hashed) form.\n* Orders: the items you buy, amounts, the billing details our payment provider shares with us, and a shipping address for physical items.\n* Email list: if you join, your email address, the wording you agreed to, when you agreed, and your IP address, kept as a record of your consent.\n* Reviews: your rating, title, review, and the display name you choose.\n* Support requests: what you write to us and the order it is about.',
+        '* Account details: your name, email address, and password. Passwords are stored only in a scrambled (hashed) form.\n* Orders: the items you buy, amounts, the billing details our payment provider shares with us, and for physical items a shipping address and, if you give one, a phone number.\n* Email list: if you join, your email address, the wording you agreed to, when you agreed, and your IP address, kept as a record of your consent.\n* Reviews: your rating, title, review, and the display name you choose.\n* Support requests: what you write to us and the order it is about.',
       ),
       s(
         'automatic',
@@ -246,8 +246,8 @@ function starterPrivacy(): PolicyDraft {
       s(
         'services',
         'Services we use',
-        'We use trusted service providers to run the store. They handle your information only to provide their service:\n\n* Vercel, to host the website.\n* Supabase, to store our database and files.\n* Stripe, to process payments.\n* Resend, to send emails and manage our email list.\n* Google Fonts, to provide the website fonts.',
-        'Keep this list to services actually in use. Check the Services panel on this page: today Vercel and Supabase are connected, while Stripe and Resend are built in but not yet connected. Printful is only planned. Update the list before publishing if anything differs.',
+        'We use trusted service providers to run the store. They handle your information only to provide their service:\n\n* Vercel, to host the website.\n* Supabase, to store our database and files.\n* Stripe, to process payments.\n* Printful, to make and ship physical items. It receives the delivery name, address, email, and phone number if you give one.\n* Resend, to send emails and manage our email list.\n* Google Fonts, to provide the website fonts.',
+        'Keep this list to services actually in use. Check the Services panel on this page for what is connected right now. Update the list before publishing if anything differs.',
       ),
       s(
         'choices',
