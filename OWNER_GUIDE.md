@@ -201,6 +201,18 @@ Printful makes and ships every physical product. You never stock, pack, buy labe
 * **Confirm for production** confirms a draft or a failed order after you fix billing (Printful charges you).
 * **Cancel at Printful** works only before production starts (draft or pending). It does **not** refund the customer. Refunding (with **Refund**) does **not** cancel at Printful either. Do both if both are needed.
 
+## Preorders
+
+Use a preorder when you want to take orders before you are ready for Printful to make them (for example while your own sample is on its way).
+
+1. Open the physical product, tick **Preorder** under Physical details, choose the **Ships by** date, and save. Pick a date you can keep, allowing for Printful production and shipping. If it slips, tell customers and offer a refund.
+2. Customers see "Preorder" and "Ships by ..." on the product, in the bag and at checkout. They **pay at checkout**, with the real shipping quote, and their confirmation email says it is a preorder.
+3. Paid preorders **wait on the website**. Nothing is sent to Printful and Printful charges you nothing yet. If an order also has other items that ship, the whole order waits so it ships together. Digital downloads are ready right away.
+4. When you are ready, open the product: **Preorders waiting** shows how many. Press **Send preorders to Printful**, choose whether to confirm them for production now (Printful charges you) or send them as drafts, and confirm. Customers get an email that their order is being made. Tracking follows as usual.
+5. Untick **Preorder** when new orders should go straight to Printful again. Orders already waiting still need **Send preorders to Printful**.
+
+A waiting preorder can be stopped from the order's Printful panel (it is then never sent); refund the customer separately.
+
 # Updating a digital product's file
 
 Products, open the product, **Downloadable file**.

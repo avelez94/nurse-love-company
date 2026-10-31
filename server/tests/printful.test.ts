@@ -602,4 +602,80 @@ describe('Printful fulfillment', () => {
     }
     await drainOutbox()
   })
+
+  it('preorders: paid now, the whole order is held (not sent to Printful) until the owner releases it', async () => {
+    const admin = await signUp('owner@example.com', 'admin')
+    const buyer = await signUp('buyer@example.com')
+    const digitalId = await digitalProduct('pre-digital')
+    const { teeId, small } = await linkedTee(admin)
+    await openSales(admin, true)
+    // A date is required, and cannot be in the past.
+    const bad = await api('/api/admin/products', { session: admin, body: { title: 'Pre Hat', slug: 'pre-hat', category: 'apparel', type: 'physical', price_cents: 2000, preorder: true } })
+    assert.equal(bad.status, 400)
+    assert.match(bad.data.error, /ship by/)
+    await q(`update products set preorder = true, preorder_ship_by = current_date + 30 where id = $1`, [teeId])
+    const shipBy = (await one<{ d: string }>(`select to_char(current_date + 30, 'YYYY-MM-DD') as d`))!.d
+    assert.deepEqual((await api('/api/products/pf-tee')).data.product.preorder, { shipBy })
+
+    const a = await buy(buyer, [{ productId: teeId, variantId: small }, { productId: digitalId }])
+    assert.match(a.session.line_items.find((l: any) => /Preorder/.test(l.price_data.product_data.name)).price_data.product_data.description, /Ships by/)
+    assert.equal(fake.orders.length, 0, 'nothing goes to Printful yet')
+    assert.equal((await job(a.orderId))!.state, 'held')
+    assert.ok(await one(`select 1 from order_updates where order_id = $1 and message like 'Preorder received%'`, [a.orderId]))
+    assert.equal((await one<{ status: string }>(`select e.status from entitlements e join order_items oi on oi.id = e.order_item_id where oi.order_id = $1`, [a.orderId]))!.status, 'available', 'downloads do not wait for preorders')
+    const confirmation = await one<{ html: string }>(`select html from emails where type = 'order_confirmation' and related_order_id = $1`, [a.orderId])
+    assert.match(confirmation!.html, /preorder, ships by/)
+    await runPrintfulQueue()
+    assert.equal(fake.orders.length, 0, 'the queue leaves held orders alone')
+    assert.equal((await api(`/api/admin/orders/${a.orderId}/printful/retry`, { session: admin, body: {} })).status, 400, 'retry cannot release a preorder by accident')
+    const summary = (await api('/api/admin/printful/preorders', { session: admin })).data.preorders
+    assert.deepEqual(summary.map((x: any) => [x.title, x.orders, x.items]), [['Test pf-tee', 1, 1]])
+
+    // Release: sent to Printful, confirmed, customer told. Pressing again does nothing more.
+    const r = await api(`/api/admin/products/${teeId}/preorders/release`, { session: admin, body: { confirm: true } })
+    assert.equal(r.status, 200, JSON.stringify(r.data))
+    assert.deepEqual(r.data, { sent: 1, stillWaiting: 0 })
+    await printfulIdle()
+    assert.equal(fake.orders.length, 1)
+    assert.equal(fake.orders[0].status, 'pending')
+    assert.deepEqual(fake.orders[0].items.map((i) => [i.sync_variant_id, i.quantity]), [[4001, 1]])
+    assert.equal((await job(a.orderId))!.state, 'submitted')
+    assert.ok(await one(`select 1 from emails where type = 'preorder_released' and related_order_id = $1`, [a.orderId]))
+    assert.deepEqual((await api(`/api/admin/products/${teeId}/preorders/release`, { session: admin, body: { confirm: true } })).data, { sent: 0, stillWaiting: 0 })
+    await printfulIdle()
+    assert.equal(fake.orders.length, 1)
+  })
+
+  it('preorders: a regular item waits with the preorder; an order with two preorder products waits for both; release can leave drafts', async () => {
+    const admin = await signUp('owner@example.com', 'admin')
+    const buyer = await signUp('buyer@example.com')
+    const { teeId, small, medium } = await linkedTee(admin)
+    const capId = await physicalProduct('pf-cap', 0)
+    fake.addProduct(310, [{ id: 4501, variant_id: 15001 }])
+    assert.equal((await api(`/api/admin/products/${capId}/printful`, { session: admin, method: 'PUT', body: { sync_product_id: 310, links: [{ variant_id: null, sync_variant_id: 4501 }] } })).status, 200)
+    await openSales(admin, true)
+    await q(`update products set preorder = true, preorder_ship_by = current_date + 20 where id = $1`, [teeId])
+
+    // Preorder tee + regular cap: the whole order waits (one package).
+    const a = await buy(buyer, [{ productId: teeId, variantId: small }, { productId: capId }])
+    assert.equal((await job(a.orderId))!.state, 'held')
+    // Second order: tee (preorder) + cap, with the cap now a preorder too.
+    await q(`update products set preorder = true, preorder_ship_by = current_date + 40 where id = $1`, [capId])
+    const buyer2 = await signUp('second@example.com')
+    const b = await buy(buyer2, [{ productId: teeId, variantId: medium }, { productId: capId }])
+    assert.equal((await job(b.orderId))!.state, 'held')
+
+    const r = await api(`/api/admin/products/${teeId}/preorders/release`, { session: admin, body: { confirm: false } })
+    assert.deepEqual(r.data, { sent: 1, stillWaiting: 1 }, 'order b still has the cap preorder waiting')
+    await printfulIdle()
+    assert.equal(fake.orders.length, 1)
+    assert.equal(fake.orders[0].status, 'draft', 'released without confirming: a Printful draft for the owner')
+    assert.equal(fake.orders[0].items.length, 2, 'the regular cap ships with the tee')
+    assert.equal((await job(b.orderId))!.state, 'held')
+    const r2 = await api(`/api/admin/products/${capId}/preorders/release`, { session: admin, body: { confirm: true } })
+    assert.deepEqual(r2.data, { sent: 1, stillWaiting: 0 })
+    await printfulIdle()
+    assert.equal(fake.orders.length, 2)
+    assert.equal(fake.orders[1].status, 'pending')
+  })
 })

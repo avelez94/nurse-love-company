@@ -12,10 +12,12 @@ import {
   linkProduct,
   printfulOrderDetail,
   printfulOverview,
+  preorderSummary,
   productLinks,
   quoteShipping,
   refreshLinks,
   registerWebhook,
+  releasePreorders,
   retryPrintfulOrder,
   safeChecks,
   syncProduct,
@@ -75,6 +77,12 @@ printfulRoutes.get('/admin/products/:id/printful', async (c) => c.json(await pro
 printfulRoutes.put('/admin/products/:id/printful', async (c) => c.json(await linkProduct(requireAdmin(c), uuid(c.req.param('id')), await jsonBody(c), clientIp(c))))
 printfulRoutes.post('/admin/products/:id/printful/import', async (c) => c.json(await importVariants(requireAdmin(c), uuid(c.req.param('id')), (await jsonBody<{ sync_product_id?: unknown }>(c)).sync_product_id, clientIp(c))))
 printfulRoutes.delete('/admin/products/:id/printful', async (c) => c.json(await unlinkProduct(requireAdmin(c), uuid(c.req.param('id')), clientIp(c))))
+
+printfulRoutes.get('/admin/printful/preorders', async (c) => c.json({ preorders: await preorderSummary(c.req.query('product') ? uuid(c.req.query('product')) : undefined) }))
+printfulRoutes.post('/admin/products/:id/preorders/release', async (c) => {
+  const b = await jsonBody<{ confirm?: unknown }>(c)
+  return c.json(await releasePreorders(requireAdmin(c), uuid(c.req.param('id')), b.confirm === true, clientIp(c)))
+})
 
 printfulRoutes.get('/admin/orders/:id/printful', async (c) => c.json({ printful: await printfulOrderDetail(uuid(c.req.param('id'))) }))
 printfulRoutes.post('/admin/orders/:id/printful/:action', async (c) => {

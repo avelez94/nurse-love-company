@@ -4,6 +4,7 @@
 */
 import { one, q, type Queryable } from '../db/pool.js'
 import { sanitizeDoc } from '../../shared/richtext.js'
+import { ymd } from '../lib/dates.js'
 
 export interface PublicVariant {
   id: string
@@ -45,6 +46,8 @@ export interface PublicProduct {
   variants: PublicVariant[]
   inStock: boolean
   soldOutBehavior: string
+  /** Items that ship: paid now, made and shipped once ready, by this date (YYYY-MM-DD). */
+  preorder: null | { shipBy: string }
   digital: null | {
     pageCount: number | null
     pageSize: string | null
@@ -101,6 +104,7 @@ export async function loadProducts(where: string, params: unknown[], client?: Qu
       isDemo: Boolean(r.is_demo),
       inStock,
       soldOutBehavior: String(r.out_of_stock_behavior),
+      preorder: r.type === 'physical' && r.preorder && r.preorder_ship_by ? { shipBy: ymd(r.preorder_ship_by as Date | string)! } : null,
       images: imgs.map((i) => ({ id: i.id, url: imageUrl(i.id), alt: String(i.alt ?? ''), width: (i.width as number) ?? null, height: (i.height as number) ?? null, kind: i.kind as 'gallery' | 'sample' | 'detail', variantId: (i.variant_id as string) ?? null })),
       whatsIncluded: (r.whats_included as string[]) ?? [],
       walkthrough: r.walkthrough_slug ? { slug: String(r.walkthrough_slug), title: String(r.walkthrough_title) } : null,

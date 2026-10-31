@@ -43,6 +43,7 @@ export interface ApiProduct {
   whatsIncluded?: string[]
   walkthrough?: { slug: string; title: string } | null
   isFreebie?: boolean
+  preorder?: { shipBy: string } | null
 }
 
 export interface ApiTutorial {
@@ -108,6 +109,7 @@ export function toProduct(p: ApiProduct): Product {
     isExample: p.isDemo,
     isDemo: p.isDemo,
     isFreebie: Boolean(p.isFreebie),
+    preorder: p.preorder ?? null,
     inStock: p.inStock,
     featured: p.featured,
     digital: p.digital,

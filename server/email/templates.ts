@@ -16,6 +16,7 @@ export type EmailType =
   | 'review_request_physical'
   | 'free_order_confirmation'
   | 'fulfillment_alert'
+  | 'preorder_released'
 
 /** Automation emails are edited under Marketing, Email Automations rather than the general template list. */
 export const AUTOMATION_TYPES: EmailType[] = ['download_reminder', 'review_request_digital', 'review_request_physical']
@@ -37,6 +38,7 @@ export const templateInfo: Record<EmailType, { title: string; placeholders: stri
   review_request_digital: { title: 'Review request (digital)', placeholders: ['name', 'order_number'], buttonPath: 'none' },
   review_request_physical: { title: 'Review request (physical)', placeholders: ['name', 'order_number'], buttonPath: 'none' },
   free_order_confirmation: { title: 'Free resource claimed', placeholders: ['name', 'order_number', 'product_list'], buttonPath: 'downloads' },
+  preorder_released: { title: 'Preorder being made', placeholders: ['name', 'order_number'], buttonPath: 'order' },
   fulfillment_alert: { title: 'Fulfillment needs attention (to admins)', placeholders: ['name', 'order_number', 'reason'], buttonPath: 'admin_orders' },
 }
 
@@ -88,6 +90,12 @@ export const defaultTemplates: Record<EmailType, TemplateText> = {
     heading: 'Enjoy your freebie',
     body: 'Hi {{name}},\n\nThank you for claiming {{product_list}} (order {{order_number}}). It is ready for you in My downloads.\n\nEach free resource includes one download, so save your file somewhere you can easily find it again.',
     button_label: 'My downloads',
+  },
+  preorder_released: {
+    subject: 'Your preorder {{order_number}} is being made ♡',
+    heading: 'Your preorder is being made',
+    body: 'Hi {{name}},\n\nGood news! Your preorder {{order_number}} is now being made. Everything in your order ships together, and we will email you the tracking number as soon as it is on its way.\n\nThank you so much for your patience.',
+    button_label: 'View your order',
   },
   fulfillment_alert: {
     subject: 'Order {{order_number}} needs your attention',

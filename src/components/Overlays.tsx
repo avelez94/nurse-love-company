@@ -18,7 +18,7 @@ import { useUI } from '../lib/ui'
 import { Dialog } from './Dialog'
 import { Gallery } from './Gallery'
 import { Heart } from './illustrations/Objects'
-import { ExampleLabel, Price, ProductLabels } from './Labels'
+import { ExampleLabel, Price, ProductLabels, shipByText } from './Labels'
 import { PeekInside } from './PeekInside'
 import { ProductArt } from './ProductArt'
 import { SamplePageView } from './SamplePageView'
@@ -347,6 +347,9 @@ function BagDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
             <p className="bag__note">
               {allFree ? 'No payment or card details needed.' : hasPhysical ? 'Any sales tax is added at checkout. Digital items never add shipping.' : 'Any sales tax is calculated at checkout. Digital downloads have no shipping.'}
             </p>
+            {hasPhysical && lines.some((l) => l.product.preorder) && (
+              <p className="bag__note">Your bag has a preorder, so everything that ships waits and ships together once the preorder is ready. Digital downloads are ready right away.</p>
+            )}
             {shippingBlocked && (
               <p className="bag__note bag__ship-closed" role="status">
                 {physicalSales.reason || 'Items that ship are not available to order yet.'} Digital items can still be ordered on their own.
@@ -443,6 +446,7 @@ function BagDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
                   {variant && <span className="bag-line__type">{variant.title}</span>}
                   <span className="bag-line__type">{product.type === 'digital' ? 'Digital download • Binder not included' : 'Ships to you'}</span>
                   {product.isFreebie && <span className="bag-line__type">Free with email list signup</span>}
+                  {product.preorder && <span className="bag-line__type bag-line__preorder">Preorder. {shipByText(product.preorder.shipBy)}</span>}
                   <span className="bag-line__price">
                     <Price product={product} variant={variant} />
                   </span>

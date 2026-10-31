@@ -62,16 +62,30 @@ export function parseProductInput(b: Record<string, unknown>) {
           inventory_quantity: int(b.inventory_quantity, 'Inventory', { optional: true, min: -100000, max: 1000000 }) ?? 0,
           low_stock_threshold: int(b.low_stock_threshold, 'Low stock threshold', { optional: true, max: 100000 }) ?? 3,
           out_of_stock_behavior: oneOf(b.out_of_stock_behavior, 'Out of stock behavior', ['hide', 'show_sold_out', 'allow_backorder'] as const, 'show_sold_out'),
+          ...preorderInput(b),
         }
-      : { sku: null, weight_grams: null, shipping_info: '', inventory_quantity: 0, low_stock_threshold: 3, out_of_stock_behavior: 'show_sold_out' as const }
+      : { sku: null, weight_grams: null, shipping_info: '', inventory_quantity: 0, low_stock_threshold: 3, out_of_stock_behavior: 'show_sold_out' as const, preorder: false, preorder_ship_by: null as string | null }
   return { ...base, ...digital, ...physical }
+}
+
+/**
+ * Preorders: customers pay now and the order waits until the owner releases it to Printful.
+ * The ship by date is a promise to customers, so it is required and cannot be in the past.
+ */
+function preorderInput(b: Record<string, unknown>) {
+  const preorder = bool(b.preorder)
+  const raw = String(b.preorder_ship_by ?? '').trim()
+  if (!preorder) return { preorder: false, preorder_ship_by: raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw) || Number.isNaN(Date.parse(`${raw}T00:00:00Z`))) throw badRequest('Preorders need the date you expect to ship by.')
+  if (raw < new Date().toISOString().slice(0, 10)) throw badRequest('The preorder ship by date cannot be in the past.')
+  return { preorder: true, preorder_ship_by: raw }
 }
 
 type ProductInput = ReturnType<typeof parseProductInput>
 const COLUMNS: Array<keyof ProductInput> = [
   'title', 'slug', 'category', 'collection', 'type', 'short_description', 'description', 'price_cents', 'sale_price_cents', 'featured', 'is_freebie', 'whats_included', 'walkthrough_tutorial_id', 'sort_order',
   'page_count', 'page_size', 'orientation', 'file_format', 'usage_attributes', 'app_compatibility', 'show_binder_notice',
-  'sku', 'weight_grams', 'shipping_info', 'inventory_quantity', 'low_stock_threshold', 'out_of_stock_behavior',
+  'sku', 'weight_grams', 'shipping_info', 'inventory_quantity', 'low_stock_threshold', 'out_of_stock_behavior', 'preorder', 'preorder_ship_by',
 ]
 
 function values(input: ProductInput) {

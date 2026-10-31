@@ -29,6 +29,7 @@ export interface PrintfulJob {
 }
 
 const STATE: Record<string, { label: string; tone: string }> = {
+  held: { label: 'Preorder: waiting for you to send it (on the product, Send preorders to Printful)', tone: 'pending' },
   queued: { label: 'Waiting to send to Printful', tone: 'pending' },
   submitting: { label: 'Sending to Printful', tone: 'pending' },
   uncertain: { label: 'Checking with Printful (no clear answer yet)', tone: 'pending' },

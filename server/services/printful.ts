@@ -46,6 +46,7 @@ import {
   type PfSyncVariant,
 } from '../lib/printful.js'
 import { ingestDeliveryEvent } from './delivery.js'
+import { longDate, ymd } from '../lib/dates.js'
 import { getSettings } from './settings.js'
 
 const money = (cents: number) => (cents / 100).toFixed(2)
@@ -411,7 +412,7 @@ export async function useQuote(userId: string, physical: Array<{ product_id: str
 
 /* ---------- Fulfillment jobs ---------- */
 
-type JobState = 'queued' | 'submitting' | 'uncertain' | 'draft' | 'confirming' | 'submitted' | 'needs_attention' | 'canceled' | 'fulfilled'
+type JobState = 'held' | 'queued' | 'submitting' | 'uncertain' | 'draft' | 'confirming' | 'submitted' | 'needs_attention' | 'canceled' | 'fulfilled'
 interface JobRow {
   order_id: string
   external_id: string
@@ -440,12 +441,23 @@ export async function queuePrintfulOrder(orderId: string, client: PoolClient) {
   const demo = Boolean((await one<{ is_demo: boolean }>('select is_demo from orders where id = $1', [orderId], client))?.is_demo)
   // A Stripe test payment does not make a Printful order free: test and demo orders are only ever drafts, which Printful does not charge.
   const testMode = demo || !(livePaymentsForTests ?? paymentsState() === 'live')
-  const r = await q(
-    `insert into printful_orders (order_id, external_id, auto_confirm, test_mode) values ($1,$2,$3,$4) on conflict (order_id) do nothing returning order_id`,
-    [orderId, orderId.replace(/-/g, ''), s.printful.auto_confirm && !testMode, testMode],
+  // An order with a preorder item waits, whole, until the owner releases its preorders: one package, one shipping charge.
+  const pre = await one<{ ship_by: Date | string }>(
+    `select max(preorder_ship_by) as ship_by from order_items where order_id = $1 and product_type = 'physical' and is_preorder having bool_or(is_preorder)`,
+    [orderId],
     client,
   )
-  if (r.length) await q(`insert into order_updates (order_id, message, created_by) values ($1,'Sent to our print partner to be made.','system')`, [orderId], client)
+  const r = await q(
+    `insert into printful_orders (order_id, external_id, auto_confirm, test_mode, state) values ($1,$2,$3,$4,$5) on conflict (order_id) do nothing returning order_id`,
+    [orderId, orderId.replace(/-/g, ''), s.printful.auto_confirm && !testMode, testMode, pre ? 'held' : 'queued'],
+    client,
+  )
+  if (r.length) {
+    const msg = pre
+      ? `Preorder received. Your order will be made and shipped together once the preorder items are ready (expected to ship by ${longDate(ymd(pre.ship_by)!)}).`
+      : 'Sent to our print partner to be made.'
+    await q(`insert into order_updates (order_id, message, created_by) values ($1,$2,'system')`, [orderId, msg], client)
+  }
   return r.length > 0
 }
 
@@ -828,6 +840,7 @@ async function lockJob(orderId: string, client: PoolClient) {
 export async function retryPrintfulOrder(actor: SessionUser, orderId: string, ip?: string) {
   await tx(async (client) => {
     const job = await lockJob(orderId, client)
+    if (job.state === 'held') throw badRequest('This is a preorder waiting for you. Use "Send preorders to Printful" on the product when it is ready.')
     if (['submitted', 'fulfilled', 'canceled'].includes(job.state)) throw badRequest('Nothing to retry: Printful already has this order. Use "Check with Printful" to refresh it.')
     await q(`update printful_orders set state = case when printful_order_id is null then 'uncertain' else state end, next_attempt_at = now(), attention_notified_at = null, updated_at = now() where order_id = $1`, [orderId], client)
     await audit({ actor, action: 'printful.retry', entityType: 'order', entityId: orderId, summary: 'Asked to check with Printful and continue sending the order', ip }, client)
@@ -843,6 +856,7 @@ export async function retryPrintfulOrder(actor: SessionUser, orderId: string, ip
 export async function confirmPrintfulOrder(actor: SessionUser, orderId: string, ip?: string) {
   const job = await tx(async (client) => {
     const j = await lockJob(orderId, client)
+    if (j.state === 'held') throw badRequest('This is a preorder waiting for you. Use "Send preorders to Printful" on the product when it is ready.')
     if (!j.printful_order_id) throw badRequest('This order is not in Printful yet. Use "Check with Printful and continue" first.')
     await q(`update printful_orders set state = 'confirming', claimed_at = now(), attention_notified_at = null, updated_at = now() where order_id = $1`, [orderId], client)
     await audit({ actor, action: 'printful.confirm', entityType: 'order', entityId: orderId, summary: `Confirmed Printful order ${j.printful_order_id} for production`, ip }, client)
@@ -888,7 +902,7 @@ export async function cancelPrintfulOrder(actor: SessionUser, orderId: string, r
 
 export async function printfulOrderDetail(orderId: string) {
   return one<Record<string, unknown>>(
-    `select order_id, external_id, state, printful_order_id::text, printful_status, auto_confirm, test_mode, attempts, last_error, attention_reason, costs, submitted_at, confirmed_at, last_synced_at, created_at, updated_at
+    `select order_id, external_id, state, printful_order_id::text, printful_status, auto_confirm, test_mode, released_at, attempts, last_error, attention_reason, costs, submitted_at, confirmed_at, last_synced_at, created_at, updated_at
        from printful_orders where order_id = $1`,
     [orderId],
   )
@@ -1043,4 +1057,78 @@ export async function safeChecks(addressInput?: unknown) {
     return `Set to this site for: ${w.types.join(', ')}.`
   })
   return out
+}
+
+/* ---------- Preorders ---------- */
+
+/** Held preorders, per product, for the admin. */
+export async function preorderSummary(productId?: string) {
+  return q<{ product_id: string; title: string; orders: number; items: number; oldest: string }>(
+    `select oi.product_id, p.title, count(distinct oi.order_id)::int as orders, sum(oi.quantity - oi.refunded_quantity)::int as items, min(o.paid_at) as oldest
+       from order_items oi join printful_orders po on po.order_id = oi.order_id join orders o on o.id = oi.order_id join products p on p.id = oi.product_id
+      where po.state = 'held' and oi.is_preorder and oi.preorder_released_at is null and oi.refunded_quantity < oi.quantity ${productId ? 'and oi.product_id = $1' : ''}
+      group by oi.product_id, p.title order by min(o.paid_at)`,
+    productId ? [productId] : [],
+  )
+}
+
+/**
+ * The owner's "Send preorders to Printful" for one product: marks its held
+ * preorder items ready, and sends every held order whose preorder items are
+ * now all ready (an order with another, unreleased preorder item keeps
+ * waiting). Customers get a "being made" email. Safe to press twice.
+ */
+export async function releasePreorders(actor: SessionUser, productId: string, confirmNow: boolean, ip?: string) {
+  if (!printfulConfigured()) throw new HttpError(503, 'Printful is not connected yet.', 'printful_not_configured')
+  const result = await tx(async (client) => {
+    const product = await one<{ title: string }>('select title from products where id = $1', [productId], client)
+    if (!product) throw notFound('Product')
+    const marked = await q<{ order_id: string }>(
+      `update order_items oi set preorder_released_at = now()
+        from printful_orders po
+       where po.order_id = oi.order_id and po.state = 'held' and oi.product_id = $1 and oi.is_preorder and oi.preorder_released_at is null
+       returning oi.order_id`,
+      [productId],
+      client,
+    )
+    const orderIds = [...new Set(marked.map((m) => m.order_id))]
+    const ready = orderIds.length
+      ? await q<{ order_id: string }>(
+          `select po.order_id from printful_orders po
+            where po.order_id = any($1) and po.state = 'held'
+              and not exists (select 1 from order_items oi where oi.order_id = po.order_id and oi.is_preorder and oi.preorder_released_at is null)
+            for update`,
+          [orderIds],
+          client,
+        )
+      : []
+    for (const r of ready) {
+      await q(
+        `update printful_orders set state = 'queued', auto_confirm = $2 and not test_mode, released_at = now(), released_by = $3, next_attempt_at = now(), updated_at = now() where order_id = $1`,
+        [r.order_id, confirmNow, actor.email],
+        client,
+      )
+      await q(`insert into order_updates (order_id, message, created_by) values ($1,'Your preorder is being made. We will email tracking when it ships.',$2)`, [r.order_id, actor.email], client)
+      const o = (await one<{ email: string; customer_name: string; order_number: string; user_id: string | null; is_demo: boolean }>('select * from orders where id = $1', [r.order_id], client))!
+      await queueEmail(
+        { type: 'preorder_released', to: o.email, userId: o.user_id, orderId: r.order_id, isDemo: o.is_demo, vars: { name: o.customer_name, order_number: o.order_number }, idempotencyKey: `preorder_released:${r.order_id}` },
+        client,
+      )
+    }
+    await audit(
+      {
+        actor,
+        action: 'printful.preorders_released',
+        entityType: 'product',
+        entityId: productId,
+        summary: `Sent ${ready.length} preorder order${ready.length === 1 ? '' : 's'} for ${product.title} to Printful${confirmNow ? ', confirmed for production' : ' as drafts'}`,
+        ip,
+      },
+      client,
+    )
+    return { sent: ready.length, stillWaiting: orderIds.length - ready.length }
+  })
+  kickDispatcher()
+  kickPrintful()
+  return result
 }

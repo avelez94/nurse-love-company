@@ -5,7 +5,7 @@ import { getCategory } from '../data/catalog'
 import type { Product as ProductRecord } from '../data/types'
 import { Heart } from '../components/illustrations/Objects'
 import { Gallery } from '../components/Gallery'
-import { Price, ProductLabels } from '../components/Labels'
+import { Price, ProductLabels, shipByText } from '../components/Labels'
 import { useAddToBag, VariantPicker } from '../components/Overlays'
 import { ProductReviews } from '../components/Reviews'
 import { ProductCard } from '../components/ProductCard'
@@ -87,6 +87,11 @@ export function ProductView({ product, preview = false }: { product: ProductReco
           )}
           {!isDigital && (product.variants?.length ? <VariantPicker product={product} value={variantId} onChange={setVariantId} /> : <p className="muted product__variants">Sizes, colors and options will be listed once confirmed.</p>)}
 
+          {!isDigital && product.preorder && (
+            <p className="notice notice--preorder">
+              <strong>Preorder. {shipByText(product.preorder.shipBy)}.</strong> You pay now, and it is made and shipped as soon as it is ready. If your bag has other items that ship, they ship together.
+            </p>
+          )}
           <div className="product__actions">
             <button
               type="button"
@@ -98,7 +103,7 @@ export function ProductView({ product, preview = false }: { product: ProductReco
               }}
             >
               {added ? <Heart className="button__heart" /> : <ShoppingBag aria-hidden="true" size={18} />}
-              {soldOut ? 'Sold out' : unpriced ? 'Pricing to be added' : needsVariant ? 'Choose an option' : added ? (isDigital ? 'In your bag' : 'Add another') : product.isFreebie ? 'Add free resource to bag' : 'Add to bag'}
+              {soldOut ? (isDigital ? 'Sold out' : 'Unavailable') : unpriced ? 'Pricing to be added' : needsVariant ? 'Choose an option' : added ? (isDigital ? 'In your bag' : 'Add another') : product.isFreebie ? 'Add free resource to bag' : product.preorder ? 'Preorder now' : 'Add to bag'}
             </button>
             {isDigital && product.samplePages.length > 0 && (
               <button type="button" className="button button--outline" onClick={() => open({ kind: 'peek', product })} aria-haspopup="dialog">

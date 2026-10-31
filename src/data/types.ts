@@ -127,6 +127,8 @@ export interface Product {
   walkthrough?: { slug: string; title: string } | null
   /** In the Freebie Corner: free with an email list signup. */
   isFreebie?: boolean
+  /** Paid now, made and shipped once ready, by this date (YYYY-MM-DD). */
+  preorder?: { shipBy: string } | null
   /** True when samplePages are owner approved, watermarked previews (not illustrations). */
   realSamples?: boolean
 }

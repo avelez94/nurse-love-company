@@ -21,6 +21,7 @@ import { badRequest, conflict, HttpError, notFound } from '../lib/errors.js'
 import { stripe, type Stripe } from '../lib/stripe.js'
 import { applyRefundToEntitlements, grantPurchaseEntitlements } from './entitlements.js'
 import { getSettings } from './settings.js'
+import { longDate, ymd } from '../lib/dates.js'
 import { kickPrintful, linksForLines, physicalSales, queuePrintfulOrder, useQuote } from './printful.js'
 
 export interface CartLine {
@@ -42,6 +43,9 @@ interface PricedLine {
   unit_price_cents: number
   quantity: number
   is_freebie: boolean
+  /** A preorder item: paid now, held until the owner releases it to Printful. */
+  is_preorder: boolean
+  preorder_ship_by: string | null
 }
 
 /** Validates a cart against live product data. Used for checkout and the cart preview. */
@@ -54,7 +58,7 @@ export async function priceCart(user: SessionUser | null, lines: CartLine[], cli
     const key = `${l.productId}:${l.variantId ?? ''}`
     if (seen.has(key)) throw badRequest('The same item appears twice in your bag.')
     seen.add(key)
-    const p = await one<{ id: string; title: string; type: 'digital' | 'physical'; category: string; price_cents: number | null; sale_price_cents: number | null; status: string; active: boolean; archived_at: string | null; sku: string | null; inventory_quantity: number; out_of_stock_behavior: string; current_version_id: string | null; is_freebie: boolean }>(
+    const p = await one<{ id: string; title: string; type: 'digital' | 'physical'; category: string; price_cents: number | null; sale_price_cents: number | null; status: string; active: boolean; archived_at: string | null; sku: string | null; inventory_quantity: number; out_of_stock_behavior: string; current_version_id: string | null; is_freebie: boolean; preorder: boolean; preorder_ship_by: Date | string | null }>(
       'select * from products where id = $1',
       [l.productId],
       client,
@@ -96,7 +100,21 @@ export async function priceCart(user: SessionUser | null, lines: CartLine[], cli
     if (p.is_freebie) price = 0
     else if (price === 0) price = null
     if (price === null || price === undefined) throw badRequest(`${p.title} is not available for purchase yet.`)
-    out.push({ product_id: p.id, variant_id: l.variantId ?? null, product_type: p.type, title: p.title, variant_title: variantTitle, sku, category: p.category, unit_price_cents: price, quantity: qty, is_freebie: Boolean(p.is_freebie) })
+    const preorder = p.type === 'physical' && Boolean(p.preorder) && Boolean(p.preorder_ship_by)
+    out.push({
+      product_id: p.id,
+      variant_id: l.variantId ?? null,
+      product_type: p.type,
+      title: p.title,
+      variant_title: variantTitle,
+      sku,
+      category: p.category,
+      unit_price_cents: price,
+      quantity: qty,
+      is_freebie: Boolean(p.is_freebie),
+      is_preorder: preorder,
+      preorder_ship_by: preorder ? ymd(p.preorder_ship_by) : null,
+    })
   }
   return out
 }
@@ -112,9 +130,9 @@ const freebieNeedsList = () =>
 async function insertItems(client: PoolClient, orderId: string, priced: PricedLine[]) {
   for (const l of priced) {
     await q(
-      `insert into order_items (order_id, product_id, variant_id, product_type, title_snapshot, variant_snapshot, sku_snapshot, category_snapshot, unit_price_cents, quantity, line_total_cents, is_freebie)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-      [orderId, l.product_id, l.variant_id, l.product_type, l.title, l.variant_title, l.sku, l.category, l.unit_price_cents, l.quantity, l.unit_price_cents * l.quantity, l.is_freebie],
+      `insert into order_items (order_id, product_id, variant_id, product_type, title_snapshot, variant_snapshot, sku_snapshot, category_snapshot, unit_price_cents, quantity, line_total_cents, is_freebie, is_preorder, preorder_ship_by)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+      [orderId, l.product_id, l.variant_id, l.product_type, l.title, l.variant_title, l.sku, l.category, l.unit_price_cents, l.quantity, l.unit_price_cents * l.quantity, l.is_freebie, l.is_preorder, l.preorder_ship_by],
       client,
     )
   }
@@ -240,7 +258,11 @@ export async function createCheckout(user: SessionUser, lines: CartLine[], opts:
         price_data: {
           currency: 'usd',
           unit_amount: l.unit_price_cents,
-          product_data: { name: l.variant_title ? `${l.title} (${l.variant_title})` : l.title, metadata: { product_id: l.product_id, type: l.product_type } },
+          product_data: {
+            name: `${l.is_preorder ? 'Preorder: ' : ''}${l.variant_title ? `${l.title} (${l.variant_title})` : l.title}`,
+            ...(l.is_preorder && l.preorder_ship_by ? { description: `Ships by ${longDate(l.preorder_ship_by)}. Your whole order ships together once it is ready.` } : {}),
+            metadata: { product_id: l.product_id, type: l.product_type },
+          },
         },
       })),
       allow_promotion_codes: true,
@@ -353,7 +375,11 @@ async function markPaid(session: Stripe.Checkout.Session) {
       await q(`insert into order_notes (order_id, body, author_email) values ($1,$2,'system')`, [order.id, `Payment subtotal (${money(session.amount_subtotal)}) did not match the order subtotal (${money(order.subtotal_cents)}). Please review.`], client)
     }
 
-    const items = await q<{ id: string; product_id: string; variant_id: string | null; product_type: string; quantity: number; title_snapshot: string }>('select * from order_items where order_id = $1', [order.id], client)
+    const items = await q<{ id: string; product_id: string; variant_id: string | null; product_type: string; quantity: number; title_snapshot: string; is_preorder: boolean; preorder_ship_by: Date | string | null }>(
+      'select * from order_items where order_id = $1',
+      [order.id],
+      client,
+    )
     const quoted = (await one<{ m: { option?: { rate_cents: number } } | null }>('select shipping_method as m from orders where id = $1', [order.id], client))!.m
     if (quoted?.option && td?.amount_shipping !== undefined && td.amount_shipping !== quoted.option.rate_cents) {
       await q(`insert into order_notes (order_id, body, author_email) values ($1,$2,'system')`, [order.id, `Shipping paid (${money(td.amount_shipping ?? 0)}) differs from the Printful quote (${money(quoted.option.rate_cents)}). Please review.`], client)
@@ -381,7 +407,7 @@ async function markPaid(session: Stripe.Checkout.Session) {
         orderId: order.id,
         isDemo: order.is_demo,
         vars: { name, order_number: order.order_number, order_total: money(session.amount_total ?? 0) },
-        rows: items.map((i) => [`${i.title_snapshot} × ${i.quantity}`, '']) as Array<[string, string]>,
+        rows: items.map((i) => [`${i.title_snapshot} × ${i.quantity}${i.is_preorder ? ` (preorder, ships by ${longDate(ymd(i.preorder_ship_by)!)})` : ''}`, '']) as Array<[string, string]>,
         idempotencyKey: `order_confirmation:${order.id}`,
       },
       client,

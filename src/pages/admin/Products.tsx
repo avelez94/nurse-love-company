@@ -9,7 +9,7 @@ import { RichTextEditor } from '../../components/RichTextEditor'
 import { Checkbox, Confirm, dateTime, Empty, FormError, Loading, money, MoneyInput, Notice, Pill, ProgressBar, Select, TextArea, TextInput, useApiData } from '../../components/ui'
 import { ProductView } from '../Product'
 import { slugify } from './slug'
-import { PrintfulLinks } from './PrintfulLinks'
+import { PreorderPanel, PrintfulLinks } from './PrintfulLinks'
 import { PageTitle } from './AdminApp'
 
 interface ListRow {
@@ -131,6 +131,8 @@ type Form = {
   inventory_quantity: number
   low_stock_threshold: number
   out_of_stock_behavior: string
+  preorder: boolean
+  preorder_ship_by: string
   whats_included: string[]
   walkthrough_tutorial_id: string | null
   is_freebie: boolean
@@ -139,7 +141,7 @@ type Form = {
 const blank: Form = {
   title: '', slug: '', category: 'nurse-inserts', collection: '', type: 'digital', short_description: '', description: { type: 'doc', content: [] }, price_cents: null, sale_price_cents: null, featured: false, sort_order: 0,
   page_count: null, page_size: '', orientation: '', file_format: '', usage_attributes: [], app_compatibility: [], show_binder_notice: true,
-  sku: '', weight_grams: null, shipping_info: '', inventory_quantity: 0, low_stock_threshold: 3, out_of_stock_behavior: 'show_sold_out', whats_included: [], walkthrough_tutorial_id: null, is_freebie: false,
+  sku: '', weight_grams: null, shipping_info: '', inventory_quantity: 0, low_stock_threshold: 3, out_of_stock_behavior: 'show_sold_out', preorder: false, preorder_ship_by: '', whats_included: [], walkthrough_tutorial_id: null, is_freebie: false,
 }
 
 interface Detail {
@@ -178,7 +180,7 @@ export function ProductEditor({ id }: { id: string }) {
   useEffect(() => {
     if (data) {
       const p = data.product
-      setForm({ ...blank, ...Object.fromEntries(Object.entries(p).filter(([k]) => k in blank)), page_size: p.page_size ?? '', orientation: p.orientation ?? '', file_format: p.file_format ?? '', sku: p.sku ?? '' } as Form)
+      setForm({ ...blank, ...Object.fromEntries(Object.entries(p).filter(([k]) => k in blank)), page_size: p.page_size ?? '', orientation: p.orientation ?? '', file_format: p.file_format ?? '', sku: p.sku ?? '', preorder_ship_by: p.preorder_ship_by ? String(p.preorder_ship_by).slice(0, 10) : '' } as Form)
       setSlugTouched(true)
     }
   }, [data])
@@ -289,12 +291,28 @@ export function ProductEditor({ id }: { id: string }) {
                 <TextInput label="Weight (grams)" value={form.weight_grams === null ? '' : String(form.weight_grams)} onChange={(v) => set('weight_grams', v ? Number(v.replace(/\D/g, '')) : null)} />
               </div>
               <p className="muted">Printful makes and ships this item, so there is no stock to count. Availability comes from Printful once its options are linked below.</p>
+              <Checkbox
+                label="Preorder"
+                checked={form.preorder}
+                onChange={(v) => set('preorder', v)}
+                hint="Customers pay now. Their whole order waits on the website until you press Send preorders to Printful (below, after saving)."
+              />
+              {form.preorder && (
+                <TextInput
+                  label="Ships by"
+                  type="date"
+                  value={form.preorder_ship_by}
+                  onChange={(v) => set('preorder_ship_by', v)}
+                  hint='Shown to customers as "Ships by ...". Pick a date you can keep, allowing for Printful production and shipping; if it slips, customers should be told and offered a refund.'
+                />
+              )}
               <Select label="When Printful cannot make it" value={form.out_of_stock_behavior === 'allow_backorder' ? 'show_sold_out' : form.out_of_stock_behavior} onChange={(v) => set('out_of_stock_behavior', v)} options={[{ value: 'show_sold_out', label: 'Show as unavailable' }, { value: 'hide', label: 'Hide from the shop' }]} />
               <TextArea label="Shipping information" value={form.shipping_info} onChange={(v) => set('shipping_info', v)} maxLength={500} rows={2} />
             </section>
           )}
 
           {!isNew && data && form.type === 'physical' && <Variants productId={id} variants={data.variants} reload={reload} />}
+          {!isNew && form.type === 'physical' && <PreorderPanel productId={id} />}
           {!isNew && data && form.type === 'physical' && <PrintfulLinks productId={id} variantsKey={data.variants.map((v) => `${v.id}:${v.active}`).join(',')} reload={reload} />}
           {!isNew && data && <Images productId={id} images={data.images.filter((i) => i.kind === 'gallery')} variants={data.variants} reload={reload} />}
           {/* Sample previews, "What's included" and walkthroughs are for digital files, so physical items do not show them. Saved values are kept. */}

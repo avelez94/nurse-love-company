@@ -51,7 +51,11 @@ export function ProductLabels({ product }: { product: Product }) {
     <span className="label-row">
       {product.type === 'digital' ? <DigitalLabel /> : <ShipsLabel />}
       {product.isExample && <ExampleLabel demo={product.isDemo} />}
-      {product.inStock === false && <span className="label label--example">Sold out</span>}
+      {product.preorder && <span className="label label--preorder">Preorder</span>}
+      {product.inStock === false && <span className="label label--example">{product.type === 'physical' ? 'Unavailable' : 'Sold out'}</span>}
     </span>
   )
 }
+
+/** "Ships by December 15" for a preorder date (YYYY-MM-DD). */
+export const shipByText = (d: string) => `Ships by ${new Date(`${d}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' })}`

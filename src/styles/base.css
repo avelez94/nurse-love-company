@@ -250,6 +250,11 @@ button {
   color: var(--burgundy-soft);
   background: var(--blush);
 }
+.label--preorder {
+  border-color: var(--pink-deep);
+  color: var(--raspberry-dark);
+  background: var(--white);
+}
 .label--wrap {
   white-space: normal;
 }

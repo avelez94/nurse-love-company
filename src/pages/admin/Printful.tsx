@@ -31,6 +31,7 @@ interface Check {
 }
 
 const STATE_LABEL: Record<string, string> = {
+  held: 'Preorders waiting',
   queued: 'Waiting to send',
   uncertain: 'Checking with Printful',
   confirming: 'Confirming',

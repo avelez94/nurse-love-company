@@ -1,6 +1,7 @@
 import { RefreshCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { FormError, Loading, Notice, Pill, Select, useApiData } from '../../components/ui'
+import { Checkbox, dateTime, FormError, Loading, Notice, Pill, Select, useApiData } from '../../components/ui'
+import { Dialog } from '../../components/Dialog'
 import { api, errorMessage } from '../../lib/api'
 import { href } from '../../lib/router'
 import { useUI } from '../../lib/ui'
@@ -170,6 +171,68 @@ export function PrintfulLinks({ productId, variantsKey, reload }: { productId: s
         </>
       )}
       <FormError message={error || links.error} />
+    </section>
+  )
+}
+
+/**
+ * Paid preorders for this product waiting on the website. "Send preorders to
+ * Printful" sends every waiting order whose preorder items are all ready.
+ */
+export function PreorderPanel({ productId }: { productId: string }) {
+  const data = useApiData<{ preorders: Array<{ orders: number; items: number; oldest: string }> }>(`/api/admin/printful/preorders?product=${productId}`)
+  const { showToast } = useUI()
+  const [open, setOpen] = useState(false)
+  const [confirm, setConfirm] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const waiting = data.data?.preorders[0]
+  if (!waiting) return null
+  const release = async () => {
+    setBusy(true)
+    setError('')
+    try {
+      const r = await api<{ sent: number; stillWaiting: number }>(`/api/admin/products/${productId}/preorders/release`, { body: { confirm } })
+      showToast(`Sent ${r.sent} order${r.sent === 1 ? '' : 's'} to Printful.${r.stillWaiting ? ` ${r.stillWaiting} still wait for another preorder item.` : ''}`)
+      setOpen(false)
+      await data.reload()
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <section className="panel form-stack">
+      <h2 className="panel__title">Preorders waiting</h2>
+      <p>
+        <strong>
+          {waiting.orders} paid order{waiting.orders === 1 ? '' : 's'} ({waiting.items} item{waiting.items === 1 ? '' : 's'})
+        </strong>{' '}
+        waiting since {dateTime(waiting.oldest)}. Nothing has been sent to Printful yet.
+      </p>
+      <button type="button" className="button button--small" onClick={() => setOpen(true)}>
+        Send preorders to Printful
+      </button>
+      <Dialog open={open} onClose={() => setOpen(false)} title="Send preorders to Printful?">
+        <p>Every waiting order for this product goes to Printful now, with each customer's address and the shipping they paid for. Customers get an email that their order is being made.</p>
+        <Checkbox
+          label="Confirm for production now"
+          checked={confirm}
+          onChange={setConfirm}
+          hint="Printful starts making them and charges your Printful billing method. Untick to send them as drafts you confirm later."
+        />
+        <p className="muted">Orders that also hold another preorder item keep waiting until that one is sent too. Turn off Preorder on the product when you want new orders to go straight to Printful.</p>
+        <FormError message={error} />
+        <div className="button-row">
+          <button type="button" className="button button--small" disabled={busy} onClick={release}>
+            {busy ? 'Sending...' : 'Send to Printful'}
+          </button>
+          <button type="button" className="button button--outline button--small" onClick={() => setOpen(false)}>
+            Not yet
+          </button>
+        </div>
+      </Dialog>
     </section>
   )
 }
