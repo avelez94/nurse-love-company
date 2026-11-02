@@ -3,9 +3,7 @@ import { freebies, getCategory } from '../data/catalog'
 import { site } from '../data/site'
 import type { CategoryId, IllustrationName } from '../data/types'
 import { Heart } from '../components/illustrations/Objects'
-import heroAsthma from '../assets/hero/asthma.webp'
 import heroUti from '../assets/hero/uti.webp'
-import heroDermatology from '../assets/hero/dermatology.webp'
 import { InsertPage } from '../components/illustrations/InsertPage'
 import { PageCluster } from '../components/illustrations/PageCluster'
 import { DigitalLabel, ShipsLabel } from '../components/Labels'
@@ -36,13 +34,13 @@ function Hero() {
   const { quiz } = useMarketing()
   return (
     <section className="hero" aria-labelledby="hero-title">
-      <div className="hero__art" role="img" aria-label="Three sample NP binder insert pages: Inhaler Pharmacotherapy for Asthma, UTI Diagnosis and Treatment, and a Visual Lesion Chart.">
+      <div className="hero__art" role="img" aria-label="Sample insert pages: a medication tracker, a brain dump page, and the UTI Diagnosis and Treatment clinical guide from the NP binder inserts.">
         <div className="hero__backdrop" />
-        <img className="hero__page hero__page--med" src={heroAsthma} alt="" width={900} height={1165} decoding="async" />
-        <img className="hero__page hero__page--dump" src={heroUti} alt="" width={900} height={1165} decoding="async" />
+        <InsertPage className="hero__page hero__page--med" title="Medication" subtitle="Tracker" layout="table" fields={['Med', 'Dose', 'Time']} />
+        <InsertPage className="hero__page hero__page--dump" title="Brain Dump" layout="lined" heart />
         {/* The front page floats gently (switched off for reduced motion). */}
         <div className="hero__tablet">
-          <img className="hero__page-img hero__front" src={heroDermatology} alt="" width={900} height={1165} decoding="async" />
+          <img className="hero__page-img hero__front" src={heroUti} alt="" width={900} height={1165} decoding="async" />
         </div>
       </div>
       <div className="container hero__inner">

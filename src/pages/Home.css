@@ -122,8 +122,7 @@
   top: 7%;
   transform: rotate(7deg);
 }
-/* Real insert pages: white paper with a hint of edge. */
-.hero__page,
+/* A real insert page: white paper with a hint of edge. */
 .hero__page-img {
   display: block;
   background: #fff;
