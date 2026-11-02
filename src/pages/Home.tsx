@@ -5,6 +5,7 @@ import type { CategoryId, IllustrationName } from '../data/types'
 import { Heart } from '../components/illustrations/Objects'
 import heroUti from '../assets/hero/uti.webp'
 import heroBrainDump from '../assets/hero/brain-dump.webp'
+import heroSeedlings from '../assets/hero/dnp-seedlings.webp'
 import { InsertPage } from '../components/illustrations/InsertPage'
 import { PageCluster } from '../components/illustrations/PageCluster'
 import { DigitalLabel, ShipsLabel } from '../components/Labels'
@@ -35,9 +36,11 @@ function Hero() {
   const { quiz } = useMarketing()
   return (
     <section className="hero" aria-labelledby="hero-title">
-      <div className="hero__art" role="img" aria-label="Sample insert pages: a medication tracker, the Brain Dump Sheet, and the UTI Diagnosis and Treatment clinical guide from the NP binder inserts.">
+      <div className="hero__art" role="img" aria-label="Sample insert pages: a DNP Seedlings project idea page, the Brain Dump Sheet, and the UTI Diagnosis and Treatment clinical guide from the NP binder inserts.">
         <div className="hero__backdrop" />
-        <InsertPage className="hero__page hero__page--med" title="Medication" subtitle="Tracker" layout="table" fields={['Med', 'Dose', 'Time']} />
+        <div className="hero__page hero__page--med">
+          <img className="hero__page-img" src={heroSeedlings} alt="" width={900} height={1165} decoding="async" />
+        </div>
         <div className="hero__page hero__page--dump">
           <img className="hero__page-img" src={heroBrainDump} alt="" width={900} height={1165} decoding="async" />
         </div>
