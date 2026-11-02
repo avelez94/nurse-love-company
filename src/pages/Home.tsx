@@ -2,7 +2,10 @@ import { ArrowRight, Download, Heart as HeartIcon, Laptop } from 'lucide-react'
 import { freebies, getCategory } from '../data/catalog'
 import { site } from '../data/site'
 import type { CategoryId, IllustrationName } from '../data/types'
-import { Heart, Tablet } from '../components/illustrations/Objects'
+import { Heart } from '../components/illustrations/Objects'
+import heroAsthma from '../assets/hero/asthma.webp'
+import heroUti from '../assets/hero/uti.webp'
+import heroDermatology from '../assets/hero/dermatology.webp'
 import { InsertPage } from '../components/illustrations/InsertPage'
 import { PageCluster } from '../components/illustrations/PageCluster'
 import { DigitalLabel, ShipsLabel } from '../components/Labels'
@@ -33,12 +36,13 @@ function Hero() {
   const { quiz } = useMarketing()
   return (
     <section className="hero" aria-labelledby="hero-title">
-      <div className="hero__art" role="img" aria-label="Loose printable insert pages and a tablet showing a sample daily planner page on a plain pale background. Illustrative image.">
+      <div className="hero__art" role="img" aria-label="Three sample NP binder insert pages: Inhaler Pharmacotherapy for Asthma, UTI Diagnosis and Treatment, and a Visual Lesion Chart.">
         <div className="hero__backdrop" />
-        <InsertPage className="hero__page hero__page--med" title="Medication" subtitle="Tracker" layout="table" fields={['Med', 'Dose', 'Time']} />
-        <InsertPage className="hero__page hero__page--dump" title="Brain Dump" layout="lined" heart />
+        <img className="hero__page hero__page--med" src={heroAsthma} alt="" width={900} height={1165} decoding="async" />
+        <img className="hero__page hero__page--dump" src={heroUti} alt="" width={900} height={1165} decoding="async" />
+        {/* The front page floats gently (switched off for reduced motion). */}
         <div className="hero__tablet">
-          <Tablet className="hero__tablet-svg" />
+          <img className="hero__page-img hero__front" src={heroDermatology} alt="" width={900} height={1165} decoding="async" />
         </div>
       </div>
       <div className="container hero__inner">

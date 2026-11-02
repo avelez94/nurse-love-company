@@ -122,9 +122,19 @@
   top: 7%;
   transform: rotate(7deg);
 }
-.hero__tablet-svg {
+/* Real insert pages: white paper with a hint of edge. */
+.hero__page,
+.hero__page-img {
+  display: block;
+  background: #fff;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px rgb(var(--shadow-color) / 0.06);
+}
+.hero__page-img {
   width: 100%;
   height: auto;
+}
+.hero__front {
   animation: tablet-float var(--float-duration) var(--ease-in-out) 1.2s infinite;
 }
 @keyframes tablet-float {
