@@ -37,7 +37,7 @@ interface ListRow {
 
 const categoryOptions = [
   { value: 'nurse-inserts', label: 'Nurse Binder Inserts' },
-  { value: 'np-inserts', label: 'NP Binder Inserts' },
+  { value: 'np-inserts', label: 'Nurse Practitioner Binder Inserts' },
   { value: 'apparel', label: 'Apparel' },
   { value: 'accessories', label: 'Accessories' },
   { value: 'pens', label: 'Pens' },

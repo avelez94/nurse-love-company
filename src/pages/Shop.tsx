@@ -12,7 +12,7 @@ import { PageHeader } from './PageHeader'
 
 const filters: Array<{ id: CategoryId; label: string }> = [
   { id: 'nurse-inserts', label: 'Nurse Binder Inserts' },
-  { id: 'np-inserts', label: 'NP Binder Inserts' },
+  { id: 'np-inserts', label: 'Nurse Practitioner Binder Inserts' },
 ]
 
 

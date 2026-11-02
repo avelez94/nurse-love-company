@@ -103,7 +103,7 @@ export function Header({ route }: { route: Route }) {
           <p className="mobile-nav__group">Shop by collection</p>
           <ul className="mobile-nav mobile-nav--small">
             <li><a href={href('nurse-binder-inserts')} onClick={close}>Nurse Binder Inserts</a></li>
-            <li><a href={href('np-binder-inserts')} onClick={close}>NP Binder Inserts</a></li>
+            <li><a href={href('np-binder-inserts')} onClick={close}>Nurse Practitioner Binder Inserts</a></li>
             {categoryOpen('apparel') && <li><a href={href('apparel')} onClick={close}>Apparel</a></li>}
             {categoryOpen('accessories') && <li><a href={href('accessories')} onClick={close}>Accessories</a></li>}
             {categoryOpen('pens') && <li><a href={href('pens')} onClick={close}>Pens</a></li>}

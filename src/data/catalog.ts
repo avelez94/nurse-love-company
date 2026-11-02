@@ -17,7 +17,7 @@ export const categories: Category[] = [
   },
   {
     id: 'np-inserts',
-    title: 'NP Binder Inserts',
+    title: 'Nurse Practitioner Binder Inserts',
     tagline: 'Resources for your NP journey.',
     type: 'digital',
     route: 'np-binder-inserts',

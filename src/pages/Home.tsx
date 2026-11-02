@@ -36,7 +36,7 @@ function Hero() {
   const { quiz } = useMarketing()
   return (
     <section className="hero" aria-labelledby="hero-title">
-      <div className="hero__art" role="img" aria-label="Sample insert pages: a DNP Seedlings project idea page, the Brain Dump Sheet, and the UTI Diagnosis and Treatment clinical guide from the NP binder inserts.">
+      <div className="hero__art" role="img" aria-label="Sample insert pages: a DNP Seedlings project idea page, the Brain Dump Sheet, and the UTI Diagnosis and Treatment clinical guide from the Nurse Practitioner binder inserts.">
         <div className="hero__backdrop" />
         <div className="hero__page hero__page--med">
           <img className="hero__page-img" src={heroSeedlings} alt="" width={900} height={1165} decoding="async" />

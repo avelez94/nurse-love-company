@@ -179,7 +179,7 @@ function FinderDialog({ open, onClose }: { open: boolean; onClose: () => void })
       title: 'Your NP journey',
       intro: 'Wonderful. Where would you like to start?',
       options: [
-        { label: 'Browse NP Binder Inserts', detail: 'Resources for your NP journey.', route: 'np-binder-inserts' },
+        { label: 'Browse Nurse Practitioner Binder Inserts', detail: 'Resources for your NP journey.', route: 'np-binder-inserts' },
         { label: 'Try a free printable first', detail: 'Visit The Freebie Corner.', route: 'freebie-corner' },
       ],
     },
@@ -216,7 +216,7 @@ function FinderDialog({ open, onClose }: { open: boolean; onClose: () => void })
                 <GraduationCap aria-hidden="true" />
                 <span>
                   <strong>Resources for my NP journey</strong>
-                  <span>NP Binder Inserts</span>
+                  <span>Nurse Practitioner Binder Inserts</span>
                 </span>
                 <ArrowRight className="arrow" aria-hidden="true" size={18} />
               </button>

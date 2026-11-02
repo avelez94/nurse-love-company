@@ -132,7 +132,7 @@ function DailyChart({ daily, from, to }: { daily: Report['daily']; from: Date; t
   )
 }
 
-const categoryNames: Record<string, string> = { 'nurse-inserts': 'Nurse Binder Inserts', 'np-inserts': 'NP Binder Inserts', apparel: 'Apparel', accessories: 'Accessories', pens: 'Pens', other: 'Other' }
+const categoryNames: Record<string, string> = { 'nurse-inserts': 'Nurse Binder Inserts', 'np-inserts': 'Nurse Practitioner Binder Inserts', apparel: 'Apparel', accessories: 'Accessories', pens: 'Pens', other: 'Other' }
 
 export function Overview() {
   const [preset, setPreset] = useState<Preset>('30d')
