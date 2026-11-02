@@ -4,6 +4,7 @@ import { site } from '../data/site'
 import type { CategoryId, IllustrationName } from '../data/types'
 import { Heart } from '../components/illustrations/Objects'
 import heroUti from '../assets/hero/uti.webp'
+import heroBrainDump from '../assets/hero/brain-dump.webp'
 import { InsertPage } from '../components/illustrations/InsertPage'
 import { PageCluster } from '../components/illustrations/PageCluster'
 import { DigitalLabel, ShipsLabel } from '../components/Labels'
@@ -34,10 +35,12 @@ function Hero() {
   const { quiz } = useMarketing()
   return (
     <section className="hero" aria-labelledby="hero-title">
-      <div className="hero__art" role="img" aria-label="Sample insert pages: a medication tracker, a brain dump page, and the UTI Diagnosis and Treatment clinical guide from the NP binder inserts.">
+      <div className="hero__art" role="img" aria-label="Sample insert pages: a medication tracker, the Brain Dump Sheet, and the UTI Diagnosis and Treatment clinical guide from the NP binder inserts.">
         <div className="hero__backdrop" />
         <InsertPage className="hero__page hero__page--med" title="Medication" subtitle="Tracker" layout="table" fields={['Med', 'Dose', 'Time']} />
-        <InsertPage className="hero__page hero__page--dump" title="Brain Dump" layout="lined" heart />
+        <div className="hero__page hero__page--dump">
+          <img className="hero__page-img" src={heroBrainDump} alt="" width={900} height={1165} decoding="async" />
+        </div>
         {/* The front page floats gently (switched off for reduced motion). */}
         <div className="hero__tablet">
           <img className="hero__page-img hero__front" src={heroUti} alt="" width={900} height={1165} decoding="async" />
