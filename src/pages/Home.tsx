@@ -6,11 +6,12 @@ import { Heart } from '../components/illustrations/Objects'
 import heroUti from '../assets/hero/uti.webp'
 import nurseReport from '../assets/collections/nursing-report.webp'
 import nurseDosage from '../assets/collections/dosage-calculation.webp'
+import npAssessment from '../assets/collections/head-to-toe.webp'
+import npTopical from '../assets/collections/topical-steroids.webp'
 import freebieSeedlings from '../assets/freebie/dnp-seedlings.webp'
 import freebieBrainDump from '../assets/freebie/brain-dump.webp'
 import heroBrainDump from '../assets/hero/brain-dump.webp'
 import heroSeedlings from '../assets/hero/dnp-seedlings.webp'
-import { PageCluster } from '../components/illustrations/PageCluster'
 import { DigitalLabel, ShipsLabel } from '../components/Labels'
 import { BannerSlot } from '../components/Marketing'
 import { openQuizPanel, useMarketing } from '../lib/marketing'
@@ -118,15 +119,12 @@ function CollectionCard({ id }: { id: 'nurse-inserts' | 'np-inserts' }) {
     <a className="collection-card" href={href(category.route)}>
       <span className="collection-card__media">
         <span className="collection-card__art">
-          {id === 'nurse-inserts' ? (
-            // Real sample pages; the dosage sheet is softly blurred below its title.
-            <span className="page-cluster page-cluster--two page-cluster--real">
-              <img className="page-cluster__page p1" src={nurseReport} alt="" width={700} height={906} loading="lazy" decoding="async" />
-              <img className="page-cluster__page p2" src={nurseDosage} alt="" width={700} height={906} loading="lazy" decoding="async" />
-            </span>
-          ) : (
-            <PageCluster variant="np" />
-          )}
+          {/* Real sample pages; each is softly blurred below its header so it reads as a peek. */}
+          <span className="page-cluster page-cluster--two page-cluster--real">
+            {(id === 'nurse-inserts' ? [nurseReport, nurseDosage] : [npAssessment, npTopical]).map((src, i) => (
+              <img key={src} className={`page-cluster__page p${i + 1}`} src={src} alt="" width={700} height={906} loading="lazy" decoding="async" />
+            ))}
+          </span>
         </span>
       </span>
       <span className="collection-card__body">
