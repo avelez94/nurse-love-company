@@ -4,6 +4,8 @@ import { site } from '../data/site'
 import type { CategoryId, IllustrationName } from '../data/types'
 import { Heart } from '../components/illustrations/Objects'
 import heroUti from '../assets/hero/uti.webp'
+import nurseReport from '../assets/collections/nursing-report.webp'
+import nurseDosage from '../assets/collections/dosage-calculation.webp'
 import freebieSeedlings from '../assets/freebie/dnp-seedlings.webp'
 import freebieBrainDump from '../assets/freebie/brain-dump.webp'
 import heroBrainDump from '../assets/hero/brain-dump.webp'
@@ -116,7 +118,15 @@ function CollectionCard({ id }: { id: 'nurse-inserts' | 'np-inserts' }) {
     <a className="collection-card" href={href(category.route)}>
       <span className="collection-card__media">
         <span className="collection-card__art">
-          <PageCluster variant={id === 'np-inserts' ? 'np' : 'nurse'} />
+          {id === 'nurse-inserts' ? (
+            // Real sample pages; the dosage sheet is softly blurred below its title.
+            <span className="page-cluster page-cluster--two page-cluster--real">
+              <img className="page-cluster__page p1" src={nurseReport} alt="" width={700} height={906} loading="lazy" decoding="async" />
+              <img className="page-cluster__page p2" src={nurseDosage} alt="" width={700} height={906} loading="lazy" decoding="async" />
+            </span>
+          ) : (
+            <PageCluster variant="np" />
+          )}
         </span>
       </span>
       <span className="collection-card__body">

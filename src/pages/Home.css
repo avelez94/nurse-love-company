@@ -325,6 +325,13 @@
 .collection-card:focus-visible .collection-card__art {
   transform: scale(1.04);
 }
+/* Real insert pages on a collection card: white paper with a hint of edge. */
+.page-cluster--real .page-cluster__page {
+  display: block;
+  background: #fff;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgb(var(--shadow-color) / 0.06);
+}
 .collection-card__body {
   display: grid;
   gap: var(--space-2);
