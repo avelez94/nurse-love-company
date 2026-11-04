@@ -525,50 +525,50 @@
   left: 50%;
   transform: translateX(-50%) rotate(-10deg);
 }
-.freebie__sample {
+.freebie__pages {
   justify-self: center;
-  display: grid;
-  gap: var(--space-3);
-  justify-items: center;
-  border: 0;
-  background: transparent;
-  cursor: zoom-in;
-  padding: var(--space-2);
-  border-radius: var(--radius-md);
-  -webkit-tap-highlight-color: transparent;
+  position: relative;
+  width: min(380px, 82vw);
+  aspect-ratio: 1 / 1.05;
 }
-.freebie__sample-page {
-  display: block;
-  width: min(300px, 70vw);
-  transform: rotate(-5deg);
+.freebie__page {
+  position: absolute;
+  width: 68%;
   filter: drop-shadow(0 14px 22px rgb(var(--shadow-color) / 0.16));
-  transition: transform var(--dur-base) var(--ease-out), filter var(--dur-base) var(--ease-out);
 }
-.freebie__sample:hover .freebie__sample-page,
-.freebie__sample:focus-visible .freebie__sample-page {
-  transform: rotate(-3deg) translateY(-8px);
-  filter: drop-shadow(0 22px 30px rgb(var(--shadow-color) / 0.2));
+.freebie__page img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px rgb(var(--shadow-color) / 0.06);
 }
-.freebie__sample:active .freebie__sample-page {
-  transform: rotate(-3deg) translateY(-4px) scale(0.99);
+.freebie__page--back {
+  right: 0;
+  top: 0;
+  rotate: 6deg;
+  animation: freebie-float 8s var(--ease-in-out) 0.6s infinite;
 }
-.freebie__sample-cta {
-  font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--raspberry);
-  text-decoration: underline;
-  text-underline-offset: 4px;
+.freebie__page--front {
+  left: 0;
+  bottom: 0;
+  rotate: -5deg;
+  animation: freebie-float var(--float-duration) var(--ease-in-out) infinite reverse;
+}
+@keyframes freebie-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
 }
 /* Reveal the printable gently when the section enters view. */
 .freebie[data-reveal] {
   opacity: 1;
   transform: none;
 }
-.freebie[data-reveal='pending'] .freebie__sample {
+.freebie[data-reveal='pending'] .freebie__pages {
   opacity: 0;
   transform: translateY(28px) rotate(4deg);
 }
-.freebie[data-reveal='shown'] .freebie__sample {
+.freebie[data-reveal='shown'] .freebie__pages {
   transition: opacity 600ms var(--ease-out) 120ms, transform 600ms var(--ease-out) 120ms;
 }
 .freebie[data-reveal='pending'] .freebie__text {

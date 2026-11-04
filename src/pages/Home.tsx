@@ -1,12 +1,13 @@
 import { ArrowRight, Download, Heart as HeartIcon, Laptop } from 'lucide-react'
-import { freebies, getCategory } from '../data/catalog'
+import { getCategory } from '../data/catalog'
 import { site } from '../data/site'
 import type { CategoryId, IllustrationName } from '../data/types'
 import { Heart } from '../components/illustrations/Objects'
 import heroUti from '../assets/hero/uti.webp'
+import freebieSeedlings from '../assets/freebie/dnp-seedlings.webp'
+import freebieBrainDump from '../assets/freebie/brain-dump.webp'
 import heroBrainDump from '../assets/hero/brain-dump.webp'
 import heroSeedlings from '../assets/hero/dnp-seedlings.webp'
-import { InsertPage } from '../components/illustrations/InsertPage'
 import { PageCluster } from '../components/illustrations/PageCluster'
 import { DigitalLabel, ShipsLabel } from '../components/Labels'
 import { BannerSlot } from '../components/Marketing'
@@ -215,8 +216,6 @@ export function FounderIntroView({ story }: { story: PublicStory }) {
 
 function FreebieCorner() {
   const ref = useReveal<HTMLElement>()
-  const { open } = useUI()
-  const sample = freebies.find((f) => f.downloadable) ?? freebies[0]
   return (
     <section className="freebie" ref={ref} aria-labelledby="freebie-title">
       <div className="container freebie__inner">
@@ -230,12 +229,15 @@ function FreebieCorner() {
             <ArrowRight className="arrow" aria-hidden="true" size={20} />
           </a>
         </div>
-        <button type="button" className="freebie__sample" onClick={() => open({ kind: 'freebie', freebie: sample })} aria-haspopup="dialog">
-          <span className="freebie__sample-page">
-            <InsertPage title="Sample printable" layout="table" fields={['Task', 'Notes', 'Done']} script heart />
-          </span>
-          <span className="freebie__sample-cta">Preview the sample printable</span>
-        </button>
+        {/* Two real freebie pages, each floating gently on its own rhythm (still for reduced motion). */}
+        <div className="freebie__pages" role="img" aria-label="Sample freebies: the DNP Seedlings project ideas guide and the Brain Dump Sheet.">
+          <div className="freebie__page freebie__page--back">
+            <img src={freebieBrainDump} alt="" width={700} height={906} loading="lazy" decoding="async" />
+          </div>
+          <div className="freebie__page freebie__page--front">
+            <img src={freebieSeedlings} alt="" width={700} height={906} loading="lazy" decoding="async" />
+          </div>
+        </div>
       </div>
     </section>
   )
