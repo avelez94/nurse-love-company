@@ -23,6 +23,7 @@ import { checkStoredUpload, type UploadedFile } from '../lib/upload.js'
 import { watermarkPreview } from '../lib/watermark.js'
 import { setStoryPortrait, STORY_UPLOAD_TARGET } from './content.js'
 import { attachMarketingImage, POPUP_UPLOAD_TARGET } from './marketing.js'
+import { getSettings } from './settings.js'
 import { processLocalVideo, recordUploadFailure, recordUploadStart } from './tutorials.js'
 
 /** Removes plain blank or transparent borders from an uploaded image (saved as PNG to keep transparency). Keeps the original when nothing can be trimmed. */
@@ -204,7 +205,8 @@ export async function attachUpload(
       const opened = await storage().open(f.key)
       const chunks: Buffer[] = []
       for await (const c of opened.stream) chunks.push(c as Buffer)
-      const wm = await watermarkPreview(Buffer.concat(chunks), f.contentType).catch(async () => {
+      const { previews } = await getSettings()
+      const wm = await watermarkPreview(Buffer.concat(chunks), f.contentType, { blur: previews.blur, sharpTop: previews.sharp_top }).catch(async () => {
         await storage().remove(f.key).catch(() => {})
         throw badRequest('That image could not be read. Please export it again as a PNG, JPG or WebP file and upload it.')
       })

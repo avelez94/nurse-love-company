@@ -21,6 +21,12 @@ export interface Settings {
    * auto_confirm: paid orders are confirmed for production (and charged by Printful) automatically.
    */
   printful: { physical_sales: boolean; auto_confirm: boolean }
+  /**
+   * Sneak peek (sample page and detail) uploads. blur: 0 (off) to 100 percent strength.
+   * sharp_top: the top percent of each image left sharp, so the title stays readable.
+   * Applied once, when an image is uploaded.
+   */
+  previews: { blur: number; sharp_top: number }
   policies: {
     status: 'awaiting_approval' | 'approved'
     refund_policy: string
@@ -42,6 +48,7 @@ export const defaultSettings: Settings = {
   payments: { automatic_tax: false },
   launchers: { hints: true, glow: true },
   printful: { physical_sales: false, auto_confirm: false },
+  previews: { blur: 30, sharp_top: 15 },
   policies: { status: 'awaiting_approval', refund_policy: '', shipping_policy: '', terms: '', privacy: '', refund_download_policy: 'revoke_unredeemed', digital_repurchase: 'block' },
 }
 

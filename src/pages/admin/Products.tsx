@@ -581,6 +581,48 @@ function Images({ productId, images, variants, reload }: { productId: string; im
 }
 
 /**
+ * The sneak peek blur, shared by every product. It is applied once, when an
+ * image is uploaded, so changing it affects new uploads only.
+ */
+function PreviewBlur() {
+  const { data, reload } = useApiData<{ settings: { previews: { blur: number; sharp_top: number } } }>('/api/admin/settings')
+  const [form, setForm] = useState<{ blur: string; sharp_top: string } | null>(null)
+  const [error, setError] = useState('')
+  const [saved, setSaved] = useState('')
+  useEffect(() => {
+    if (data) setForm({ blur: String(data.settings.previews.blur), sharp_top: String(data.settings.previews.sharp_top) })
+  }, [data])
+  if (!form) return null
+  const save = async () => {
+    setError('')
+    setSaved('')
+    try {
+      await api('/api/admin/settings/previews', { method: 'PUT', body: { blur: Number(form.blur), sharp_top: Number(form.sharp_top) } })
+      setSaved('Saved. New sample uploads will use this blur.')
+      reload()
+    } catch (err) {
+      setError(errorMessage(err))
+    }
+  }
+  return (
+    <div className="form-stack">
+      <div className="form-grid">
+        <TextInput label="Sneak peek blur (%)" type="number" value={form.blur} onChange={(v) => setForm({ ...form, blur: v })} hint="0 is off. About 30 is a slight blur; 60 and up is hard to read." />
+        <TextInput label="Keep the top sharp (%)" type="number" value={form.sharp_top} onChange={(v) => setForm({ ...form, sharp_top: v })} hint="How much of the top of each page stays clear, so the title reads. 0 blurs the whole page." />
+      </div>
+      <p className="muted">Used for every product. It is added when an image is uploaded, so images already here keep their look; upload a page again to apply a new setting.</p>
+      <div className="button-row">
+        <button type="button" className="button button--outline button--small" onClick={save}>
+          Save blur
+        </button>
+        {saved && <span className="muted">{saved}</span>}
+      </div>
+      <FormError message={error} />
+    </div>
+  )
+}
+
+/**
  * Sample pages and close up details for "Peek inside". Each upload is
  * flattened with a PREVIEW watermark on the server, then waits for the
  * owner's approval. These are separate images: the paid file is never used
@@ -656,6 +698,7 @@ function Previews({ productId, images, reload }: { productId: string; images: De
         Upload a few selected pages or cropped details (screenshots or exports), not the whole resource. Each image is stamped with a PREVIEW watermark built into the picture, then waits for your
         approval. Approved previews appear behind the “Peek inside” button. Your paid file is never shown. Products can also be published with no previews at all.
       </p>
+      <PreviewBlur />
       {progress && <ProgressBar value={progress.value} label={`Uploading and watermarking ${progress.name}`} />}
       <FormError message={error} />
       {waiting > 0 && <Notice tone="warn">{waiting} preview{waiting === 1 ? ' is' : 's are'} waiting for your approval and not shown yet.</Notice>}

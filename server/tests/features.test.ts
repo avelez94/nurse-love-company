@@ -331,6 +331,29 @@ describe('limited product previews', () => {
     }
   })
 
+  it('blurs below the sharp top, leaves the top untouched, and the setting is limited', async () => {
+    // Sharp black and white stripes: blurring turns the edges grey.
+    const w = 400, h = 400
+    const raw = Buffer.alloc(w * h * 3, 255)
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (Math.floor(x / 4) % 2 === 0) raw.fill(0, (y * w + x) * 3, (y * w + x) * 3 + 3)
+    const input = await sharp(raw, { raw: { width: w, height: h, channels: 3 } }).png().toBuffer()
+    const greys = async (buf: Buffer, y0: number, y1: number) => {
+      const { data } = await sharp(buf).greyscale().raw().toBuffer({ resolveWithObject: true })
+      let n = 0
+      for (let y = y0; y < y1; y++) for (let x = 0; x < w; x++) if (data[y * w + x] > 60 && data[y * w + x] < 195) n++
+      return n / ((y1 - y0) * w)
+    }
+    const plain = (await watermarkPreview(input, 'image/png')).buffer
+    const blurred = (await watermarkPreview(input, 'image/png', { blur: 50, sharpTop: 20 })).buffer
+    assert.ok((await greys(blurred, 0, 70)) < (await greys(plain, 0, 70)) + 0.05, 'the top stays sharp')
+    assert.ok((await greys(blurred, 120, 400)) > (await greys(plain, 120, 400)) + 0.3, 'below the top is blurred')
+
+    const a = await admin()
+    assert.equal((await api('/api/admin/settings/previews', { session: a, method: 'PUT', body: { blur: 140, sharp_top: 10 } })).status, 400)
+    assert.equal((await api('/api/admin/settings/previews', { session: a, method: 'PUT', body: { blur: 35, sharp_top: 12 } })).status, 200)
+    assert.deepEqual((await api('/api/admin/settings', { session: a })).data.settings.previews, { blur: 35, sharp_top: 12 })
+  })
+
   it('samples are watermarked, reduced, approved before showing, and never expose the paid file', async () => {
     const a = await admin()
     const productId = await digitalProduct('np-preview-pages')

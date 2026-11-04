@@ -511,7 +511,11 @@ adminRoutes.put('/admin/settings/:section', async (c) => {
       next[k] = v
     } else if (def === null || typeof def === 'number') next[k] = int(v, k, { optional: true })
   }
-  if (section === 'policies') {
+  if (section === 'previews') {
+    next.blur = int(next.blur, 'Blur', { min: 0, max: 100 }) ?? 0
+    next.sharp_top = int(next.sharp_top, 'Sharp top', { min: 0, max: 60 }) ?? 0
+  }
+    if (section === 'policies') {
     next.refund_download_policy = oneOf(next.refund_download_policy, 'Refund download policy', ['revoke_unredeemed', 'keep'] as const)
     next.status = oneOf(next.status, 'Policy status', ['awaiting_approval', 'approved'] as const)
     next.digital_repurchase = 'block'
