@@ -43,14 +43,14 @@ function Hero() {
       <div className="hero__art" role="img" aria-label="Sample Nurse Practitioner binder inserts: Inhaler Pharmacotherapy for Asthma, the Visual Lesion Chart, and the UTI Diagnosis and Treatment clinical guide.">
         <div className="hero__backdrop" />
         <div className="hero__page hero__page--med">
-          <img className="hero__page-img" src={heroAsthma} alt="" width={900} height={1165} decoding="async" />
+          <img className="hero__page-img hero__float hero__float--back" src={heroAsthma} alt="" width={900} height={1165} decoding="async" />
         </div>
         <div className="hero__page hero__page--dump">
-          <img className="hero__page-img" src={heroDermatology} alt="" width={900} height={1165} decoding="async" />
+          <img className="hero__page-img hero__float hero__float--middle" src={heroDermatology} alt="" width={900} height={1165} decoding="async" />
         </div>
-        {/* The front page floats gently (switched off for reduced motion). */}
+        {/* All three pages float gently, each on its own rhythm (switched off for reduced motion). */}
         <div className="hero__tablet">
-          <img className="hero__page-img hero__front" src={heroUti} alt="" width={900} height={1165} decoding="async" />
+          <img className="hero__page-img hero__float hero__front" src={heroUti} alt="" width={900} height={1165} decoding="async" />
         </div>
       </div>
       <div className="container hero__inner">

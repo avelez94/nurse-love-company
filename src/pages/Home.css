@@ -133,8 +133,17 @@
   width: 100%;
   height: auto;
 }
-.hero__front {
+.hero__float {
   animation: tablet-float var(--float-duration) var(--ease-in-out) 1.2s infinite;
+}
+/* Slightly different speeds and starts so the pages never move in step. */
+.hero__float--middle {
+  animation-duration: calc(var(--float-duration) + 1.3s);
+  animation-delay: 0.4s;
+}
+.hero__float--back {
+  animation-duration: calc(var(--float-duration) + 2.1s);
+  animation-delay: 2s;
 }
 @keyframes tablet-float {
   0%, 100% { transform: translateY(0); }
