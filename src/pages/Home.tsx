@@ -10,8 +10,8 @@ import npAssessment from '../assets/collections/head-to-toe.webp'
 import npTopical from '../assets/collections/topical-steroids.webp'
 import freebieSeedlings from '../assets/freebie/dnp-seedlings.webp'
 import freebieBrainDump from '../assets/freebie/brain-dump.webp'
-import heroBrainDump from '../assets/hero/brain-dump.webp'
-import heroSeedlings from '../assets/hero/dnp-seedlings.webp'
+import heroDermatology from '../assets/hero/dermatology.webp'
+import heroAsthma from '../assets/hero/asthma.webp'
 import { DigitalLabel, ShipsLabel } from '../components/Labels'
 import { BannerSlot } from '../components/Marketing'
 import { openQuizPanel, useMarketing } from '../lib/marketing'
@@ -40,13 +40,13 @@ function Hero() {
   const { quiz } = useMarketing()
   return (
     <section className="hero" aria-labelledby="hero-title">
-      <div className="hero__art" role="img" aria-label="Sample insert pages: a DNP Seedlings project idea page, the Brain Dump Sheet, and the UTI Diagnosis and Treatment clinical guide from the Nurse Practitioner binder inserts.">
+      <div className="hero__art" role="img" aria-label="Sample Nurse Practitioner binder inserts: Inhaler Pharmacotherapy for Asthma, the Visual Lesion Chart, and the UTI Diagnosis and Treatment clinical guide.">
         <div className="hero__backdrop" />
         <div className="hero__page hero__page--med">
-          <img className="hero__page-img" src={heroSeedlings} alt="" width={900} height={1165} decoding="async" />
+          <img className="hero__page-img" src={heroAsthma} alt="" width={900} height={1165} decoding="async" />
         </div>
         <div className="hero__page hero__page--dump">
-          <img className="hero__page-img" src={heroBrainDump} alt="" width={900} height={1165} decoding="async" />
+          <img className="hero__page-img" src={heroDermatology} alt="" width={900} height={1165} decoding="async" />
         </div>
         {/* The front page floats gently (switched off for reduced motion). */}
         <div className="hero__tablet">
