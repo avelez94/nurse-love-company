@@ -1,8 +1,7 @@
 import { Hono } from 'hono'
 import { one, q } from '../db/pool.js'
 import { templateInfo, renderEmail, type EmailType } from '../email/templates.js'
-import { config, demoAllowed, integrationStatus } from '../env.js'
-import { demoSummary, seedDemoContent } from '../seed.js'
+import { config, integrationStatus } from '../env.js'
 import { adminOnly, clientIp, jsonBody, requireAdmin, type AppEnv } from '../http.js'
 import { audit } from '../lib/audit.js'
 import { badRequest, notFound } from '../lib/errors.js'
@@ -47,7 +46,7 @@ function range(c: { req: { query: (k: string) => string | undefined } }) {
   const from = c.req.query('from') ? isoDate(c.req.query('from'), 'Start date') : new Date(to.getTime() - 30 * 86400000)
   if (from >= to) throw badRequest('The start date must be before the end date.')
   if (to.getTime() - from.getTime() > 3 * 366 * 86400000) throw badRequest('Reports can cover up to three years.')
-  return { from, to, includeDemo: c.req.query('demo') !== '0' }
+  return { from, to, includeDemo: c.req.query('demo') === '1' }
 }
 
 /* ---------- Overview and reports ---------- */
@@ -199,7 +198,7 @@ adminRoutes.get('/admin/orders', async (c) => {
   if (c.req.query('customer')) add('o.user_id = $?', c.req.query('customer'))
   if (c.req.query('from')) add('o.created_at >= $?', isoDate(c.req.query('from'), 'Start date').toISOString())
   if (c.req.query('to')) add('o.created_at < $?', isoDate(c.req.query('to'), 'End date').toISOString())
-  if (c.req.query('demo') === '0') where.push('not o.is_demo')
+  if (c.req.query('demo') !== '1') where.push('not o.is_demo')
   const limit = int(c.req.query('limit') ?? 50, 'limit', { min: 1, max: 200 })!
   const offset = int(c.req.query('offset') ?? 0, 'offset', { min: 0, max: 1_000_000 })!
   params.push(limit, offset)
@@ -483,16 +482,10 @@ adminRoutes.get('/admin/tutorials/:id/preview/captions/:lang', async (c) => c.bo
 /* ---------- Settings, access and audit ---------- */
 
 adminRoutes.get('/admin/settings', async (c) =>
-  c.json({ settings: await getSettings(), integrations: integrationStatus(), admins: await listAdmins(), appUrl: config.appUrl, demo: { allowed: demoAllowed(), ...(await demoSummary()) } }),
+  c.json({ settings: await getSettings(), integrations: integrationStatus(), admins: await listAdmins(), appUrl: config.appUrl }),
 )
 
 /** Staging only (DEMO_CONTENT=true): adds any missing labeled demo content. Safe to press twice. */
-adminRoutes.post('/admin/demo', async (c) => {
-  const b = await jsonBody(c)
-  const reviewerEmail = b.reviewer_email ? emailField(b.reviewer_email, 'Reviewer email') : null
-  return c.json(await seedDemoContent({ reviewerEmail, actor: requireAdmin(c) }))
-})
-
 adminRoutes.put('/admin/settings/:section', async (c) => {
   const actor = requireAdmin(c)
   const section = c.req.param('section') as keyof Settings

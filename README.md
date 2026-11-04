@@ -68,7 +68,7 @@ Tutorials are completely separate: watching never touches downloads or purchases
 
 ## Demo data
 
-Everything created by the seed is marked `is_demo` and labeled "Demo" in the admin, on product pages ("Demo price") and on receipts. Demo prices are placeholders, not approved prices. Demo files are generic prototype PDFs. The overview has an "Include demo data" switch, and CSV exports mark demo rows. Demo data is never created in production. On staging it is off unless `DEMO_CONTENT=true`, and then loaded from Admin, Settings (see DEPLOYMENT.md).
+Everything created by the seed is marked `is_demo` and labeled "Demo" in the admin, on product pages ("Demo price") and on receipts. Demo prices are placeholders, not approved prices. Demo files are generic prototype PDFs. The admin overview, orders list and CSV exports always leave demo data out. Demo data is never created in production. On staging it is off unless `DEMO_CONTENT=true`, and then loaded with `npm run seed` (see DEPLOYMENT.md).
 
 The tutorial "How to Put Together Your NP Binder" uses a short, clearly labeled placeholder video. It is not the owner's recording.
 

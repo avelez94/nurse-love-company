@@ -15,7 +15,7 @@ if (problems.length) {
 
 const pool = await boot()
 // Local development fills an empty database with demo data. Staging only does
-// so when an admin presses "Load demo content" (with DEMO_CONTENT=true).
+// so through npm run seed (with DEMO_CONTENT=true).
 if (deployEnv === 'development' && process.env.SEED_DEMO !== 'false') await seedIfEmpty()
 
 const app = createApp()

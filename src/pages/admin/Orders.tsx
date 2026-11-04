@@ -43,7 +43,6 @@ export function Orders() {
   const [type, setType] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
-  const [demo, setDemo] = useState(true)
   const params = new URLSearchParams()
   if (search) params.set('search', search)
   if (status) params.set('status', status)
@@ -51,9 +50,9 @@ export function Orders() {
   if (type) params.set('type', type)
   if (from) params.set('from', new Date(`${from}T00:00:00`).toISOString())
   if (to) params.set('to', new Date(new Date(`${to}T00:00:00`).getTime() + 86400000).toISOString())
-  if (!demo) params.set('demo', '0')
+  params.set('demo', '0')
   const { data, error, loading } = useApiData<{ orders: OrderRow[] }>(`/api/admin/orders?${params}`)
-  const csvParams = new URLSearchParams({ from: from ? new Date(`${from}T00:00:00`).toISOString() : new Date(Date.now() - 365 * 86400000).toISOString(), to: to ? new Date(new Date(`${to}T00:00:00`).getTime() + 86400000).toISOString() : new Date(Date.now() + 86400000).toISOString(), demo: demo ? '1' : '0' })
+  const csvParams = new URLSearchParams({ from: from ? new Date(`${from}T00:00:00`).toISOString() : new Date(Date.now() - 365 * 86400000).toISOString(), to: to ? new Date(new Date(`${to}T00:00:00`).getTime() + 86400000).toISOString() : new Date(Date.now() + 86400000).toISOString(), demo: '0' })
 
   return (
     <>
@@ -79,7 +78,6 @@ export function Orders() {
           <input className="input" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         </label>
       </div>
-      <Checkbox label="Include demo orders" checked={demo} onChange={setDemo} />
       {error && <FormError message={error} />}
       {loading && !data ? (
         <Loading />

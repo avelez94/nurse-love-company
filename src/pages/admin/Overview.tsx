@@ -1,7 +1,7 @@
 import { Download } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { href } from '../../lib/router'
-import { Checkbox, dateTime, FormError, Loading, money, Notice, Pill, useApiData } from '../../components/ui'
+import { dateTime, FormError, Loading, money, Notice, Pill, useApiData } from '../../components/ui'
 import { PageTitle } from './AdminApp'
 
 type Preset = 'today' | '7d' | '30d' | 'mtd' | 'ytd' | 'custom'
@@ -138,9 +138,8 @@ export function Overview() {
   const [preset, setPreset] = useState<Preset>('30d')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
-  const [includeDemo, setIncludeDemo] = useState(true)
   const range = useMemo(() => rangeFor(preset, from, to), [preset, from, to])
-  const qs = `from=${encodeURIComponent(range.from.toISOString())}&to=${encodeURIComponent(range.to.toISOString())}&demo=${includeDemo ? 1 : 0}`
+  const qs = `from=${encodeURIComponent(range.from.toISOString())}&to=${encodeURIComponent(range.to.toISOString())}&demo=0`
   const { data, error, loading } = useApiData<Report>(`/api/admin/overview?${qs}`)
 
   return (
@@ -154,12 +153,10 @@ export function Overview() {
         </a>
       </PageTitle>
       <DateRangeControls preset={preset} setPreset={setPreset} from={from} setFrom={setFrom} to={to} setTo={setTo} />
-      <Checkbox label="Include demo data" checked={includeDemo} onChange={setIncludeDemo} hint="Demo orders are sample data created for the preview. Turn this off to see real transactions only." />
       {error && <FormError message={error} />}
       {loading && !data && <Loading label="Calculating..." />}
       {data && (
         <>
-          {data.counts.has_demo && includeDemo && <Notice tone="warn">These numbers include labeled demo orders. They are sample data, not real sales.</Notice>}
           <IntegrationNotice integrations={data.integrations} />
           <div className="button-row">
             {data.counts.to_fulfill > 0 && <a className="chip" href={href('admin-orders')}>{data.counts.to_fulfill} orders to ship</a>}

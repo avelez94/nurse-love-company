@@ -1,6 +1,7 @@
 import './env.js'
 import './staging-env.js'
 import assert from 'node:assert/strict'
+import { seedDemoContent } from '../seed.js'
 import { after, beforeEach, describe, it } from 'node:test'
 import { db } from '../db/pool.js'
 import { latestMigration, migrate } from '../db/migrate.js'
@@ -80,22 +81,19 @@ describe('staging demo content', () => {
   it('loads once, stays labeled, creates no known logins and never duplicates', async () => {
     const owner = await firstAdmin()
     const reviewer = await signUp('mom@example.com')
-    assert.equal((await api('/api/admin/demo', { session: reviewer, body: {} })).status, 403, 'customers cannot load demo content')
+    // There is no admin button for demo content any more: it is only loaded from the command line.
+    assert.equal((await api('/api/admin/demo', { session: owner, body: {} })).status, 404, 'the old demo route is gone')
 
-    const first = await api('/api/admin/demo', { session: owner, body: { reviewer_email: 'mom@example.com' } })
-    assert.equal(first.status, 200, JSON.stringify(first.data))
-    assert.ok(first.data.productsCreated > 10)
-    assert.equal(first.data.reviewerOrdersCreated, 3)
+    const first = await seedDemoContent({ reviewerEmail: 'mom@example.com' })
+    assert.ok(first.productsCreated > 10)
+    assert.equal(first.reviewerOrdersCreated, 3)
     const counts = async () => one<Record<string, number>>(
       `select (select count(*) from products)::int as products, (select count(*) from orders)::int as orders, (select count(*) from entitlements)::int as entitlements,
               (select count(*) from product_versions)::int as versions, (select count(*) from tutorials)::int as tutorials, (select count(*) from "user")::int as users`,
     )
     const before = await counts()
-    const again = await Promise.all([
-      api('/api/admin/demo', { session: owner, body: { reviewer_email: 'mom@example.com' } }),
-      api('/api/admin/demo', { session: owner, body: { reviewer_email: 'mom@example.com' } }),
-    ])
-    for (const r of again) assert.deepEqual(r.data, { productsCreated: 0, ordersCreated: 0, reviewerOrdersCreated: 0, tutorialsCreated: 0 })
+    const again = await Promise.all([seedDemoContent({ reviewerEmail: 'mom@example.com' }), seedDemoContent({ reviewerEmail: 'mom@example.com' })])
+    for (const r of again) assert.deepEqual(r, { productsCreated: 0, ordersCreated: 0, reviewerOrdersCreated: 0, tutorialsCreated: 0 })
     assert.deepEqual(await counts(), before)
 
     // Labeled and separate from real data.
@@ -105,6 +103,8 @@ describe('staging demo content', () => {
     assert.equal(real.data.current.orders, 0)
     const withDemo = await api('/api/admin/overview?demo=1', { session: owner })
     assert.ok(withDemo.data.current.orders > 0)
+    assert.equal((await api('/api/admin/overview', { session: owner })).data.current.orders, 0, 'the admin leaves demo data out by default')
+    assert.equal((await api('/api/admin/orders', { session: owner })).data.orders.length, 0)
 
     // No admin or known password was created; demo shoppers can't receive mail.
     assert.deepEqual((await q<{ email: string }>(`select email from "user" where role = 'admin'`)).map((u) => u.email), ['owner@example.com'])
@@ -126,7 +126,7 @@ describe('staging demo content', () => {
 
   it('never sends emails about demo content', async () => {
     const owner = await firstAdmin()
-    await api('/api/admin/demo', { session: owner, body: {} })
+    await seedDemoContent({})
     const sent: string[] = []
     setSender(async (m) => {
       sent.push(m.to)

@@ -4,7 +4,7 @@
   * Local development: loaded automatically into an empty database, including
     two local only sign ins (documented in the README).
   * Staging: only when DEMO_CONTENT=true AND DEPLOY_ENV=staging, and only when
-    an admin presses "Load demo content" (or runs npm run seed on the server).
+    someone runs npm run seed on the server. There is no admin button for it.
     Staging never gets an admin account or any password anyone knows: demo
     customers get random passwords and undeliverable @demo.invalid addresses.
   * Production: never.

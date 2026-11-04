@@ -154,7 +154,7 @@ The store keeps its own accounts (Better Auth). That is secure and needs no chan
 | `SUPABASE_SERVICE_ROLE_KEY` | Required | The project's secret key (the `service_role` key, or the newer "secret" key). Mark it **Sensitive** in Vercel. It never reaches the browser |
 | `STAGING_ACCESS_USER` | Optional | Defaults to `nurselove` |
 | `ADMIN_BOOTSTRAP_TOKEN` | Optional | 32 or more random characters for the one time admin setup. **Delete after use** |
-| `DEMO_CONTENT` | Optional | `true` to allow the "Load demo content" button. Staging only |
+| `DEMO_CONTENT` | Optional | `true` to allow `npm run seed` to load demo content. Staging only |
 | `STRIPE_SECRET_KEY` | Optional | Must start with `sk_test_`. Without it, checkout says payments are not connected |
 | `STRIPE_WEBHOOK_SECRET` | With Stripe | `whsec_...` from the Stripe test mode webhook |
 | `RESEND_API_KEY` | Optional | Without it, emails are recorded as "not configured" and nothing is sent |
