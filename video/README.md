@@ -49,8 +49,9 @@ export VIDEO_PYTHON=~/.venvs/nlc-voice/bin/python
 
 Each sentence is spoken once and cached in `tutorials/<slug>/.voice-cache/` (not committed), so rebuilding only
 speaks sentences you changed. The music is composed by `template/audio/compose_music.py` (soft piano chords, a
-gentle arpeggio and a warm pad, 68 BPM). The voice is normalized to -16 LUFS and the music to -29 LUFS, about
-13 LU underneath. Set `"musicLevel": -32` in tutorial.json for quieter music, or `"music": false` for none.
+gentle arpeggio and a warm pad, 68 BPM). The voice is normalized to -16 LUFS. The download tutorials set `"musicLevel": -22`, which lands the music
+about 12 LU under the voice in the final mix (the level the owner approved). Lower it (for example -26) for quieter
+music, or set `"music": false` for none.
 
 To use a person's recording instead (for example the owner's own voice), replace `assets/audio/voice.m4a` in the
 generated project with the edited recording, then retime scenes in the HyperFrames editor, or ask for the template
