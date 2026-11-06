@@ -3,8 +3,8 @@
   plain frame supplied by the card. Replace with real photography when ready.
 */
 
-const RASP = '#BC386B'
-const INK = '#4A3427'
+const RASP = '#D80853'
+const INK = '#680C35'
 const LINE = '#EFD8DF'
 const GOLD = '#C9A15B'
 const GOLD_LIGHT = '#E8CD94'
@@ -38,7 +38,7 @@ export function Tablet({ className }: ArtProps) {
     <svg viewBox="0 0 300 390" className={className} {...hidden}>
       <rect x="2" y="2" width="296" height="386" rx="22" fill="#2B1820" />
       <rect x="6" y="6" width="288" height="378" rx="19" fill="#3A222C" />
-      <rect x="18" y="18" width="264" height="354" rx="8" fill="#FBF7F1" />
+      <rect x="18" y="18" width="264" height="354" rx="8" fill="#FFFAF6" />
       <rect x="18" y="18" width="264" height="44" rx="8" fill="#FDE6EC" />
       <rect x="18" y="50" width="264" height="12" fill="#FDE6EC" />
       <text x="36" y="49" className="svg-script" fontSize="26" fill={INK}>Today</text>
@@ -68,7 +68,7 @@ export function Tablet({ className }: ArtProps) {
       <text x="168" y="112" className="svg-display" fontSize="13" fill={INK}>Schedule</text>
       {times.map((t, i) => (
         <g key={t}>
-          <text x="168" y={140 + i * 36} className="svg-body" fontSize="8.5" fill="#7D6655">{t}</text>
+          <text x="168" y={140 + i * 36} className="svg-body" fontSize="8.5" fill="#9A6B7D">{t}</text>
           <text x="200" y={140 + i * 36} className="svg-body" fontSize="8.5" fill={INK}>{slots[i]}</text>
           <line x1="168" x2="266" y1={150 + i * 36} y2={150 + i * 36} stroke={LINE} />
         </g>
@@ -95,7 +95,7 @@ function FoldedTop({ color, shade, band }: { color: string; shade: string; band?
 export function Tee({ className }: ArtProps) {
   return (
     <svg viewBox="0 0 300 300" className={className} {...hidden}>
-      <ellipse cx="150" cy="276" rx="110" ry="9" fill="#4A3427" opacity="0.06" />
+      <ellipse cx="150" cy="276" rx="110" ry="9" fill="#680C35" opacity="0.06" />
       <FoldedTop color="#F6B6C8" shade="#EE9DB4" />
       <text x="150" y="178" textAnchor="middle" className="svg-script" fontSize="40" fill={RASP} transform="rotate(-8 150 170)">
         Nurse Love
@@ -110,7 +110,7 @@ export function Tee({ className }: ArtProps) {
 export function Crewneck({ className }: ArtProps) {
   return (
     <svg viewBox="0 0 300 300" className={className} {...hidden}>
-      <ellipse cx="150" cy="276" rx="110" ry="9" fill="#4A3427" opacity="0.06" />
+      <ellipse cx="150" cy="276" rx="110" ry="9" fill="#680C35" opacity="0.06" />
       <FoldedTop color="#FBD3DE" shade="#F2B5C6" band />
       <g transform="translate(138 120) scale(1.2)">
         <path d="M10 18s-8-4.9-8-10.4A4.4 4.4 0 0 1 10 5.2a4.4 4.4 0 0 1 8 2.4C18 13.1 10 18 10 18z" fill="none" stroke={RASP} strokeWidth="2" />
@@ -146,7 +146,7 @@ export function EarringsDrop({ className }: ArtProps) {
           <path d={`M${c - 26} 140 q9 -12 23 -9`} fill="none" stroke="#FFFFFF" strokeWidth="3.5" strokeLinecap="round" opacity="0.7" />
         </g>
       ))}
-      <ellipse cx="150" cy="250" rx="100" ry="7" fill="#4A3427" opacity="0.05" />
+      <ellipse cx="150" cy="250" rx="100" ry="7" fill="#680C35" opacity="0.05" />
     </svg>
   )
 }
@@ -157,7 +157,7 @@ export function EarringStuds({ className }: ArtProps) {
       <HeartShape x={52} y={96} s={4} fill="#F49AB5" stroke={GOLD} />
       <HeartShape x={168} y={106} s={4} fill="#F49AB5" stroke={GOLD} />
       <path d="M74 132 q8 -11 21 -8 M190 142 q8 -11 21 -8" fill="none" stroke="#FFFFFF" strokeWidth="3.5" strokeLinecap="round" opacity="0.7" />
-      <ellipse cx="150" cy="210" rx="90" ry="6" fill="#4A3427" opacity="0.05" />
+      <ellipse cx="150" cy="210" rx="90" ry="6" fill="#680C35" opacity="0.05" />
     </svg>
   )
 }
@@ -193,7 +193,7 @@ function Pen({ x, y, r, body, cap }: { x: number; y: number; r: number; body: st
 export function PenPair({ className }: ArtProps) {
   return (
     <svg viewBox="0 0 300 300" className={className} {...hidden}>
-      <ellipse cx="150" cy="276" rx="80" ry="7" fill="#4A3427" opacity="0.06" />
+      <ellipse cx="150" cy="276" rx="80" ry="7" fill="#680C35" opacity="0.06" />
       <Pen x={112} y={34} r={-12} body="#F6B6C8" cap="#F09AB4" />
       <Pen x={170} y={44} r={-12} body="#FBD3DE" cap="#F6B6C8" />
     </svg>
@@ -203,7 +203,7 @@ export function PenPair({ className }: ArtProps) {
 export function PenTrio({ className }: ArtProps) {
   return (
     <svg viewBox="0 0 300 300" className={className} {...hidden}>
-      <ellipse cx="150" cy="276" rx="96" ry="7" fill="#4A3427" opacity="0.06" />
+      <ellipse cx="150" cy="276" rx="96" ry="7" fill="#680C35" opacity="0.06" />
       <Pen x={88} y={40} r={-12} body="#FFF0F2" cap="#FBD3DE" />
       <Pen x={136} y={32} r={-12} body="#F6B6C8" cap="#F09AB4" />
       <Pen x={184} y={42} r={-12} body="#FBD3DE" cap="#F6B6C8" />

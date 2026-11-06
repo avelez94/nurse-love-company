@@ -3,7 +3,7 @@
   display: block;
   aspect-ratio: 16 / 9;
   width: 100%;
-  background: linear-gradient(to bottom, #f3e8d9, var(--blush));
+  background: linear-gradient(to bottom, #fbe9ee, var(--blush));
   overflow: hidden;
 }
 .tutorial-thumb__art {
@@ -40,7 +40,7 @@
   border-radius: 50%;
   background: var(--raspberry);
   color: var(--white);
-  box-shadow: 0 6px 18px rgb(var(--pink-pop-rgb) / 0.3);
+  box-shadow: 0 6px 18px rgb(216 8 83 / 0.3);
   transition: transform var(--dur-base) var(--ease-out);
 }
 .tutorial-thumb__play svg {

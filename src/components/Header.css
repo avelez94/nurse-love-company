@@ -34,7 +34,7 @@
   position: sticky;
   top: env(safe-area-inset-top, 0px);
   z-index: 30;
-  background: rgb(251 247 241 / 0.94);
+  background: rgb(255 250 246 / 0.94);
   backdrop-filter: saturate(1.2) blur(8px);
   border-bottom: 1px solid transparent;
   transition: border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);

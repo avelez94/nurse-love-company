@@ -160,7 +160,7 @@ button {
 .button:hover {
   --btn-bg: var(--raspberry-dark);
   --btn-border: var(--raspberry-dark);
-  box-shadow: 0 6px 16px rgb(var(--pink-pop-rgb) / 0.22);
+  box-shadow: 0 6px 16px rgb(216 8 83 / 0.22);
 }
 .button:active {
   transform: translateY(1px) scale(0.98);
@@ -175,7 +175,7 @@ button {
   --btn-bg: var(--blush);
   --btn-fg: var(--raspberry-dark);
   --btn-border: var(--raspberry-dark);
-  box-shadow: 0 4px 12px rgb(var(--pink-pop-rgb) / 0.12);
+  box-shadow: 0 4px 12px rgb(216 8 83 / 0.12);
 }
 .button--small {
   min-height: 44px;

@@ -1,32 +1,26 @@
 /*
   Nurse Love Company design tokens.
-  Layout concept: warm cream page, beige and tan bands, deep brown type,
-  with pops of rose pink for buttons, links and hearts. Rounded product boxes
-  with fine borders, one continuous hero that fades its imagery into the cream.
-  (The --pink names are historical: they now hold the tan neutrals; rose pink
-  lives in --raspberry and --rose.)
+  Layout concept: warm ivory page, soft pink bands, rounded product boxes with
+  fine borders, one continuous hero that fades its imagery into the cream.
   Every color, font, spacing step and motion setting used by the site lives here.
 */
 :root {
   color-scheme: light;
 
   /* Color */
-  --ivory: #fbf7f1;
-  --blush: #f5ede2;
-  --pink: #ecdfcc;
-  --pink-deep: #dfcdb3;
-  --raspberry: #bc386b;
-  --raspberry-dark: #9a2c55;
-  --burgundy: #4a3427;
-  --burgundy-soft: #6f5646;
-  --border: #e6d8c5;
+  --ivory: #fffaf6;
+  --blush: #fff0f2;
+  --pink: #fbdde5;
+  --pink-deep: #f6c9d6;
+  --raspberry: #d80853;
+  --raspberry-dark: #b3063f;
+  --burgundy: #680c35;
+  --burgundy-soft: #7d3a55;
+  --border: #efd8df;
   --white: #ffffff;
-  --ink-muted: #7d6655;
+  --ink-muted: #8a5a6c;
   --success: #2f7a55;
-  --shadow-color: 74 52 39;
-  /* Soft rose for small pink accents. */
-  --rose: #f6d6e0;
-  --pink-pop-rgb: 188 56 107;
+  --shadow-color: 104 12 53;
 
   /* Type */
   --font-display: 'DM Serif Display', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;

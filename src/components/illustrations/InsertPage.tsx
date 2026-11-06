@@ -7,9 +7,9 @@ import type { SampleLayout } from '../../data/types'
 
 const LINE = '#EFD8DF'
 const PINK = '#F3BFD0'
-const RASP = '#BC386B'
-const INK = '#4A3427'
-const MUTED = '#7D6655'
+const RASP = '#D80853'
+const INK = '#680C35'
+const MUTED = '#9A6B7D'
 
 interface InsertPageProps {
   title: string

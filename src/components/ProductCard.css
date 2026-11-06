@@ -36,7 +36,7 @@
   transform: scale(1.04);
 }
 .product-card--physical .product-card__media {
-  background: #f7f0e6;
+  background: #fdf3f5;
 }
 .product-card__body {
   display: flex;
