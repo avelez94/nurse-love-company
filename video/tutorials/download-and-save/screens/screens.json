@@ -1,0 +1,256 @@
+{
+ "desktop-01-home": {
+  "w": 1920,
+  "h": 1313
+ },
+ "desktop-03-signin": {
+  "w": 1920,
+  "h": 1313
+ },
+ "desktop-04-account": {
+  "w": 1920,
+  "h": 1313
+ },
+ "desktop-05-downloads": {
+  "w": 1920,
+  "h": 1313
+ },
+ "desktop-06-confirm": {
+  "w": 1920,
+  "h": 1313
+ },
+ "desktop-07-started": {
+  "w": 1920,
+  "h": 1313
+ },
+ "desktop-08-used": {
+  "w": 1920,
+  "h": 1313
+ },
+ "desktop-09-report": {
+  "w": 1920,
+  "h": 1313
+ },
+ "desktop-10-support": {
+  "w": 1920,
+  "h": 1313
+ },
+ "desktop-boxes": {
+  "account-icon": [
+   1680,
+   107,
+   83,
+   83
+  ],
+  "signin-button": [
+   609,
+   1023,
+   701,
+   98
+  ],
+  "downloads-tab": [
+   468,
+   460,
+   252,
+   83
+  ],
+  "download-card": [
+   60,
+   680,
+   1800,
+   283
+  ],
+  "download-button": [
+   1556,
+   780,
+   272,
+   83
+  ],
+  "one-download-notice": [
+   60,
+   587,
+   1800,
+   92
+  ],
+  "confirm-dialog": [
+   435,
+   403,
+   1050,
+   506
+  ],
+  "confirm-button": [
+   1151,
+   795,
+   287,
+   83
+  ],
+  "started-notice": [
+   60,
+   680,
+   1800,
+   136
+  ],
+  "used-status": [
+   302,
+   882,
+   1024,
+   49
+  ],
+  "report-button": [
+   1356,
+   809,
+   472,
+   83
+  ],
+  "report-dialog": [
+   435,
+   272,
+   1050,
+   769
+  ],
+  "support-tab": [
+   919,
+   460,
+   168,
+   83
+  ],
+  "support-form": [
+   60,
+   587,
+   1200,
+   1138
+  ]
+ },
+ "phone-01-home": {
+  "w": 1170,
+  "h": 2532
+ },
+ "phone-02-menu": {
+  "w": 1170,
+  "h": 2532
+ },
+ "phone-03-signin": {
+  "w": 1170,
+  "h": 2532
+ },
+ "phone-04-account": {
+  "w": 1170,
+  "h": 2532
+ },
+ "phone-05-downloads": {
+  "w": 1170,
+  "h": 2532
+ },
+ "phone-06-confirm": {
+  "w": 1170,
+  "h": 2532
+ },
+ "phone-07-started": {
+  "w": 1170,
+  "h": 2532
+ },
+ "phone-08-used": {
+  "w": 1170,
+  "h": 2532
+ },
+ "phone-09-report": {
+  "w": 1170,
+  "h": 2532
+ },
+ "phone-10-support": {
+  "w": 1170,
+  "h": 2532
+ },
+ "phone-boxes": {
+  "menu": [
+   24,
+   147,
+   132,
+   132
+  ],
+  "signin-link": [
+   51,
+   1581,
+   1068,
+   138
+  ],
+  "signin-button": [
+   99,
+   1524,
+   972,
+   156
+  ],
+  "downloads-tab": [
+   701,
+   647,
+   403,
+   132
+  ],
+  "download-card": [
+   48,
+   1294,
+   1074,
+   791
+  ],
+  "download-button": [
+   99,
+   1902,
+   435,
+   132
+  ],
+  "one-download-notice": [
+   48,
+   1007,
+   1074,
+   287
+  ],
+  "confirm-dialog": [
+   0,
+   1609,
+   1170,
+   923
+  ],
+  "confirm-button": [
+   636,
+   2349,
+   459,
+   132
+  ],
+  "started-notice": [
+   48,
+   1294,
+   1074,
+   357
+  ],
+  "used-status": [
+   363,
+   1775,
+   708,
+   79
+  ],
+  "report-button": [
+   99,
+   2072,
+   755,
+   132
+  ],
+  "report-dialog": [
+   0,
+   1189,
+   1170,
+   1343
+  ],
+  "support-tab": [
+   341,
+   803,
+   269,
+   132
+  ],
+  "support-form": [
+   48,
+   1007,
+   1074,
+   1772
+  ]
+ }
+}

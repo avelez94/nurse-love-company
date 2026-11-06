@@ -1,0 +1,20 @@
+{
+  "name": "nurse-love-tutorial-videos",
+  "private": true,
+  "description": "HyperFrames source for Nurse Love Company tutorial videos. Rendered locally, never in the Vercel build.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node template/build.mjs",
+    "check": "cd build/$npm_config_tutorial && hyperframes check --json",
+    "render": "node template/render.mjs"
+  },
+  "devDependencies": {
+    "@fontsource/dm-serif-display": "5.2.5",
+    "@fontsource/nunito-sans": "5.2.5",
+    "gsap": "^3.15.0",
+    "hyperframes": "0.9.19"
+  }
+}

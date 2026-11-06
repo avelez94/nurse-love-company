@@ -1,0 +1,65 @@
+<template>
+  <div id="root" data-composition-id="s6-check" data-width="1920" data-height="1080">
+  
+  <style>
+    @font-face { font-family: 'DM Serif Display'; src: url('assets/fonts/dm-serif-display-latin-400-normal.woff2') format('woff2'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Nunito Sans'; src: url('assets/fonts/nunito-sans-latin-400-normal.woff2') format('woff2'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Nunito Sans'; src: url('assets/fonts/nunito-sans-latin-600-normal.woff2') format('woff2'); font-weight: 600; font-style: normal; }
+    @font-face { font-family: 'Nunito Sans'; src: url('assets/fonts/nunito-sans-latin-700-normal.woff2') format('woff2'); font-weight: 700; font-style: normal; }
+    @font-face { font-family: 'Nunito Sans'; src: url('assets/fonts/nunito-sans-latin-800-normal.woff2') format('woff2'); font-weight: 800; font-style: normal; }
+    #root { position: absolute; inset: 0; background: #fffaf6; font-family: 'Nunito Sans', sans-serif; color: #680c35; overflow: hidden; }
+    #s6-check-ground { position: absolute; inset: 0; background: linear-gradient(90deg, #fffaf6 0%, #fffaf6 30%, #fff0f2 30%, #fff0f2 100%); }
+    #s6-check-stage { position: absolute; inset: 0; }
+    .s6-check-progress { position: absolute; left: 110px; top: 64px; display: flex; gap: 10px; }
+    .s6-check-progress span { width: 44px; height: 8px; border-radius: 4px; background: #f6c9d6; }
+    .s6-check-progress span.on { background: #d80853; }
+    .s6-check-panel { position: absolute; left: 110px; top: 160px; width: 520px; }
+    .s6-check-stepno { font-family: 'DM Serif Display', serif; color: #d80853; font-size: 132px; line-height: 0.9; }
+    .s6-check-stepof { font-weight: 700; font-size: 30px; color: #8a5a6c; margin: 6px 0 22px; letter-spacing: 0.02em; }
+    .s6-check-title { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 66px; line-height: 1.04; margin: 0 0 26px; color: #680c35; }
+    .s6-check-device { display: inline-block; font-weight: 800; font-size: 28px; color: #d80853; background: #fff; border: 3px solid #f6c9d6; border-radius: 999px; padding: 8px 22px; margin-bottom: 24px; }
+    .s6-check-line { font-size: 38px; line-height: 1.3; margin: 0 0 22px; color: #680c35; }
+    .s6-check-line strong { color: #d80853; font-weight: 800; }
+    .s6-check-note { font-size: 30px; line-height: 1.35; color: #7d3a55; }
+    #s6-check-card { position: absolute; left: 690px; top: 110px; width: 1134px; height: 860px; border-radius: 28px; background: #fff; overflow: hidden; box-shadow: 0 0 0 2px #efd8df, 0 24px 60px rgb(104 12 53 / 0.16); }
+    #s6-check-cam { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+    #s6-check-cam img { display: block; }
+    #s6-check-hl { position: absolute; border-radius: 18px; border: 5px solid #d80853; box-shadow: 0 0 0 9px rgb(216 8 83 / 0.16); }
+    #s6-check-cursor { position: absolute; left: 0; top: 0; width: 56px; height: 56px; }
+    #s6-check-touch { position: absolute; left: 0; top: 0; width: 78px; height: 78px; margin: -39px 0 0 -39px; border-radius: 50%; background: rgb(216 8 83 / 0.28); border: 4px solid #fff; box-shadow: 0 0 0 3px rgb(216 8 83 / 0.55); }
+    #s6-check-hl { left: 245.75400000000002px; top: 391.386px; width: 601.36px; height: 145.65800000000002px; }
+  </style>
+  <div id="s6-check-ground"></div>
+  <div id="s6-check-stage" data-hold>
+    <div class="s6-check-progress" aria-hidden="true"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class=""></span></div>
+    <div class="s6-check-panel">
+      <div id="s6-check-no" class="s6-check-stepno">6</div><div class="s6-check-stepof">Step 6 of 7</div>
+      <h2 id="s6-check-title" class="s6-check-title">Check your file</h2>
+      <div id="s6-check-device" class="s6-check-device">Same on a phone</div>
+      <p id="s6-check-t0" class="s6-check-line">My downloads now shows <strong>Download used</strong> and the date.</p>
+      <p id="s6-check-t1" class="s6-check-line">The website can't see your device, so it can't tell if the file saved.</p>
+      <p id="s6-check-t2" class="s6-check-line">Open the file once to make sure it's there.</p>
+    </div>
+    <div id="s6-check-card" role="img" aria-label="Check your file">
+      <div id="s6-check-cam"><img src="assets/screens/desktop-08-used.webp" width="1920" height="1313" alt="" /></div>
+      <div id="s6-check-hl"></div>
+      
+      
+    </div>
+  </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo('#s6-check-stage', { opacity: 0, filter: 'blur(6px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.4, ease: 'power2.out' }, 0);
+    tl.fromTo('#s6-check-stage', { opacity: 1, filter: 'blur(0px)' }, { opacity: 0, filter: 'blur(6px)', duration: 0.3, ease: 'power2.in', immediateRender: false }, 16.65);
+    tl.fromTo('#s6-check-title', { opacity: 0, filter: 'blur(8px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.5, ease: 'power3.out' }, 0.35);
+    tl.fromTo('#s6-check-no', { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'power2.out' }, 0.2);
+    tl.fromTo('#s6-check-device', { opacity: 0 }, { opacity: 1, duration: 0.4, ease: 'power2.out' }, 0.65);
+    tl.fromTo('#s6-check-t0', { opacity: 0, filter: 'blur(6px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.45, ease: 'power3.out' }, 1);
+    tl.fromTo('#s6-check-t1', { opacity: 0, filter: 'blur(6px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.45, ease: 'power3.out' }, 5.19);
+    tl.fromTo('#s6-check-t2', { opacity: 0, filter: 'blur(6px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.45, ease: 'power3.out' }, 11.18);
+    tl.fromTo('#s6-check-cam', { x: 0, y: 42.255, scale: 0.591 }, { x: -41.236, y: -493.584, scale: 1.031, duration: 1.5, ease: 'power2.inOut' }, 0.9);
+    tl.fromTo('#s6-check-hl', { opacity: 0, scale: 1.04 }, { opacity: 1, scale: 1, duration: 0.45, ease: 'power3.out' }, 2.7);
+    window.__timelines["s6-check"] = tl;
+  </script>
+</template>

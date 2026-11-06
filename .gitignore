@@ -9,3 +9,8 @@ dist-server
 .env.*
 !.env.example
 .vercel
+
+# Tutorial videos: renders and HyperFrames work files stay local
+video/renders/
+video/build/*/.hyperframes/
+video/.hyperframes/
