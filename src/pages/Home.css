@@ -95,7 +95,9 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 70% 80% at 70% 45%, #f1e5d4 0%, rgb(241 229 212 / 0.6) 45%, transparent 80%),
+    /* A warm glow behind the pages: soft blush at the center, fading through tan into the cream. */
+    radial-gradient(ellipse 52% 78% at 72% 58%, rgb(244 205 218 / 0.95) 0%, rgb(246 214 224 / 0.5) 48%, transparent 78%),
+    radial-gradient(ellipse 70% 80% at 70% 45%, #efe1cc 0%, rgb(239 225 204 / 0.6) 50%, transparent 82%),
     linear-gradient(to right, var(--ivory), #f5ede2);
 }
 .hero__page,
@@ -199,7 +201,9 @@
       linear-gradient(to right, transparent 0%, #000 8%, #000 92%, transparent 100%);
   }
   .hero__backdrop {
-    background: radial-gradient(ellipse 80% 70% at 50% 55%, #f1e5d4 0%, rgb(241 229 212 / 0.55) 50%, transparent 85%);
+    background:
+      radial-gradient(ellipse 70% 55% at 50% 62%, rgb(244 205 218 / 0.95) 0%, rgb(246 214 224 / 0.45) 50%, transparent 82%),
+      radial-gradient(ellipse 80% 70% at 50% 55%, #efe1cc 0%, rgb(239 225 204 / 0.55) 50%, transparent 85%);
   }
   .hero__page--med { width: 33%; left: 4%; top: 26%; }
   .hero__page--dump { width: 33%; left: 30%; top: 18%; }
@@ -499,8 +503,9 @@
 /* The Freebie Corner */
 .freebie {
   margin-top: var(--space-6);
-  background: linear-gradient(to bottom, var(--pink), #efe3d1);
-  border-top: 1px solid var(--border);
+  /* The one big pop of pink on the page. */
+  background: linear-gradient(to bottom, #f9e1e8, #f4d3dd);
+  border-top: 1px solid #efc6d3;
   overflow: hidden;
 }
 .freebie__inner {
