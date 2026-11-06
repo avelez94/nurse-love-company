@@ -1,0 +1,64 @@
+<template>
+  <div id="root" data-composition-id="s4-click" data-width="1920" data-height="1080">
+  
+  <style>
+    @font-face { font-family: 'DM Serif Display'; src: url('assets/fonts/dm-serif-display-latin-400-normal.woff2') format('woff2'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Nunito Sans'; src: url('assets/fonts/nunito-sans-latin-400-normal.woff2') format('woff2'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Nunito Sans'; src: url('assets/fonts/nunito-sans-latin-600-normal.woff2') format('woff2'); font-weight: 600; font-style: normal; }
+    @font-face { font-family: 'Nunito Sans'; src: url('assets/fonts/nunito-sans-latin-700-normal.woff2') format('woff2'); font-weight: 700; font-style: normal; }
+    @font-face { font-family: 'Nunito Sans'; src: url('assets/fonts/nunito-sans-latin-800-normal.woff2') format('woff2'); font-weight: 800; font-style: normal; }
+    #root { position: absolute; inset: 0; background: #fffaf6; font-family: 'Nunito Sans', sans-serif; color: #680c35; overflow: hidden; }
+    #s4-click-ground { position: absolute; inset: 0; background: linear-gradient(90deg, #fffaf6 0%, #fffaf6 30%, #fff0f2 30%, #fff0f2 100%); }
+    #s4-click-stage { position: absolute; inset: 0; }
+    .s4-click-progress { position: absolute; left: 110px; top: 64px; display: flex; gap: 10px; }
+    .s4-click-progress span { width: 44px; height: 8px; border-radius: 4px; background: #f6c9d6; }
+    .s4-click-progress span.on { background: #d80853; }
+    .s4-click-panel { position: absolute; left: 110px; top: 160px; width: 520px; }
+    .s4-click-stepno { font-family: 'DM Serif Display', serif; color: #d80853; font-size: 132px; line-height: 0.9; }
+    .s4-click-stepof { font-weight: 700; font-size: 30px; color: #8a5a6c; margin: 6px 0 22px; letter-spacing: 0.02em; }
+    .s4-click-title { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 66px; line-height: 1.04; margin: 0 0 26px; color: #680c35; }
+    .s4-click-device { display: inline-block; font-weight: 800; font-size: 28px; color: #d80853; background: #fff; border: 3px solid #f6c9d6; border-radius: 999px; padding: 8px 22px; margin-bottom: 24px; }
+    .s4-click-line { font-size: 38px; line-height: 1.3; margin: 0 0 22px; color: #680c35; }
+    .s4-click-line strong { color: #d80853; font-weight: 800; }
+    .s4-click-note { font-size: 30px; line-height: 1.35; color: #7d3a55; }
+    #s4-click-card { position: absolute; left: 690px; top: 110px; width: 1134px; height: 860px; border-radius: 28px; background: #fff; overflow: hidden; box-shadow: 0 0 0 2px #efd8df, 0 24px 60px rgb(104 12 53 / 0.16); }
+    #s4-click-cam { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+    #s4-click-cam img { display: block; }
+    #s4-click-hl { position: absolute; border-radius: 18px; border: 5px solid #d80853; box-shadow: 0 0 0 9px rgb(216 8 83 / 0.16); }
+    #s4-click-cursor { position: absolute; left: 0; top: 0; width: 56px; height: 56px; }
+    #s4-click-touch { position: absolute; left: 0; top: 0; width: 78px; height: 78px; margin: -39px 0 0 -39px; border-radius: 50%; background: rgb(216 8 83 / 0.28); border: 4px solid #fff; box-shadow: 0 0 0 3px rgb(216 8 83 / 0.55); }
+    #s4-click-hl { left: 691.318px; top: 144.001px; width: 409.424px; height: 141.611px; }
+  </style>
+  <div id="s4-click-ground"></div>
+  <div id="s4-click-stage" data-hold>
+    <div class="s4-click-progress" aria-hidden="true"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class=""></span><span class=""></span><span class=""></span></div>
+    <div class="s4-click-panel">
+      <div id="s4-click-no" class="s4-click-stepno">4</div><div class="s4-click-stepof">Step 4 of 7</div>
+      <h2 id="s4-click-title" class="s4-click-title">Start your download</h2>
+      
+      <p id="s4-click-t0" class="s4-click-line">When you're ready, click <strong>Download</strong> on the card.</p>
+    </div>
+    <div id="s4-click-card" role="img" aria-label="Start your download">
+      <div id="s4-click-cam"><img src="assets/screens/desktop-05-downloads.webp" width="1920" height="1313" alt="" /></div>
+      <div id="s4-click-hl"></div>
+      <svg id="s4-click-cursor" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3l14 8.2-6.1 1.3 3.4 6.6-2.6 1.3-3.4-6.6L5 18z" fill="#fff" stroke="#680c35" stroke-width="1.5" stroke-linejoin="round"/></svg>
+      
+    </div>
+  </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo('#s4-click-stage', { opacity: 0, filter: 'blur(6px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.4, ease: 'power2.out' }, 0);
+    tl.fromTo('#s4-click-stage', { opacity: 1, filter: 'blur(0px)' }, { opacity: 0, filter: 'blur(6px)', duration: 0.3, ease: 'power2.in', immediateRender: false }, 5.18);
+    tl.fromTo('#s4-click-title', { opacity: 0, filter: 'blur(8px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.5, ease: 'power3.out' }, 0.35);
+    tl.fromTo('#s4-click-no', { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'power2.out' }, 0.2);
+    tl.fromTo('#s4-click-t0', { opacity: 0, filter: 'blur(6px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.45, ease: 'power3.out' }, 1);
+    tl.fromTo('#s4-click-cam', { x: 0, y: 42.255, scale: 0.591 }, { x: -1501.534, y: -949.259, scale: 1.417, duration: 1.5, ease: 'power2.inOut' }, 0.9);
+    tl.fromTo('#s4-click-hl', { opacity: 0, scale: 1.04 }, { opacity: 1, scale: 1, duration: 0.45, ease: 'power3.out' }, 4.05);
+    tl.fromTo('#s4-click-cursor', { opacity: 0 }, { opacity: 1, duration: 0.25, ease: 'power1.out' }, 2.7);
+    tl.fromTo('#s4-click-cursor', { x: 994, y: 750 }, { x: 886.03, y: 206.807, duration: 1.2, ease: 'power2.inOut' }, 2.9);
+    tl.fromTo('#s4-click-cursor', { scale: 1 }, { scale: 0.86, duration: 0.12, ease: 'power2.in' }, 4.1);
+    tl.fromTo('#s4-click-cursor', { scale: 0.86 }, { scale: 1, duration: 0.2, ease: 'power2.out', immediateRender: false }, 4.22);
+    window.__timelines["s4-click"] = tl;
+  </script>
+</template>

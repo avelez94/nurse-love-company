@@ -1,0 +1,379 @@
+{
+  "title": "How to download and save your goodies on a phone",
+  "slug": "download-and-save-phone",
+  "steps": 7,
+  "screensDir": "../_screens/download-flow",
+  "voice": {
+    "engine": "kokoro",
+    "name": "af_heart",
+    "speed": 0.95
+  },
+  "notes": "Real screens from the website on a phone with a synthetic customer (Sam Taylor), a synthetic order (NLC-10001) and a sample PDF. Save locations follow Apple Support and Google Chrome Help and are worded as 'usually' because people can change them.",
+  "scenes": [
+    {
+      "id": "intro",
+      "kind": "title",
+      "eyebrow": "Nurse Love Company tutorial",
+      "title": "How to download and save your goodies",
+      "subtitle": "On a phone",
+      "say": [
+        "Hi there!",
+        "In this video, I'll show you how to download your goodies on your phone, save them somewhere easy to find, and find them again later."
+      ]
+    },
+    {
+      "id": "s1-menu",
+      "kind": "screen",
+      "step": 1,
+      "title": "Sign in to your account",
+      "image": "phone-01-home",
+      "focus": [
+        0,
+        0,
+        1170,
+        887
+      ],
+      "target": "menu",
+      "lines": [
+        "Tap the menu button at the top left."
+      ],
+      "say": [
+        "First, let's sign in.",
+        "Tap the menu button at the top left."
+      ]
+    },
+    {
+      "id": "s1-link",
+      "kind": "screen",
+      "step": 1,
+      "title": "Sign in to your account",
+      "image": "phone-02-menu",
+      "focus": [
+        0,
+        1100,
+        1170,
+        887
+      ],
+      "target": "signin-link",
+      "lines": [
+        "Tap <strong>Sign in</strong>."
+      ],
+      "say": [
+        "Then tap Sign in."
+      ]
+    },
+    {
+      "id": "s1-form",
+      "kind": "screen",
+      "step": 1,
+      "title": "Sign in to your account",
+      "image": "phone-03-signin",
+      "focus": [
+        0,
+        820,
+        1170,
+        887
+      ],
+      "target": "signin-button",
+      "lines": [
+        "Enter your email and password, then tap <strong>Sign in</strong>."
+      ],
+      "say": [
+        "Enter the email and password for your account, then tap Sign in."
+      ]
+    },
+    {
+      "id": "s2-tab",
+      "kind": "screen",
+      "step": 2,
+      "title": "Open My downloads",
+      "image": "phone-04-account",
+      "focus": [
+        0,
+        250,
+        1170,
+        887
+      ],
+      "target": "downloads-tab",
+      "lines": [
+        "Your account opens.",
+        "Tap <strong>My downloads</strong>."
+      ],
+      "say": [
+        "Your account opens.",
+        "Tap My downloads."
+      ]
+    },
+    {
+      "id": "s3-find",
+      "kind": "screen",
+      "step": 3,
+      "title": "Find your resource",
+      "image": "phone-05-downloads",
+      "focus": [
+        0,
+        1270,
+        1170,
+        887
+      ],
+      "target": [
+        48,
+        1294,
+        1074,
+        560
+      ],
+      "cursor": false,
+      "lines": [
+        "Each purchase has its own card, with the order number and version.",
+        "Ready to save? It says <strong>1 download available</strong>."
+      ],
+      "say": [
+        "Each purchase has its own card, with the order number and the version.",
+        "When it's ready, it says one download available."
+      ]
+    },
+    {
+      "kind": "rule",
+      "step": 4,
+      "title": "Before you download",
+      "sayLineOffset": 1,
+      "lines": [
+        "Each digital purchase includes <strong>one download</strong> of the latest version.",
+        "Starting the download uses it. Just viewing the page does not.",
+        "When a new version is released, you get one new download of it."
+      ],
+      "say": [
+        "Before you download, here's the important part.",
+        "Each digital purchase includes one download of the latest version.",
+        "Starting the download uses it. Just looking at this page doesn't.",
+        "And when a new version comes out, you'll get one new download of it."
+      ],
+      "id": "s4-rule"
+    },
+    {
+      "id": "s4-click",
+      "kind": "screen",
+      "step": 4,
+      "title": "Start your download",
+      "image": "phone-05-downloads",
+      "focus": [
+        0,
+        1270,
+        1170,
+        887
+      ],
+      "target": "download-button",
+      "lines": [
+        "When you're ready, tap <strong>Download</strong> on the card."
+      ],
+      "say": [
+        "When you're ready to save it, tap Download on the card."
+      ]
+    },
+    {
+      "id": "s4-confirm",
+      "kind": "screen",
+      "step": 4,
+      "title": "Start your download",
+      "image": "phone-06-confirm",
+      "focus": [
+        0,
+        1645,
+        1170,
+        887
+      ],
+      "target": "confirm-button",
+      "lines": [
+        "A reminder appears.",
+        "Read it, then tap <strong>Download now</strong>."
+      ],
+      "say": [
+        "A reminder pops up.",
+        "Read it, then tap Download now."
+      ]
+    },
+    {
+      "id": "s5-started",
+      "kind": "screen",
+      "step": 5,
+      "title": "Save the file",
+      "image": "phone-07-started",
+      "focus": [
+        0,
+        980,
+        1170,
+        887
+      ],
+      "target": "started-notice",
+      "cursor": false,
+      "lines": [
+        "A message says your download has started.",
+        "Your browser saves the file on your phone."
+      ],
+      "say": [
+        "A message lets you know your download has started.",
+        "From here, your browser saves the file on your phone."
+      ]
+    },
+    {
+      "id": "s5-where",
+      "kind": "devices",
+      "step": 5,
+      "title": "Where your file goes",
+      "intro": "It depends on your phone. Usually:",
+      "devices": [
+        {
+          "icon": "phone",
+          "label": "iPhone or iPad",
+          "lines": [
+            "Safari saves it to the <strong>Files</strong> app, in <strong>Downloads</strong>.",
+            "A Downloads button also appears next to Safari's address bar."
+          ]
+        },
+        {
+          "icon": "phone",
+          "label": "Android",
+          "lines": [
+            "Chrome saves it to your <strong>Downloads</strong>.",
+            "You'll find it in the <strong>Files</strong> app."
+          ]
+        }
+      ],
+      "footer": "Tip: keep your inserts together in one folder, like one named <strong>Nurse Love</strong>.",
+      "say": [
+        "Where it goes depends on your phone.",
+        "On an iPhone or iPad, Safari saves it to the Files app, in the Downloads folder.",
+        "On Android, Chrome saves it to your Downloads, which you'll find in the Files app.",
+        "Tip: keep all your inserts together in one folder, like one named Nurse Love."
+      ]
+    },
+    {
+      "id": "s6-find",
+      "kind": "devices",
+      "step": 6,
+      "title": "Find it again",
+      "devices": [
+        {
+          "icon": "phone",
+          "label": "iPhone or iPad",
+          "lines": [
+            "Open <strong>Files</strong>, tap <strong>Browse</strong>, then <strong>Downloads</strong>.",
+            "Not there? Look in iCloud Drive."
+          ]
+        },
+        {
+          "icon": "phone",
+          "label": "Android",
+          "lines": [
+            "Open the <strong>Files</strong> app and look in <strong>Downloads</strong>.",
+            "Or in Chrome, tap <strong>More</strong>, then <strong>Downloads</strong>."
+          ]
+        }
+      ],
+      "say": [
+        "To find it again on an iPhone or iPad, open the Files app, tap Browse, then Downloads. If you don't see it there, check iCloud Drive.",
+        "On Android, open the Files app and look in Downloads. Or in Chrome, tap More, then Downloads."
+      ]
+    },
+    {
+      "id": "s6-check",
+      "kind": "screen",
+      "step": 6,
+      "title": "Check your file",
+      "image": "phone-08-used",
+      "focus": [
+        0,
+        1290,
+        1170,
+        887
+      ],
+      "target": [
+        340,
+        1762,
+        760,
+        190
+      ],
+      "cursor": false,
+      "lines": [
+        "My downloads now shows <strong>Download used</strong> and the date.",
+        "The website can't see your phone, so it can't tell if the file saved.",
+        "Open the file once to make sure it's there."
+      ],
+      "say": [
+        "Back on the website, My downloads now says Download used, with the date.",
+        "The website can't see your phone, so it can't tell whether the file saved.",
+        "So open the file once, just to make sure it's there."
+      ]
+    },
+    {
+      "id": "s7-report",
+      "kind": "screen",
+      "step": 7,
+      "title": "Need help?",
+      "image": "phone-08-used",
+      "focus": [
+        0,
+        1300,
+        1170,
+        887
+      ],
+      "target": "report-button",
+      "lines": [
+        "File didn't save or won't open?",
+        "Tap <strong>Report a download problem</strong>. A person at the store reads every report."
+      ],
+      "say": [
+        "If the file didn't save, or it won't open, tap Report a download problem.",
+        "A real person at the store reads every report."
+      ],
+      "act": 0
+    },
+    {
+      "id": "s7-support",
+      "kind": "screen",
+      "step": 7,
+      "title": "Need help?",
+      "image": "phone-10-support",
+      "focus": [
+        0,
+        450,
+        1170,
+        887
+      ],
+      "target": "support-tab",
+      "lines": [
+        "For anything else, tap <strong>Support</strong> in your account and send a message.",
+        "You'll hear back by email."
+      ],
+      "say": [
+        "For anything else, tap Support in your account and send a message.",
+        "You'll hear back by email."
+      ],
+      "act": 0
+    },
+    {
+      "id": "outro",
+      "kind": "title",
+      "title": "You're all set",
+      "subtitle": "Download once, save it somewhere easy to find, and open it to check.",
+      "say": [
+        "And that's it!",
+        "Download once, save it somewhere easy to find, and open it to check.",
+        "Thanks for watching."
+      ]
+    }
+  ],
+  "thumbnail": {
+    "eyebrow": "Tutorial",
+    "title": "How to download and save your goodies",
+    "subtitle": "On a phone",
+    "image": "phone-05-downloads",
+    "focus": [
+      0,
+      1150,
+      1170,
+      1000
+    ],
+    "target": "download-button"
+  }
+}

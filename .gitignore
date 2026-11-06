@@ -14,3 +14,7 @@ dist-server
 video/renders/
 video/build/*/.hyperframes/
 video/.hyperframes/
+
+# Voice clips are regenerated from the scripts
+video/tutorials/*/.voice-cache/
+video/tutorials/*/.voice-request.json

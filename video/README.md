@@ -9,9 +9,11 @@ video/
   template/                 the reusable template
     build.mjs               turns a tutorial script into a HyperFrames project, captions and a transcript
     assets/                 brand fonts (DM Serif Display, Nunito Sans, SIL Open Font License) and GSAP
+    audio/voice.py          speaks each sentence with the local Kokoro voice (Apache 2.0) and lays out the voice track
+    audio/compose_music.py  the original background music, composed to each video's length (nothing to license)
+  tutorials/_screens/       real screenshots (synthetic customer) and screens.json with element positions
   tutorials/<slug>/         one folder per tutorial
-    tutorial.json           the script: scenes, words, screenshots, focus areas, highlight targets
-    screens/                real screenshots (synthetic customer) and screens.json with element positions
+    tutorial.json           the script: narration, on-screen words, screenshots, focus areas, highlight targets
     SPEC.md, REVIEW.md      the brief and the review notes for that video
     out/                    generated captions (.vtt) and transcript (.md)
   build/<slug>/             generated HyperFrames project (editable source)
@@ -33,53 +35,76 @@ cd video
 npm install
 ```
 
+## Voice and music (one time setup)
+
+The narration uses Kokoro, a small open voice model that runs on your computer (Apache 2.0, fine for commercial use).
+The tutorials use the voice **Heart** (`af_heart`) at 0.95 speed.
+
+```bash
+python3 -m venv ~/.venvs/nlc-voice
+~/.venvs/nlc-voice/bin/pip install kokoro-onnx soundfile numpy
+npx hyperframes tts "hello" -o /tmp/hello.wav     # first run downloads the Kokoro model to ~/.cache/hyperframes/tts
+export VIDEO_PYTHON=~/.venvs/nlc-voice/bin/python
+```
+
+Each sentence is spoken once and cached in `tutorials/<slug>/.voice-cache/` (not committed), so rebuilding only
+speaks sentences you changed. The music is composed by `template/audio/compose_music.py` (soft piano chords, a
+gentle arpeggio and a warm pad, 68 BPM). The voice is normalized to -16 LUFS and the music to -29 LUFS, about
+13 LU underneath. Set `"musicLevel": -32` in tutorial.json for quieter music, or `"music": false` for none.
+
+To use a person's recording instead (for example the owner's own voice), replace `assets/audio/voice.m4a` in the
+generated project with the edited recording, then retime scenes in the HyperFrames editor, or ask for the template
+to take recorded sentences instead of `say`.
+
 ## Build, look, check, render
 
 ```bash
 cd video
-node template/build.mjs download-and-save          # tutorial.json -> build/download-and-save + captions + transcript
-cd build/download-and-save
-npx hyperframes preview                             # opens the editor preview in your browser
-npx hyperframes check --json                        # must report "ok": true
-npx hyperframes render --quality delivery --max-bitrate 1.6M -o ../../renders/download-and-save.mp4
+node template/build.mjs download-and-save-computer   # tutorial.json -> build/<slug> + captions + transcript + thumbnail
+cd build/download-and-save-computer
+npx hyperframes preview                               # opens the editor preview in your browser
+npx hyperframes check --json                          # must report "ok": true
+npx hyperframes render --quality delivery --max-bitrate 1.6M -o ../../renders/download-and-save-computer.mp4
 ```
 
-The pilot is 3 min 25 s at 1920 x 1080, 30 fps. On a 4 core laptop the render takes roughly 15 to 25 minutes. The
+The computer video is 2:16 and the phone video 2:31, at 1920 x 1080, 30 fps. On a 4 core laptop each render takes roughly 10 to 20 minutes. The
 `--max-bitrate 1.6M` cap keeps every tutorial under the website's 50 MB upload limit (1.6 Mbit/s for 4 minutes is
 about 48 MB; mostly still screens come out far smaller).
 
 After rendering, make sure the file starts playing before it has fully downloaded (fast start):
 
 ```bash
-ffmpeg -i ../../renders/download-and-save.mp4 -c copy -movflags +faststart ../../renders/download-and-save-web.mp4
+ffmpeg -i ../../renders/download-and-save-computer.mp4 -c copy -movflags +faststart ../../renders/download-and-save-computer-web.mp4
 ```
 
 Thumbnail (a still HyperFrames composition):
 
 ```bash
-cd video/build/download-and-save-thumbnail
+cd video/build/download-and-save-computer-thumbnail
 npx hyperframes snapshot --at 0                     # prints the PNG path; save it as a 1280 x 720 JPG
 ```
 
 ### Editing
 
-- Words, order, timing and which screenshot to show live in `tutorial.json`. Edit it and run `build.mjs` again.
+- Narration (`say`), on-screen words (`lines`), order and which screenshot to show live in `tutorial.json`.
+  Edit it and run `build.mjs` again. The voice is the clock: each line appears as its sentence is spoken, the cursor
+  lands about a second into the sentence named by `act` (the last one by default), and captions follow the narration.
 - You can also open `build/<slug>` in the HyperFrames desktop app or preview and edit there. `build.mjs` replaces
   that folder, so after hand edits either keep editing there or move the change into `tutorial.json` first.
 - Lines may use `<strong>` for emphasis. Nothing else is allowed (it is escaped).
-- Timing is automatic and calm: each line holds 0.6 s plus 0.36 s a word; `duration` or `extraHold` on a scene overrides it.
+- Without narration, timing is automatic and calm: each line holds 0.6 s plus 0.36 s a word.
 
 ### Scene kinds
 
 | kind | what it shows | key fields |
 | --- | --- | --- |
+| every kind | narration, spoken in order | `say` (sentences) |
 | `title` | intro or outro card | `eyebrow`, `title`, `subtitle`, `duration` |
 | `screen` | step text on the left; a real screenshot on the right that moves once from the whole screen to `focus`, then highlights `target` with a cursor (computer) or fingertip (phone) | `step`, `title`, `device`, `image`, `focus` [x, y, w, h], `target` (a name from screens.json or [x, y, w, h]), `cursor: false`, `lines` |
-| `rule` | an important rule set large | `step`, `title`, `lines` |
-| `devices` | side by side cards: computer, iPhone or iPad, Android | `step`, `title`, `intro`, `devices[]`, `footer` |
+| `rule` | an important rule set large | `step`, `title`, `lines`, `sayLineOffset` (sentences before the first line) |
+| `devices` | side by side cards (Windows and Mac, or iPhone and Android) | `step`, `title`, `intro`, `devices[]`, `footer`; each item appears with the next sentence |
 
-`device` labels: use "On a computer" or "On a phone" when the steps differ, and "Same on a phone" or
-"Same on a computer" when one screen stands for both.
+Make one video per device (computer, phone) rather than mixing them, so every screen matches what the viewer sees.
 
 ## Capturing screens (synthetic customer only)
 
@@ -102,9 +127,10 @@ The site stores tutorial videos in Supabase Storage: **MP4 only, H.264, up to 50
 (no conversion on Vercel). Captions must be WebVTT under 512 KB. Thumbnails are PNG, JPG or WebP up to 10 MB.
 
 1. Admin, Tutorials, **New tutorial**. Title, slug, short description, category (**Using Your Digital Files** for the
-   download video). Save. New tutorials start as drafts, which never appear publicly.
+   download videos). Make one tutorial per video ("on a computer" and "on a phone"). Save. New tutorials start as
+   drafts, which never appear publicly.
 2. **Upload video**: the MP4 from `renders/`.
-3. **Captions**: paste the `.vtt` from `tutorials/<slug>/out/`, label English, language `en`.
+3. **Captions**: paste the `.vtt` from `tutorials/<slug>/out/`, label English, language `en`. They follow the narration.
 4. **Thumbnail**: upload the JPG.
 5. **Transcript**: paste the transcript text (or leave it empty and the captions are shown as the transcript).
 6. **Written instructions**: a numbered list of the steps (the transcript has them).

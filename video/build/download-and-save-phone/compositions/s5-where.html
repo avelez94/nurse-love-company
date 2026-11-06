@@ -1,0 +1,65 @@
+<template>
+  <div id="root" data-composition-id="s5-where" data-width="1920" data-height="1080">
+  
+  <style>
+    @font-face { font-family: 'DM Serif Display'; src: url('assets/fonts/dm-serif-display-latin-400-normal.woff2') format('woff2'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Nunito Sans'; src: url('assets/fonts/nunito-sans-latin-400-normal.woff2') format('woff2'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Nunito Sans'; src: url('assets/fonts/nunito-sans-latin-600-normal.woff2') format('woff2'); font-weight: 600; font-style: normal; }
+    @font-face { font-family: 'Nunito Sans'; src: url('assets/fonts/nunito-sans-latin-700-normal.woff2') format('woff2'); font-weight: 700; font-style: normal; }
+    @font-face { font-family: 'Nunito Sans'; src: url('assets/fonts/nunito-sans-latin-800-normal.woff2') format('woff2'); font-weight: 800; font-style: normal; }
+    #root { position: absolute; inset: 0; background: #fffaf6; font-family: 'Nunito Sans', sans-serif; color: #680c35; overflow: hidden; }
+    #s5-where-ground { position: absolute; inset: 0; background: linear-gradient(90deg, #fffaf6 0%, #fffaf6 30%, #fff0f2 30%, #fff0f2 100%); }
+    #s5-where-stage { position: absolute; inset: 0; }
+    .s5-where-progress { position: absolute; left: 110px; top: 64px; display: flex; gap: 10px; }
+    .s5-where-progress span { width: 44px; height: 8px; border-radius: 4px; background: #f6c9d6; }
+    .s5-where-progress span.on { background: #d80853; }
+    .s5-where-panel { position: absolute; left: 110px; top: 160px; width: 520px; }
+    .s5-where-stepno { font-family: 'DM Serif Display', serif; color: #d80853; font-size: 132px; line-height: 0.9; }
+    .s5-where-stepof { font-weight: 700; font-size: 30px; color: #8a5a6c; margin: 6px 0 22px; letter-spacing: 0.02em; }
+    .s5-where-title { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 66px; line-height: 1.04; margin: 0 0 26px; color: #680c35; }
+    .s5-where-device { display: inline-block; font-weight: 800; font-size: 28px; color: #d80853; background: #fff; border: 3px solid #f6c9d6; border-radius: 999px; padding: 8px 22px; margin-bottom: 24px; }
+    .s5-where-line { font-size: 38px; line-height: 1.3; margin: 0 0 22px; color: #680c35; }
+    .s5-where-line strong { color: #d80853; font-weight: 800; }
+    .s5-where-note { font-size: 30px; line-height: 1.35; color: #7d3a55; }
+    #s5-where-card { position: absolute; left: 690px; top: 110px; width: 1134px; height: 860px; border-radius: 28px; background: #fff; overflow: hidden; box-shadow: 0 0 0 2px #efd8df, 0 24px 60px rgb(104 12 53 / 0.16); }
+    #s5-where-cam { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+    #s5-where-cam img { display: block; }
+    #s5-where-hl { position: absolute; border-radius: 18px; border: 5px solid #d80853; box-shadow: 0 0 0 9px rgb(216 8 83 / 0.16); }
+    #s5-where-cursor { position: absolute; left: 0; top: 0; width: 56px; height: 56px; }
+    #s5-where-touch { position: absolute; left: 0; top: 0; width: 78px; height: 78px; margin: -39px 0 0 -39px; border-radius: 50%; background: rgb(216 8 83 / 0.28); border: 4px solid #fff; box-shadow: 0 0 0 3px rgb(216 8 83 / 0.55); }
+    #s5-where-ground { background: #fff0f2; }
+    .s5-where-head { position: absolute; left: 110px; right: 110px; top: 160px; }
+    .s5-where-intro { font-size: 36px; line-height: 1.3; color: #7d3a55; margin: 0; max-width: 1500px; }
+    .s5-where-row { position: absolute; left: 110px; right: 110px; top: 430px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 34px; }
+    .s5-where-dev { background: #fff; border-radius: 26px; padding: 34px 36px 16px; box-shadow: 0 0 0 2px #efd8df, 0 18px 44px rgb(104 12 53 / 0.1); }
+    .s5-where-devhead { display: flex; align-items: center; gap: 16px; font-weight: 800; font-size: 32px; color: #d80853; margin-bottom: 18px; }
+    .s5-where-devhead svg { width: 54px; height: 54px; color: #d80853; flex: none; }
+    .s5-where-devline { font-size: 31px; line-height: 1.34; margin: 0 0 18px; color: #680c35; }
+    .s5-where-devline strong { font-weight: 800; }
+    .s5-where-foot { position: absolute; left: 110px; right: 110px; top: 930px; font-size: 32px; line-height: 1.3; color: #7d3a55; margin: 0; }
+    .s5-where-foot strong { color: #d80853; }
+  </style>
+  <div id="s5-where-ground"></div>
+  <div id="s5-where-stage" data-hold>
+    <div class="s5-where-progress" aria-hidden="true"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class=""></span><span class=""></span></div>
+    <div class="s5-where-head">
+      <div class="s5-where-stepof" style="margin:0 0 10px">Step 5 of 7</div>
+      <h2 id="s5-where-title" class="s5-where-title" style="margin-bottom:16px">Where your file goes</h2>
+      <p id="s5-where-intro" class="s5-where-intro">It depends on your phone. Usually:</p>
+    </div>
+    <div class="s5-where-row"><div id="s5-where-d0" class="s5-where-dev"><div class="s5-where-devhead"><svg viewBox="0 0 48 48" aria-hidden="true"><rect x="14" y="4" width="20" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="3"/><path d="M21 38h6" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg><span>iPhone or iPad</span></div><p class="s5-where-devline">Safari saves it to the <strong>Files</strong> app, in <strong>Downloads</strong>.</p><p class="s5-where-devline">A Downloads button also appears next to Safari's address bar.</p></div><div id="s5-where-d1" class="s5-where-dev"><div class="s5-where-devhead"><svg viewBox="0 0 48 48" aria-hidden="true"><rect x="14" y="4" width="20" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="3"/><path d="M21 38h6" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg><span>Android</span></div><p class="s5-where-devline">Chrome saves it to your <strong>Downloads</strong>.</p><p class="s5-where-devline">You'll find it in the <strong>Files</strong> app.</p></div></div>
+    <p id="s5-where-foot" class="s5-where-foot">Tip: keep your inserts together in one folder, like one named <strong>Nurse Love</strong>.</p>
+  </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo('#s5-where-stage', { opacity: 0, filter: 'blur(6px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.4, ease: 'power2.out' }, 0);
+    tl.fromTo('#s5-where-stage', { opacity: 1, filter: 'blur(0px)' }, { opacity: 0, filter: 'blur(6px)', duration: 0.3, ease: 'power2.in', immediateRender: false }, 18.611);
+    tl.fromTo('#s5-where-title', { opacity: 0, filter: 'blur(8px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.5, ease: 'power3.out' }, 0.35);
+    tl.fromTo('#s5-where-intro', { opacity: 0 }, { opacity: 1, duration: 0.45, ease: 'power2.out' }, 0.8);
+    tl.fromTo('#s5-where-d0', { opacity: 0, filter: 'blur(6px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.5, ease: 'power3.out' }, 2.619);
+    tl.fromTo('#s5-where-d1', { opacity: 0, filter: 'blur(6px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.5, ease: 'power3.out' }, 8.446);
+    tl.fromTo('#s5-where-foot', { opacity: 0 }, { opacity: 1, duration: 0.45, ease: 'power2.out' }, 13.316);
+    window.__timelines["s5-where"] = tl;
+  </script>
+</template>

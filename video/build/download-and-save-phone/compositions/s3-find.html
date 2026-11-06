@@ -1,0 +1,62 @@
+<template>
+  <div id="root" data-composition-id="s3-find" data-width="1920" data-height="1080">
+  
+  <style>
+    @font-face { font-family: 'DM Serif Display'; src: url('assets/fonts/dm-serif-display-latin-400-normal.woff2') format('woff2'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Nunito Sans'; src: url('assets/fonts/nunito-sans-latin-400-normal.woff2') format('woff2'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Nunito Sans'; src: url('assets/fonts/nunito-sans-latin-600-normal.woff2') format('woff2'); font-weight: 600; font-style: normal; }
+    @font-face { font-family: 'Nunito Sans'; src: url('assets/fonts/nunito-sans-latin-700-normal.woff2') format('woff2'); font-weight: 700; font-style: normal; }
+    @font-face { font-family: 'Nunito Sans'; src: url('assets/fonts/nunito-sans-latin-800-normal.woff2') format('woff2'); font-weight: 800; font-style: normal; }
+    #root { position: absolute; inset: 0; background: #fffaf6; font-family: 'Nunito Sans', sans-serif; color: #680c35; overflow: hidden; }
+    #s3-find-ground { position: absolute; inset: 0; background: linear-gradient(90deg, #fffaf6 0%, #fffaf6 30%, #fff0f2 30%, #fff0f2 100%); }
+    #s3-find-stage { position: absolute; inset: 0; }
+    .s3-find-progress { position: absolute; left: 110px; top: 64px; display: flex; gap: 10px; }
+    .s3-find-progress span { width: 44px; height: 8px; border-radius: 4px; background: #f6c9d6; }
+    .s3-find-progress span.on { background: #d80853; }
+    .s3-find-panel { position: absolute; left: 110px; top: 160px; width: 520px; }
+    .s3-find-stepno { font-family: 'DM Serif Display', serif; color: #d80853; font-size: 132px; line-height: 0.9; }
+    .s3-find-stepof { font-weight: 700; font-size: 30px; color: #8a5a6c; margin: 6px 0 22px; letter-spacing: 0.02em; }
+    .s3-find-title { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 66px; line-height: 1.04; margin: 0 0 26px; color: #680c35; }
+    .s3-find-device { display: inline-block; font-weight: 800; font-size: 28px; color: #d80853; background: #fff; border: 3px solid #f6c9d6; border-radius: 999px; padding: 8px 22px; margin-bottom: 24px; }
+    .s3-find-line { font-size: 38px; line-height: 1.3; margin: 0 0 22px; color: #680c35; }
+    .s3-find-line strong { color: #d80853; font-weight: 800; }
+    .s3-find-note { font-size: 30px; line-height: 1.35; color: #7d3a55; }
+    #s3-find-card { position: absolute; left: 690px; top: 110px; width: 1134px; height: 860px; border-radius: 28px; background: #fff; overflow: hidden; box-shadow: 0 0 0 2px #efd8df, 0 24px 60px rgb(104 12 53 / 0.16); }
+    #s3-find-cam { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+    #s3-find-cam img { display: block; }
+    #s3-find-hl { position: absolute; border-radius: 18px; border: 5px solid #d80853; box-shadow: 0 0 0 9px rgb(216 8 83 / 0.16); }
+    #s3-find-cursor { position: absolute; left: 0; top: 0; width: 56px; height: 56px; }
+    #s3-find-touch { position: absolute; left: 0; top: 0; width: 78px; height: 78px; margin: -39px 0 0 -39px; border-radius: 50%; background: rgb(216 8 83 / 0.28); border: 4px solid #fff; box-shadow: 0 0 0 3px rgb(216 8 83 / 0.55); }
+    #s3-find-hl { left: 36.512px; top: 13.109000000000002px; width: 1060.706px; height: 562.64px; }
+  </style>
+  <div id="s3-find-ground"></div>
+  <div id="s3-find-stage" data-hold>
+    <div class="s3-find-progress" aria-hidden="true"><span class="on"></span><span class="on"></span><span class="on"></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span></div>
+    <div class="s3-find-panel">
+      <div id="s3-find-no" class="s3-find-stepno">3</div><div class="s3-find-stepof">Step 3 of 7</div>
+      <h2 id="s3-find-title" class="s3-find-title">Find your resource</h2>
+      
+      <p id="s3-find-t0" class="s3-find-line">Each purchase has its own card, with the order number and version.</p>
+      <p id="s3-find-t1" class="s3-find-line">Ready to save? It says <strong>1 download available</strong>.</p>
+    </div>
+    <div id="s3-find-card" role="img" aria-label="Find your resource">
+      <div id="s3-find-cam"><img src="assets/screens/phone-05-downloads.webp" width="1170" height="2532" alt="" /></div>
+      <div id="s3-find-hl"></div>
+      
+      
+    </div>
+  </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo('#s3-find-stage', { opacity: 0, filter: 'blur(6px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.4, ease: 'power2.out' }, 0);
+    tl.fromTo('#s3-find-stage', { opacity: 1, filter: 'blur(0px)' }, { opacity: 0, filter: 'blur(6px)', duration: 0.3, ease: 'power2.in', immediateRender: false }, 8.082);
+    tl.fromTo('#s3-find-title', { opacity: 0, filter: 'blur(8px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.5, ease: 'power3.out' }, 0.35);
+    tl.fromTo('#s3-find-no', { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'power2.out' }, 0.2);
+    tl.fromTo('#s3-find-t0', { opacity: 0, filter: 'blur(6px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.45, ease: 'power3.out' }, 1);
+    tl.fromTo('#s3-find-t1', { opacity: 0, filter: 'blur(6px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.45, ease: 'power3.out' }, 4.662);
+    tl.fromTo('#s3-find-cam', { x: 368.303, y: 0, scale: 0.34 }, { x: 0, y: -1230.777, scale: 0.969, duration: 1.5, ease: 'power2.inOut' }, 0.9);
+    tl.fromTo('#s3-find-hl', { opacity: 0, scale: 1.04 }, { opacity: 1, scale: 1, duration: 0.45, ease: 'power3.out' }, 4.662);
+    window.__timelines["s3-find"] = tl;
+  </script>
+</template>

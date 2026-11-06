@@ -1,0 +1,62 @@
+<template>
+  <div id="root" data-composition-id="s5-started" data-width="1920" data-height="1080">
+  
+  <style>
+    @font-face { font-family: 'DM Serif Display'; src: url('assets/fonts/dm-serif-display-latin-400-normal.woff2') format('woff2'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Nunito Sans'; src: url('assets/fonts/nunito-sans-latin-400-normal.woff2') format('woff2'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Nunito Sans'; src: url('assets/fonts/nunito-sans-latin-600-normal.woff2') format('woff2'); font-weight: 600; font-style: normal; }
+    @font-face { font-family: 'Nunito Sans'; src: url('assets/fonts/nunito-sans-latin-700-normal.woff2') format('woff2'); font-weight: 700; font-style: normal; }
+    @font-face { font-family: 'Nunito Sans'; src: url('assets/fonts/nunito-sans-latin-800-normal.woff2') format('woff2'); font-weight: 800; font-style: normal; }
+    #root { position: absolute; inset: 0; background: #fffaf6; font-family: 'Nunito Sans', sans-serif; color: #680c35; overflow: hidden; }
+    #s5-started-ground { position: absolute; inset: 0; background: linear-gradient(90deg, #fffaf6 0%, #fffaf6 30%, #fff0f2 30%, #fff0f2 100%); }
+    #s5-started-stage { position: absolute; inset: 0; }
+    .s5-started-progress { position: absolute; left: 110px; top: 64px; display: flex; gap: 10px; }
+    .s5-started-progress span { width: 44px; height: 8px; border-radius: 4px; background: #f6c9d6; }
+    .s5-started-progress span.on { background: #d80853; }
+    .s5-started-panel { position: absolute; left: 110px; top: 160px; width: 520px; }
+    .s5-started-stepno { font-family: 'DM Serif Display', serif; color: #d80853; font-size: 132px; line-height: 0.9; }
+    .s5-started-stepof { font-weight: 700; font-size: 30px; color: #8a5a6c; margin: 6px 0 22px; letter-spacing: 0.02em; }
+    .s5-started-title { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 66px; line-height: 1.04; margin: 0 0 26px; color: #680c35; }
+    .s5-started-device { display: inline-block; font-weight: 800; font-size: 28px; color: #d80853; background: #fff; border: 3px solid #f6c9d6; border-radius: 999px; padding: 8px 22px; margin-bottom: 24px; }
+    .s5-started-line { font-size: 38px; line-height: 1.3; margin: 0 0 22px; color: #680c35; }
+    .s5-started-line strong { color: #d80853; font-weight: 800; }
+    .s5-started-note { font-size: 30px; line-height: 1.35; color: #7d3a55; }
+    #s5-started-card { position: absolute; left: 690px; top: 110px; width: 1134px; height: 860px; border-radius: 28px; background: #fff; overflow: hidden; box-shadow: 0 0 0 2px #efd8df, 0 24px 60px rgb(104 12 53 / 0.16); }
+    #s5-started-cam { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+    #s5-started-cam img { display: block; }
+    #s5-started-hl { position: absolute; border-radius: 18px; border: 5px solid #d80853; box-shadow: 0 0 0 9px rgb(216 8 83 / 0.16); }
+    #s5-started-cursor { position: absolute; left: 0; top: 0; width: 56px; height: 56px; }
+    #s5-started-touch { position: absolute; left: 0; top: 0; width: 78px; height: 78px; margin: -39px 0 0 -39px; border-radius: 50%; background: rgb(216 8 83 / 0.28); border: 4px solid #fff; box-shadow: 0 0 0 3px rgb(216 8 83 / 0.55); }
+    #s5-started-hl { left: 36.512px; top: 294.186px; width: 1060.706px; height: 365.933px; }
+  </style>
+  <div id="s5-started-ground"></div>
+  <div id="s5-started-stage" data-hold>
+    <div class="s5-started-progress" aria-hidden="true"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class=""></span><span class=""></span></div>
+    <div class="s5-started-panel">
+      <div id="s5-started-no" class="s5-started-stepno">5</div><div class="s5-started-stepof">Step 5 of 7</div>
+      <h2 id="s5-started-title" class="s5-started-title">Save the file</h2>
+      
+      <p id="s5-started-t0" class="s5-started-line">A message says your download has started.</p>
+      <p id="s5-started-t1" class="s5-started-line">Your browser saves the file on your phone.</p>
+    </div>
+    <div id="s5-started-card" role="img" aria-label="Save the file">
+      <div id="s5-started-cam"><img src="assets/screens/phone-07-started.webp" width="1170" height="2532" alt="" /></div>
+      <div id="s5-started-hl"></div>
+      
+      
+    </div>
+  </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo('#s5-started-stage', { opacity: 0, filter: 'blur(6px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.4, ease: 'power2.out' }, 0);
+    tl.fromTo('#s5-started-stage', { opacity: 1, filter: 'blur(0px)' }, { opacity: 0, filter: 'blur(6px)', duration: 0.3, ease: 'power2.in', immediateRender: false }, 7.387);
+    tl.fromTo('#s5-started-title', { opacity: 0, filter: 'blur(8px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.5, ease: 'power3.out' }, 0.35);
+    tl.fromTo('#s5-started-no', { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'power2.out' }, 0.2);
+    tl.fromTo('#s5-started-t0', { opacity: 0, filter: 'blur(6px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.45, ease: 'power3.out' }, 1);
+    tl.fromTo('#s5-started-t1', { opacity: 0, filter: 'blur(6px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.45, ease: 'power3.out' }, 3.804);
+    tl.fromTo('#s5-started-cam', { x: 368.303, y: 0, scale: 0.34 }, { x: 0, y: -949.7, scale: 0.969, duration: 1.5, ease: 'power2.inOut' }, 0.9);
+    tl.fromTo('#s5-started-hl', { opacity: 0, scale: 1.04 }, { opacity: 1, scale: 1, duration: 0.45, ease: 'power3.out' }, 3.804);
+    window.__timelines["s5-started"] = tl;
+  </script>
+</template>

@@ -15,8 +15,7 @@ before it is shown on screen; nothing in that column has been verified yet.
 
 ## Template follow ups
 
-- Voiceover: the pilot has no voice. If mom wants narration, record her voice or choose a voice, then switch captions
-  to the spoken words (HyperFrames can transcribe a recording into timed captions).
-- Music: none, by choice, to keep the tutorial calm. A quiet bed can be added later.
+- Each tutorial is made twice, on a computer and on a phone, with the Heart voice and the original music.
+- The owner may record her own voice later; the scripts in each tutorial.json (`say`) are ready to read.
 - My downloads shows a "Watch the tutorial" link that is chosen from tutorials linked to NP insert products. Once the
   download tutorial is published, point that link at it.

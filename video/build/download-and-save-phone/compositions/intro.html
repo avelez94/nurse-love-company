@@ -1,0 +1,52 @@
+<template>
+  <div id="root" data-composition-id="intro" data-width="1920" data-height="1080">
+  
+  <style>
+    @font-face { font-family: 'DM Serif Display'; src: url('assets/fonts/dm-serif-display-latin-400-normal.woff2') format('woff2'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Nunito Sans'; src: url('assets/fonts/nunito-sans-latin-400-normal.woff2') format('woff2'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Nunito Sans'; src: url('assets/fonts/nunito-sans-latin-600-normal.woff2') format('woff2'); font-weight: 600; font-style: normal; }
+    @font-face { font-family: 'Nunito Sans'; src: url('assets/fonts/nunito-sans-latin-700-normal.woff2') format('woff2'); font-weight: 700; font-style: normal; }
+    @font-face { font-family: 'Nunito Sans'; src: url('assets/fonts/nunito-sans-latin-800-normal.woff2') format('woff2'); font-weight: 800; font-style: normal; }
+    #root { position: absolute; inset: 0; background: #fffaf6; font-family: 'Nunito Sans', sans-serif; color: #680c35; overflow: hidden; }
+    #intro-ground { position: absolute; inset: 0; background: linear-gradient(90deg, #fffaf6 0%, #fffaf6 30%, #fff0f2 30%, #fff0f2 100%); }
+    #intro-stage { position: absolute; inset: 0; }
+    .intro-progress { position: absolute; left: 110px; top: 64px; display: flex; gap: 10px; }
+    .intro-progress span { width: 44px; height: 8px; border-radius: 4px; background: #f6c9d6; }
+    .intro-progress span.on { background: #d80853; }
+    .intro-panel { position: absolute; left: 110px; top: 160px; width: 520px; }
+    .intro-stepno { font-family: 'DM Serif Display', serif; color: #d80853; font-size: 132px; line-height: 0.9; }
+    .intro-stepof { font-weight: 700; font-size: 30px; color: #8a5a6c; margin: 6px 0 22px; letter-spacing: 0.02em; }
+    .intro-title { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 66px; line-height: 1.04; margin: 0 0 26px; color: #680c35; }
+    .intro-device { display: inline-block; font-weight: 800; font-size: 28px; color: #d80853; background: #fff; border: 3px solid #f6c9d6; border-radius: 999px; padding: 8px 22px; margin-bottom: 24px; }
+    .intro-line { font-size: 38px; line-height: 1.3; margin: 0 0 22px; color: #680c35; }
+    .intro-line strong { color: #d80853; font-weight: 800; }
+    .intro-note { font-size: 30px; line-height: 1.35; color: #7d3a55; }
+    #intro-card { position: absolute; left: 690px; top: 110px; width: 1134px; height: 860px; border-radius: 28px; background: #fff; overflow: hidden; box-shadow: 0 0 0 2px #efd8df, 0 24px 60px rgb(104 12 53 / 0.16); }
+    #intro-cam { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+    #intro-cam img { display: block; }
+    #intro-hl { position: absolute; border-radius: 18px; border: 5px solid #d80853; box-shadow: 0 0 0 9px rgb(216 8 83 / 0.16); }
+    #intro-cursor { position: absolute; left: 0; top: 0; width: 56px; height: 56px; }
+    #intro-touch { position: absolute; left: 0; top: 0; width: 78px; height: 78px; margin: -39px 0 0 -39px; border-radius: 50%; background: rgb(216 8 83 / 0.28); border: 4px solid #fff; box-shadow: 0 0 0 3px rgb(216 8 83 / 0.55); }
+    #intro-ground { background: #fff0f2; }
+    .intro-wrap { position: absolute; left: 180px; right: 180px; top: 300px; }
+    .intro-eyebrow { font-weight: 800; font-size: 30px; letter-spacing: 0.14em; text-transform: uppercase; color: #d80853; margin-bottom: 26px; }
+    .intro-big { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 104px; line-height: 1.02; color: #680c35; margin: 0 0 34px; max-width: 1400px; }
+    .intro-sub { font-size: 42px; line-height: 1.3; color: #7d3a55; max-width: 1300px; }
+    .intro-heart { position: absolute; right: 200px; top: 230px; width: 120px; height: 120px; }
+  </style>
+  <div id="intro-ground"></div>
+  <div id="intro-stage" data-hold>
+    <svg class="intro-heart" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 8.3a4.3 4.3 0 0 1 7.5 2.5C19.5 16.4 12 21 12 21z" fill="none" stroke="#d80853" stroke-width="1.6" stroke-linejoin="round"/></svg>
+    <div class="intro-wrap">
+      <div id="intro-l0" class="intro-eyebrow">Nurse Love Company tutorial</div>
+      <h1 id="intro-l1" class="intro-big">How to download and save your goodies</h1>
+      <p id="intro-l2" class="intro-sub">On a phone</p>
+    </div>
+  </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo('#intro-stage', { opacity: 1, filter: 'blur(0px)' }, { opacity: 0, filter: 'blur(6px)', duration: 0.3, ease: 'power2.in', immediateRender: false }, 9.836);
+    window.__timelines["intro"] = tl;
+  </script>
+</template>

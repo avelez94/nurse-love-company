@@ -25,6 +25,7 @@
   Timing is calm by design: every line holds for at least 0.6 s plus 0.36 s a
   word after it appears, and each scene adds time for its demonstration.
 */
+import { execFileSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -38,11 +39,44 @@ if (!slug) {
 }
 const srcDir = join(root, 'tutorials', slug)
 const t = JSON.parse(readFileSync(join(srcDir, 'tutorial.json'), 'utf8'))
-const screens = JSON.parse(readFileSync(join(srcDir, 'screens', 'screens.json'), 'utf8'))
+const screensDir = join(srcDir, t.screensDir ?? 'screens')
+const screens = JSON.parse(readFileSync(join(screensDir, 'screens.json'), 'utf8'))
 const out = join(root, 'build', slug)
 const W = 1920
 const H = 1080
 const FPS = 30
+
+/* ---------- Voice: every scene's `say` sentences, spoken once and cached ---------- */
+const PY = process.env.VIDEO_PYTHON || process.env.HYPERFRAMES_PYTHON || 'python3'
+const VOICE_GAP = 0.35 // pause between sentences
+const VOICE_IN = 0.6 // first word, after a scene starts
+const VOICE_TAIL = 1.0 // quiet time after the last word before the next scene
+const voiced = Boolean(t.voice)
+const py = (cmd, req) => {
+  const f = join(srcDir, '.voice-request.json')
+  writeFileSync(f, JSON.stringify(req))
+  const r = execFileSync(PY, [join(here, 'audio', 'voice.py'), cmd, f], { encoding: 'utf8', maxBuffer: 1 << 26 })
+  rmSync(f, { force: true })
+  return JSON.parse(r.trim().split('\n').pop())
+}
+if (voiced) {
+  const all = t.scenes.flatMap((sc) => sc.say ?? [])
+  const spoken = py('synth', { sentences: all, voice: t.voice.name, speed: t.voice.speed ?? 1, cacheDir: join(srcDir, '.voice-cache') })
+  let k = 0
+  for (const sc of t.scenes) {
+    let at = sc.kind === 'title' ? 0.5 : VOICE_IN
+    sc._say = (sc.say ?? []).map(() => {
+      const v = spoken[k++]
+      const r3 = (n) => Math.round(n * 1000) / 1000
+      const item = { text: v.text, file: v.file, start: r3(at), end: r3(at + v.duration) }
+      at += v.duration + VOICE_GAP
+      return item
+    })
+    sc._voiceEnd = sc._say.length ? sc._say[sc._say.length - 1].end : 0
+  }
+}
+/** When a scene is voiced, item i appears as sentence i (shifted by offset) starts. */
+const sayAt = (sc, i, fallback) => (sc._say?.length ? sc._say[Math.max(0, Math.min(sc._say.length - 1, i))].start : fallback)
 
 /* ---------- Brand (matches src/styles/tokens.css on the website) ---------- */
 const brand = {
@@ -136,7 +170,7 @@ function progress(id, n, total) {
 function sceneTitle(sc, id) {
   const lines = [sc.title, sc.subtitle].filter(Boolean)
   const reveal = 0.5
-  const duration = sc.duration ?? round(reveal + 0.5 + lines.reduce((a, l) => a + hold(l), 0) + 1.2)
+  const duration = round(Math.max(sc.duration ?? reveal + 0.5 + lines.reduce((a, l) => a + hold(l), 0) + 1.2, sc._voiceEnd ? sc._voiceEnd + 1.2 : 0))
   const html = `
   <style>${baseStyles(id)}
     #${id}-ground { background: ${brand.blush}; }
@@ -169,13 +203,14 @@ function textLines(id, sc, startAt) {
   const cues = []
   ;(sc.lines ?? []).forEach((line, i) => {
     const el = `${id}-t${i}`
+    if (sc._say?.length) at = Math.max(at, sayAt(sc, i + (sc.sayLineOffset ?? 0), at))
     parts.push(`<p id="${el}" class="${id}-line">${rich(line)}</p>`)
     tweens.push(`tl.fromTo('#${el}', { opacity: 0, filter: 'blur(6px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.45, ease: 'power3.out' }, ${round(at)});`)
     const text = plain(line)
     cues.push({ start: at, text })
-    at += hold(text) + 0.35
+    at += sc._say?.length ? 0.6 : hold(text) + 0.35
   })
-  return { parts, tweens, cues, end: at }
+  return { parts, tweens, cues, end: Math.max(at, sc._voiceEnd ? sc._voiceEnd + VOICE_TAIL : 0) }
 }
 
 function sceneScreen(sc, id, total) {
@@ -195,9 +230,12 @@ function sceneScreen(sc, id, total) {
   const actAt = camAt + camDur + 0.3
   const cursorKind = sc.cursor === false ? null : device === 'phone' ? 'touch' : 'cursor'
   const travel = 1.2
-  const arrive = actAt + 0.2 + travel
+  // The cursor lands about a second into the sentence that names the action (by default the last one).
+  const act = sc.act ?? (sc._say?.length ?? 1) - 1
+  const arrive = round(Math.max(actAt + 0.2 + travel, sc._say?.length ? sayAt(sc, act, 0) + 1.0 : 0))
+  const moveAt = round(arrive - travel)
   const demoEnd = cursorKind ? arrive + 0.6 : actAt + 0.6
-  const duration = sc.duration ?? round(Math.max(text.end, demoEnd) + (sc.extraHold ?? 1.6))
+  const duration = sc.duration ?? round(Math.max(text.end, demoEnd + (sc.extraHold ?? (voiced ? 0.8 : 1.6))))
   const hl = target ? place(f1, target) : null
   const pad = device === 'phone' ? 10 : 12
   const hlBox = hl ? { x: hl.x - pad, y: hl.y - pad, w: hl.w + pad * 2, h: hl.h + pad * 2 } : null
@@ -231,21 +269,21 @@ function sceneScreen(sc, id, total) {
     ...text.tweens,
     // One camera move: the whole screen, then the part that matters.
     `tl.fromTo('#${id}-cam', { x: ${f0.x}, y: ${f0.y}, scale: ${f0.s} }, { x: ${f1.x}, y: ${f1.y}, scale: ${f1.s}, duration: ${camDur}, ease: 'power2.inOut' }, ${camAt});`,
-    hlBox ? `tl.fromTo('#${id}-hl', { opacity: 0, scale: 1.04 }, { opacity: 1, scale: 1, duration: 0.45, ease: 'power3.out' }, ${round(cursorKind ? arrive - 0.05 : actAt)});` : '',
+    hlBox ? `tl.fromTo('#${id}-hl', { opacity: 0, scale: 1.04 }, { opacity: 1, scale: 1, duration: 0.45, ease: 'power3.out' }, ${round(cursorKind ? arrive - 0.05 : Math.max(actAt, sayAt(sc, act, actAt)))});` : '',
   ]
   if (cursorKind === 'cursor') {
     tweens.push(
       // One tween per property: fade in, travel, then a small press and release.
-      `tl.fromTo('#${id}-cursor', { opacity: 0 }, { opacity: 1, duration: 0.25, ease: 'power1.out' }, ${round(actAt)});`,
-      `tl.fromTo('#${id}-cursor', { x: ${from.x}, y: ${from.y} }, { x: ${round(tx - 10)}, y: ${round(ty - 8)}, duration: ${travel}, ease: 'power2.inOut' }, ${round(actAt + 0.2)});`,
+      `tl.fromTo('#${id}-cursor', { opacity: 0 }, { opacity: 1, duration: 0.25, ease: 'power1.out' }, ${round(moveAt - 0.2)});`,
+      `tl.fromTo('#${id}-cursor', { x: ${from.x}, y: ${from.y} }, { x: ${round(tx - 10)}, y: ${round(ty - 8)}, duration: ${travel}, ease: 'power2.inOut' }, ${moveAt});`,
       `tl.fromTo('#${id}-cursor', { scale: 1 }, { scale: 0.86, duration: 0.12, ease: 'power2.in' }, ${round(arrive)});`,
       `tl.fromTo('#${id}-cursor', { scale: 0.86 }, { scale: 1, duration: 0.2, ease: 'power2.out', immediateRender: false }, ${round(arrive + 0.12)});`,
     )
   }
   if (cursorKind === 'touch') {
     tweens.push(
-      `tl.fromTo('#${id}-touch', { opacity: 0 }, { opacity: 1, duration: 0.25, ease: 'power1.out' }, ${round(actAt)});`,
-      `tl.fromTo('#${id}-touch', { x: ${from.x}, y: ${from.y} }, { x: ${round(tx)}, y: ${round(ty)}, duration: ${travel}, ease: 'power2.inOut' }, ${round(actAt + 0.2)});`,
+      `tl.fromTo('#${id}-touch', { opacity: 0 }, { opacity: 1, duration: 0.25, ease: 'power1.out' }, ${round(moveAt - 0.2)});`,
+      `tl.fromTo('#${id}-touch', { x: ${from.x}, y: ${from.y} }, { x: ${round(tx)}, y: ${round(ty)}, duration: ${travel}, ease: 'power2.inOut' }, ${moveAt});`,
       `tl.fromTo('#${id}-touch', { scale: 1 }, { scale: 0.8, duration: 0.14, ease: 'power2.in' }, ${round(arrive)});`,
       `tl.fromTo('#${id}-touch', { scale: 0.8 }, { scale: 1, duration: 0.22, ease: 'power2.out', immediateRender: false }, ${round(arrive + 0.14)});`,
     )
@@ -256,7 +294,7 @@ function sceneScreen(sc, id, total) {
 
 function sceneRule(sc, id, total) {
   const text = textLines(id, sc, 1.1)
-  const duration = sc.duration ?? round(text.end + (sc.extraHold ?? 1.8))
+  const duration = sc.duration ?? round(text.end + (voiced ? 0 : sc.extraHold ?? 1.8))
   const html = `
   <style>${baseStyles(id)}
     #${id}-ground { background: ${brand.blush}; }
@@ -291,28 +329,33 @@ const deviceIcons = {
 function sceneDevices(sc, id, total) {
   const startAt = 1.1
   let at = startAt
+  let item = 0 // intro, each card, then the footer follow the spoken sentences in order
+  const next = (fallback) => (sc._say?.length ? Math.max(fallback, sayAt(sc, item++, fallback)) : fallback)
   const cards = []
   const tweens = [`tl.fromTo('#${id}-title', { opacity: 0, filter: 'blur(8px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.5, ease: 'power3.out' }, 0.35);`]
   const cues = [{ header: true, start: 0.35, text: `${sc.step ? `Step ${sc.step}: ` : ''}${sc.title}.` }]
   if (sc.intro) {
-    tweens.push(`tl.fromTo('#${id}-intro', { opacity: 0 }, { opacity: 1, duration: 0.45, ease: 'power2.out' }, 0.8);`)
-    cues.push({ start: 0.8, text: sc.intro })
-    at += hold(sc.intro)
+    const t0 = next(0.8)
+    tweens.push(`tl.fromTo('#${id}-intro', { opacity: 0 }, { opacity: 1, duration: 0.45, ease: 'power2.out' }, ${round(t0)});`)
+    cues.push({ start: t0, text: sc.intro })
+    at = Math.max(at, t0) + (sc._say?.length ? 0.6 : hold(sc.intro))
   }
   sc.devices.forEach((d, i) => {
     const el = `${id}-d${i}`
+    at = next(at)
     cards.push(`<div id="${el}" class="${id}-dev"><div class="${id}-devhead">${deviceIcons[d.icon] ?? ''}<span>${esc(d.label)}</span></div>${d.lines.map((l) => `<p class="${id}-devline">${rich(l)}</p>`).join('')}</div>`)
     tweens.push(`tl.fromTo('#${el}', { opacity: 0, filter: 'blur(6px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.5, ease: 'power3.out' }, ${round(at)});`)
     const text = `${d.label}: ${d.lines.map(plain).join(' ')}`
     cues.push({ start: at, text })
-    at += hold(d.lines.map(plain).join(' ')) + 0.4
+    at += sc._say?.length ? 0.6 : hold(d.lines.map(plain).join(' ')) + 0.4
   })
   if (sc.footer) {
+    at = next(at)
     tweens.push(`tl.fromTo('#${id}-foot', { opacity: 0 }, { opacity: 1, duration: 0.45, ease: 'power2.out' }, ${round(at)});`)
     cues.push({ start: at, text: plain(sc.footer) })
-    at += hold(plain(sc.footer))
+    at += sc._say?.length ? 0.6 : hold(plain(sc.footer))
   }
-  const duration = sc.duration ?? round(at + (sc.extraHold ?? 1.8))
+  const duration = sc.duration ?? round(Math.max(at + (voiced ? 0 : sc.extraHold ?? 1.8), sc._voiceEnd ? sc._voiceEnd + VOICE_TAIL : 0))
   const html = `
   <style>${baseStyles(id)}
     #${id}-ground { background: ${brand.blush}; }
@@ -349,6 +392,7 @@ let clock = 0
 const hosts = []
 const allCues = []
 const transcript = []
+const voicePlacements = []
 rmSync(out, { recursive: true, force: true })
 mkdirSync(join(out, 'compositions'), { recursive: true })
 cpSync(join(here, 'assets'), join(out, 'assets'), { recursive: true })
@@ -359,7 +403,7 @@ t.scenes.forEach((sc, i) => {
   const b = builders[sc.kind]
   if (!b) throw new Error(`Unknown scene kind ${sc.kind}`)
   const r = b(sc, id, total)
-  if (sc.image) cpSync(join(srcDir, 'screens', `${sc.image}.webp`), join(out, 'assets', 'screens', `${sc.image}.webp`))
+  if (sc.image) cpSync(join(screensDir, `${sc.image}.webp`), join(out, 'assets', 'screens', `${sc.image}.webp`))
   const d = r.duration
   // Blur swap on one stage: the ground never cuts.
   const first = i === 0
@@ -386,17 +430,36 @@ t.scenes.forEach((sc, i) => {
   )
   // Captions: each cue runs until the next one starts, or until the scene ends.
   const merged = []
-  for (const c of r.cues) {
+  const cueSource = sc._say?.length ? sc._say.map((v) => ({ start: v.start, end: v.end + 0.25, text: v.text })) : r.cues
+  for (const c of cueSource) {
     const prev = merged[merged.length - 1]
     if (prev?.header) merged[merged.length - 1] = { start: prev.start, end: c.end, text: `${prev.text} ${c.text}` }
     else merged.push(c)
   }
   const sceneCues = merged.map((c, k, arr) => ({ start: clock + c.start, end: clock + (c.end ?? (arr[k + 1]?.start ?? d - 0.35)), text: c.text }))
   allCues.push(...sceneCues)
-  transcript.push({ at: clock, kind: sc.kind, step: sc.step, title: sc.title, device: sc.device, lines: r.cues.filter((c) => !c.header).map((c) => c.text) })
+  transcript.push({ at: clock, kind: sc.kind, step: sc.step, title: sc.title, device: sc.device, lines: sc._say?.length ? sc._say.map((v) => v.text) : r.cues.filter((c) => !c.header).map((c) => c.text) })
+  for (const v of sc._say ?? []) voicePlacements.push({ file: v.file, at: round(clock + v.start) })
   clock += d
 })
 const length = round(clock)
+
+/* ---------- Soundtrack: the voice track and the original music bed ---------- */
+const audioTags = []
+if (voiced) {
+  const adir = join(out, 'assets', 'audio')
+  mkdirSync(adir, { recursive: true })
+  const tmp = join(srcDir, '.voice-cache')
+  py('place', { length, placements: voicePlacements, out: join(tmp, 'voice-track.wav') })
+  // Voice at a steady speaking level; music about 13 LU under it.
+  execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', join(tmp, 'voice-track.wav'), '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11', '-ar', '44100', '-ac', '1', '-c:a', 'aac', '-b:a', '96k', join(adir, 'voice.m4a')])
+  audioTags.push(`      <audio id="voice" class="clip" src="assets/audio/voice.m4a" data-start="0" data-duration="${length}" data-track-index="2" data-volume="1"></audio>`)
+  if (t.music !== false) {
+    execFileSync(PY, [join(here, 'audio', 'compose_music.py'), String(length), join(tmp, 'music-raw.wav')])
+    execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', join(tmp, 'music-raw.wav'), '-af', `aecho=0.8:0.7:120|260:0.25|0.15,lowpass=f=6000,loudnorm=I=${t.musicLevel ?? -29}:TP=-6:LRA=7`, '-ar', '44100', '-ac', '2', '-c:a', 'aac', '-b:a', '96k', join(adir, 'music.m4a')])
+    audioTags.push(`      <audio id="music" class="clip" src="assets/audio/music.m4a" data-start="0" data-duration="${length}" data-track-index="3" data-volume="1"></audio>`)
+  }
+}
 
 writeFileSync(
   join(out, 'index.html'),
@@ -418,6 +481,7 @@ writeFileSync(
     <!-- Generated by video/template/build.mjs from tutorials/${slug}/tutorial.json -->
     <div id="main" data-composition-id="main" data-start="0" data-duration="${length}" data-fps="${FPS}" data-width="${W}" data-height="${H}">
 ${hosts.join('\n')}
+${audioTags.join('\n')}
     </div>
     <script>
       window.__timelines["main"] = gsap.timeline({ paused: true });
@@ -438,10 +502,23 @@ const ts = (s) => {
 }
 const outDir = join(srcDir, 'out')
 mkdirSync(outDir, { recursive: true })
-const vtt = ['WEBVTT', '', `NOTE ${t.title}. Captions match the words shown on screen; the video has no voiceover.`, '']
-allCues.forEach((c, i) => vtt.push(String(i + 1), `${ts(c.start)} --> ${ts(c.end)}`, c.text, ''))
+const vtt = ['WEBVTT', '', voiced ? `NOTE ${t.title}. Captions follow the narration.` : `NOTE ${t.title}. Captions match the words shown on screen; the video has no voiceover.`, '']
+// Long sentences become two or more captions, split at a natural pause, timed by length.
+const MAX = 84
+const split = (c) => {
+  if (c.text.length <= MAX) return [c]
+  const mid = c.text.length / 2
+  let best = -1
+  for (const m of c.text.matchAll(/[,;:.?!] /g)) if (best < 0 || Math.abs(m.index - mid) < Math.abs(best - mid)) best = m.index
+  if (best < 0 || Math.abs(best - mid) > c.text.length * 0.3) best = c.text.lastIndexOf(' ', mid)
+  const a = c.text.slice(0, best + 1).trim()
+  const b = c.text.slice(best + 1).trim()
+  const at = c.start + (c.end - c.start) * (a.length / (a.length + b.length))
+  return [...split({ start: c.start, end: at, text: a }), ...split({ start: at, end: c.end, text: b })]
+}
+allCues.flatMap(split).forEach((c, i) => vtt.push(String(i + 1), `${ts(c.start)} --> ${ts(c.end)}`, c.text, ''))
 writeFileSync(join(outDir, `${slug}.vtt`), vtt.join('\n'))
-const md = [`# ${t.title}`, '', `Nurse Love Company tutorial. Length ${Math.floor(length / 60)}:${String(Math.round(length % 60)).padStart(2, '0')}. No voiceover: everything below is shown on screen.`, '']
+const md = [`# ${t.title}`, '', `Nurse Love Company tutorial. Length ${Math.floor(length / 60)}:${String(Math.round(length % 60)).padStart(2, '0')}. ${voiced ? 'Narration, in order.' : 'No voiceover: everything below is shown on screen.'}`, '']
 for (const s of transcript) {
   md.push(`## ${ts(s.at).slice(3, 8)} ${s.step ? `Step ${s.step}: ` : ''}${s.title}${s.device ? ` (${s.device})` : ''}`, '')
   for (const l of s.lines) md.push(l, '')
@@ -454,7 +531,7 @@ if (t.thumbnail) {
   rmSync(tdir, { recursive: true, force: true })
   mkdirSync(join(tdir, 'assets', 'screens'), { recursive: true })
   cpSync(join(here, 'assets', 'fonts'), join(tdir, 'assets', 'fonts'), { recursive: true })
-  cpSync(join(srcDir, 'screens', `${th.image}.webp`), join(tdir, 'assets', 'screens', `${th.image}.webp`))
+  cpSync(join(screensDir, `${th.image}.webp`), join(tdir, 'assets', 'screens', `${th.image}.webp`))
   const img = screens[th.image]
   const device = th.image.startsWith('phone') ? 'phone' : 'desktop'
   const box = Array.isArray(th.target) ? th.target : screens[`${device}-boxes`][th.target]
