@@ -1,6 +1,6 @@
 .admin {
   min-height: 100dvh;
-  background: #fdf8f5;
+  background: #faf6f0;
   display: grid;
   grid-template-rows: auto 1fr;
 }
@@ -325,7 +325,7 @@
   gap: var(--space-2);
   align-items: center;
   padding: var(--space-3) var(--space-4);
-  background: rgb(255 250 246 / 0.96);
+  background: rgb(251 247 241 / 0.96);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);

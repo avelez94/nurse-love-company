@@ -27,7 +27,7 @@
   background: #000;
 }
 .video__frame video::cue {
-  background: rgb(104 12 53 / 0.86);
+  background: rgb(74 52 39 / 0.86);
   color: #fff;
   font-family: var(--font-body);
 }

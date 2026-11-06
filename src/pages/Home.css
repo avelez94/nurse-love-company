@@ -95,8 +95,8 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 70% 80% at 70% 45%, #fbe6ec 0%, rgb(251 230 236 / 0.6) 45%, transparent 80%),
-    linear-gradient(to right, var(--ivory), #fdf0f2);
+    radial-gradient(ellipse 70% 80% at 70% 45%, #f1e5d4 0%, rgb(241 229 212 / 0.6) 45%, transparent 80%),
+    linear-gradient(to right, var(--ivory), #f5ede2);
 }
 .hero__page,
 .hero__tablet {
@@ -199,7 +199,7 @@
       linear-gradient(to right, transparent 0%, #000 8%, #000 92%, transparent 100%);
   }
   .hero__backdrop {
-    background: radial-gradient(ellipse 80% 70% at 50% 55%, #fbe6ec 0%, rgb(251 230 236 / 0.55) 50%, transparent 85%);
+    background: radial-gradient(ellipse 80% 70% at 50% 55%, #f1e5d4 0%, rgb(241 229 212 / 0.55) 50%, transparent 85%);
   }
   .hero__page--med { width: 33%; left: 4%; top: 26%; }
   .hero__page--dump { width: 33%; left: 30%; top: 18%; }
@@ -322,7 +322,7 @@
   display: block;
   aspect-ratio: 16 / 9;
   overflow: hidden;
-  background: linear-gradient(to bottom, #fbe9ee, var(--blush));
+  background: linear-gradient(to bottom, #f3e8d9, var(--blush));
 }
 .collection-card__art {
   display: block;
@@ -438,7 +438,7 @@
 }
 .extra-card__media {
   display: block;
-  background: #fdf3f5;
+  background: #f7f0e6;
   min-height: 210px;
   overflow: hidden;
 }
@@ -499,7 +499,7 @@
 /* The Freebie Corner */
 .freebie {
   margin-top: var(--space-6);
-  background: linear-gradient(to bottom, var(--pink), #fde7ed);
+  background: linear-gradient(to bottom, var(--pink), #efe3d1);
   border-top: 1px solid var(--border);
   overflow: hidden;
 }
