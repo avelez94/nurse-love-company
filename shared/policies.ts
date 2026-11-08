@@ -42,13 +42,13 @@ export interface PublishedPolicy {
 }
 
 const ID = /^[a-z0-9_-]{1,40}$/i
-const clean = (v: unknown, max: number) =>
+/** Tidies whitespace. Policy text has no length limit (only the size of one upload to the server). */
+const clean = (v: unknown) =>
   String(v ?? '')
     .replace(/\r\n?/g, '\n')
     .replace(/[ \t]+/g, ' ')
     .replace(/\n{3,}/g, '\n\n')
     .trim()
-    .slice(0, max)
 
 const LINK = /\[([^\]\n]{1,80})\]\(([^)\s]{1,500})\)/g
 const PLACEHOLDER = /\[(?:[A-Z][A-Z0-9 ,&'/-]{2,}|OWNER TO [A-Z ]+:[^\]]*)\]/
@@ -61,15 +61,14 @@ const MARKUP = /<\s*\/?\s*[a-z]/i
 export function normalizePolicy(input: unknown): PolicyDraft {
   const raw = (input ?? {}) as Record<string, unknown>
   const sections = Array.isArray(raw.sections) ? raw.sections : []
-  if (sections.length > 150) throw new Error('Keep to 150 sections or fewer.')
   const seen = new Set<string>()
   const out: PolicyDraft = {
-    intro: clean(raw.intro, 50000),
+    intro: clean(raw.intro),
     sections: sections.map((s: any, i: number) => {
       let id = String(s?.id ?? '')
       if (!ID.test(id) || seen.has(id)) id = `section-${i + 1}-${Math.random().toString(36).slice(2, 7)}`
       seen.add(id)
-      return { id, heading: clean(s?.heading, 300), body: clean(s?.body, 200000), reviewed: s?.reviewed === true, ownerNote: clean(s?.ownerNote, 1000) }
+      return { id, heading: clean(s?.heading), body: clean(s?.body), reviewed: s?.reviewed === true, ownerNote: clean(s?.ownerNote) }
     }),
   }
   for (const text of [out.intro, ...out.sections.flatMap((s) => [s.heading, s.body])]) {

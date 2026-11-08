@@ -156,6 +156,31 @@ describe('policies', () => {
     assert.equal((await api('/api/admin/content/policies/privacy/publish', { session: admin, method: 'POST', body: {} })).status, 400)
   })
 
+  it('keeps very long policies whole: many sections and long text are never cut', async () => {
+    const admin = await signUp('owner@example.com', 'admin')
+    const para = 'You agree to these terms when you use the store and buy from it. '.repeat(40)
+    const body = Array.from({ length: 12 }, (_, i) => `Paragraph ${i + 1}. ${para.trim()}`).join('\n\n')
+    const long = {
+      intro: 'Introduction. '.repeat(400).trim(),
+      sections: Array.from({ length: 32 }, (_, i) => ({ id: `s${i + 1}`, heading: `Section ${i + 1}: ${'A long heading '.repeat(30).trim()}`, body, reviewed: true, ownerNote: 'n'.repeat(3000) })),
+    }
+    assert.ok(body.length > 30_000)
+    const saved = await api('/api/admin/content/policies/terms', { session: admin, method: 'PUT', body: long })
+    assert.equal(saved.status, 200, JSON.stringify(saved.data).slice(0, 300))
+    const back = (await api('/api/admin/content/policies/terms', { session: admin })).data.draft
+    assert.equal(back.sections.length, 32)
+    assert.equal(back.intro, long.intro)
+    for (const [i, sec] of back.sections.entries()) {
+      assert.equal(sec.body, body, `section ${i + 1} body kept whole`)
+      assert.equal(sec.heading, long.sections[i].heading)
+      assert.equal(sec.ownerNote.length, 3000)
+    }
+    assert.equal((await api('/api/admin/content/policies/terms/publish', { session: admin, method: 'POST', body: {} })).status, 200)
+    const pub = (await api('/api/content/policies/terms')).data.policy
+    assert.equal(pub.sections.length, 32)
+    assert.equal(pub.sections[31].body, body)
+  })
+
   it('publishes a dated snapshot without owner notes; later edits stay drafts; unpublish hides it', async () => {
     const admin = await signUp('owner@example.com', 'admin')
     const draft = (await api('/api/admin/content/policies/terms', { session: admin })).data.draft

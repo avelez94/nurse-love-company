@@ -497,7 +497,7 @@ adminRoutes.put('/admin/settings/:section', async (c) => {
   for (const [k, def] of Object.entries(defaultSettings[section] as Record<string, unknown>)) {
     if (!(k in b)) continue
     const v = b[k]
-    if (typeof def === 'string') next[k] = str(v, k, { optional: true, max: k.includes('policy') || k === 'terms' || k === 'privacy' ? 200000 : 500 })
+    if (typeof def === 'string') next[k] = str(v, k, { optional: true, max: k.includes('policy') || k === 'terms' || k === 'privacy' ? 5_000_000 : 500 })
     else if (typeof def === 'boolean') next[k] = bool(v)
     else if (Array.isArray(def)) {
       if (!Array.isArray(v) || v.length > 200) throw badRequest(`${k} must be a list.`)
