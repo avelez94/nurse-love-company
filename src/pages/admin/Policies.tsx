@@ -158,7 +158,7 @@ export function PoliciesEditor({ policyKey }: { policyKey: PolicyKey }) {
           {reviewed} of {form.sections.length} sections reviewed. Last saved {dateTime(d.updatedAt)}
           {d.updatedBy ? ` by ${d.updatedBy}` : ''}. Visitors see it at <a href={href(POLICY_META[policyKey].route)} target="_blank" rel="noopener">#{POLICY_META[policyKey].route}</a>.
         </p>
-        <TextArea label="Introduction (optional)" value={form.intro} onChange={(v) => update({ ...form, intro: v })} rows={2} maxLength={2000} />
+        <TextArea label="Introduction (optional)" value={form.intro} onChange={(v) => update({ ...form, intro: v })} rows={2} />
         <p className="field__hint">
           In sections, leave a blank line between paragraphs, start list items with "* ", and write links as [label](#help) or [label](https://...).
         </p>
@@ -188,8 +188,8 @@ export function PoliciesEditor({ policyKey }: { policyKey: PolicyKey }) {
                 </button>
               </span>
             </div>
-            <TextInput label="Heading" value={s.heading} onChange={(v) => setSection(i, { heading: v, reviewed: false })} maxLength={120} />
-            <TextArea label="Text" value={s.body} onChange={(v) => setSection(i, { body: v, reviewed: false })} rows={Math.min(14, Math.max(4, Math.ceil(s.body.length / 90) + 2))} maxLength={8000} />
+            <TextInput label="Heading" value={s.heading} onChange={(v) => setSection(i, { heading: v, reviewed: false })} maxLength={300} />
+            <TextArea label="Text" value={s.body} onChange={(v) => setSection(i, { body: v, reviewed: false })} rows={Math.min(14, Math.max(4, Math.ceil(s.body.length / 90) + 2))} />
             <TextInput label="Private note (never published)" value={s.ownerNote} onChange={(v) => setSection(i, { ownerNote: v })} maxLength={1000} />
             <Checkbox
               label="I have reviewed this section and it is accurate for my store"
