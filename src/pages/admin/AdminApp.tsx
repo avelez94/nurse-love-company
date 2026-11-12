@@ -6,6 +6,7 @@ import { Wordmark } from '../../components/Wordmark'
 import { Loading } from '../../components/ui'
 import { rememberReturn } from '../Auth'
 import { Audit } from './Audit'
+import { Coupons } from './Coupons'
 import { BannerEditor, Banners, PopupEditor } from './Marketing'
 import { CustomerDetail, Customers } from './Customers'
 import { EmailDetail, Emails, Templates } from './Emails'
@@ -47,6 +48,7 @@ const nav: NavItem[] = [
     icon: Megaphone,
     match: ['marketing', 'banner'],
     children: [
+      { label: 'Coupons', route: 'admin-coupons', match: ['coupons'] },
       { label: 'Resource Quiz', route: 'admin-quizzes', match: ['quizzes', 'quiz'] },
       { label: 'Email Automations', route: 'admin-email-automations', match: ['automations'] },
       { label: 'Email list', route: 'admin-email-list', match: ['email-list'] },
@@ -163,6 +165,7 @@ export default function AdminApp({ view, param }: { view: AdminView; param?: str
           {view === 'help' && <HelpFaqsEditor />}
           {view === 'email-list' && <EmailList />}
           {view === 'printful' && <PrintfulPage />}
+          {view === 'coupons' && <Coupons />}
           {view === 'policies' && <PoliciesEditor key={param ?? 'terms'} policyKey={param === 'privacy' ? 'privacy' : 'terms'} />}
           {view === 'settings' && <SettingsPage />}
           {view === 'audit' && <Audit />}

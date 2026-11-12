@@ -10,6 +10,7 @@ import { receiveUpload } from '../lib/upload.js'
 import { abandonUpload, attachUpload, completeUpload, startUpload } from '../services/uploads.js'
 import { bool, email as emailField, int, isoDate, oneOf, str, uuid } from '../lib/validate.js'
 import { previewProduct } from '../services/catalog.js'
+import { createCoupon, listCoupons, setCouponActive } from '../services/coupons.js'
 import { customerDetail, listAdmins, listCustomers, saveCustomerNotes, setAdmin } from '../services/customers.js'
 import { emailDetail, listEmails, listTemplates, removeSuppression, resendEmail, saveTemplate } from '../services/emails.js'
 import { countAffectedPurchasers, grantReplacement, publishRelease } from '../services/entitlements.js'
@@ -71,6 +72,13 @@ adminRoutes.get('/admin/reports/sales.csv', async (c) => {
   const csv = await salesCsv(range(c))
   return c.body(csv, 200, { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': 'attachment; filename="nurse-love-sales.csv"' })
 })
+
+/* ---------- Coupons (created and kept in Stripe) ---------- */
+
+adminRoutes.get('/admin/coupons', async (c) => c.json(await listCoupons(), 200, { 'cache-control': 'no-store' }))
+adminRoutes.post('/admin/coupons', async (c) => c.json(await createCoupon(requireAdmin(c), await jsonBody(c), ip(c)), 201))
+adminRoutes.post('/admin/coupons/:id/off', async (c) => c.json(await setCouponActive(requireAdmin(c), c.req.param('id'), false, ip(c))))
+adminRoutes.post('/admin/coupons/:id/on', async (c) => c.json(await setCouponActive(requireAdmin(c), c.req.param('id'), true, ip(c))))
 
 /* ---------- Products ---------- */
 
