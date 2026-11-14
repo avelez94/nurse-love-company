@@ -17,7 +17,7 @@ export type Route =
   | { name: 'help' }
   | { name: 'policy'; key: 'terms' | 'privacy' }
   | { name: 'product'; slug: string }
-  | { name: 'auth'; mode: 'sign-in' | 'sign-up' | 'forgot-password' | 'reset-password' | 'admin-setup'; token?: string }
+  | { name: 'auth'; mode: 'sign-in' | 'sign-up' | 'forgot-password' | 'reset-password' | 'admin-setup'; token?: string; expired?: boolean }
   | { name: 'checkout'; result: 'success' | 'canceled'; free?: boolean }
   | { name: 'account'; view: AccountView; param?: string }
   | { name: 'admin'; view: AdminView; param?: string }
@@ -90,7 +90,12 @@ const adminDetail: Array<[string, AdminView]> = [
   ['admin-policy-', 'policies'],
 ]
 
-export function parseHash(raw: string): Route {
+/**
+ * `search` is the page's query string. The password reset email link returns
+ * through the server, which puts the reset code there (/?token=...#reset-password)
+ * rather than after the #.
+ */
+export function parseHash(raw: string, search = ''): Route {
   const [path, query = ''] = decodeURIComponent(raw.replace(/^#/, '')).split('?')
   const hash = path
   const params = new URLSearchParams(query)
@@ -107,8 +112,12 @@ export function parseHash(raw: string): Route {
     case 'forgot-password':
     case 'admin-setup':
       return { name: 'auth', mode: hash }
-    case 'reset-password':
-      return { name: 'auth', mode: 'reset-password', token: params.get('token') ?? undefined }
+    case 'reset-password': {
+      const outer = new URLSearchParams(search)
+      const token = params.get('token') || outer.get('token') || undefined
+      const expired = !token && (params.get('error') || outer.get('error')) === 'INVALID_TOKEN'
+      return { name: 'auth', mode: 'reset-password', token, expired }
+    }
     case 'checkout-success':
       return { name: 'checkout', result: 'success', free: params.get('free') === '1' }
     case 'checkout-canceled':
@@ -159,9 +168,9 @@ export function navigate(route: string) {
 }
 
 export function useRoute(): Route {
-  const [route, setRoute] = useState(() => parseHash(window.location.hash))
+  const [route, setRoute] = useState(() => parseHash(window.location.hash, window.location.search))
   useEffect(() => {
-    const onChange = () => setRoute(parseHash(window.location.hash))
+    const onChange = () => setRoute(parseHash(window.location.hash, window.location.search))
     window.addEventListener('hashchange', onChange)
     return () => window.removeEventListener('hashchange', onChange)
   }, [])

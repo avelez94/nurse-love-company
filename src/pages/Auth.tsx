@@ -165,7 +165,7 @@ export function ForgotPassword() {
   )
 }
 
-export function ResetPassword({ token }: { token?: string }) {
+export function ResetPassword({ token, expired }: { token?: string; expired?: boolean }) {
   const [password, setPassword] = useState('')
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
@@ -177,6 +177,8 @@ export function ResetPassword({ token }: { token?: string }) {
     setError('')
     try {
       await api('/api/auth/reset-password', { body: { newPassword: password, token } })
+      // The used code no longer needs to sit in the address bar.
+      if (window.location.search) window.history.replaceState(null, '', `${window.location.pathname}${window.location.hash}`)
       setDone(true)
     } catch (err) {
       setError(errorMessage(err))
@@ -184,6 +186,7 @@ export function ResetPassword({ token }: { token?: string }) {
       setBusy(false)
     }
   }
+  if (expired) return <AuthCard title="This reset link has expired" intro="Reset links work for one hour and only once. Please request a new link; it will arrive by email in a minute or two."><a className="button" href={href('forgot-password')}>Request a new link</a></AuthCard>
   if (!token) return <AuthCard title="Reset link not valid" intro="This reset link is missing its code. Please request a new link."><a className="button" href={href('forgot-password')}>Request a new link</a></AuthCard>
   return (
     <AuthCard title="Choose a new password">

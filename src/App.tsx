@@ -106,7 +106,7 @@ function Page({ route }: { route: Route }) {
       if (route.mode === 'sign-up') return <SignUp />
       if (route.mode === 'forgot-password') return <ForgotPassword />
       if (route.mode === 'admin-setup') return <AdminSetup />
-      return <ResetPassword token={route.token} />
+      return <ResetPassword token={route.token} expired={route.expired} />
     case 'checkout':
       return <CheckoutResult result={route.result} free={route.free} />
     case 'account':
