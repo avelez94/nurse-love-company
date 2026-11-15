@@ -7,7 +7,8 @@ import heroUti from '../assets/hero/uti.webp'
 import nurseIpad from '../assets/collections/dosage-ipad.webp'
 import nurseIphone from '../assets/collections/dosage-iphone.webp'
 import nurseDosage from '../assets/collections/dosage-calculation.webp'
-import npAssessment from '../assets/collections/head-to-toe.webp'
+import npIpad from '../assets/collections/topical-ipad.webp'
+import npIphone from '../assets/collections/topical-iphone.webp'
 import npTopical from '../assets/collections/topical-steroids.webp'
 import freebieSeedlings from '../assets/freebie/dnp-seedlings.webp'
 import freebieBrainDump from '../assets/freebie/brain-dump.webp'
@@ -120,21 +121,15 @@ function CollectionCard({ id }: { id: 'nurse-inserts' | 'np-inserts' }) {
     <a className="collection-card" href={href(category.route)}>
       <span className="collection-card__media">
         <span className="collection-card__art">
-          {/* Real sample pages; each is softly blurred below its header so it reads as a peek. */}
-          {id === 'nurse-inserts' ? (
-            // The Dosage & Calculation insert as a printed page (back), on an iPad (middle) and on an iPhone (front).
-            <span className="device-cluster">
-              <img className="device-cluster__page" src={nurseDosage} alt="" width={700} height={906} loading="lazy" decoding="async" />
-              <img className="device-cluster__ipad" src={nurseIpad} alt="" width={600} height={806} loading="lazy" decoding="async" />
-              <img className="device-cluster__iphone" src={nurseIphone} alt="" width={370} height={750} loading="lazy" decoding="async" />
-            </span>
-          ) : (
-            <span className="page-cluster page-cluster--two page-cluster--real">
-              {[npAssessment, npTopical].map((src, i) => (
-                <img key={src} className={`page-cluster__page p${i + 1}`} src={src} alt="" width={700} height={906} loading="lazy" decoding="async" />
-              ))}
-            </span>
-          )}
+          {/* The insert as a printed page (back), on an iPad (middle) and on an iPhone (front). Titles stay sharp; the rest is softly blurred. */}
+          <span className="device-cluster">
+            {(id === 'nurse-inserts'
+              ? [nurseDosage, nurseIpad, nurseIphone]
+              : [npTopical, npIpad, npIphone]
+            ).map((src, i) => (
+              <img key={src} className={['device-cluster__page', 'device-cluster__ipad', 'device-cluster__iphone'][i]} src={src} alt="" width={[700, 600, 370][i]} height={[906, 806, 750][i]} loading="lazy" decoding="async" />
+            ))}
+          </span>
         </span>
       </span>
       <span className="collection-card__body">
