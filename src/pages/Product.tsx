@@ -159,9 +159,6 @@ export function ProductView({ product, preview = false }: { product: ProductReco
               {isDigital && <Detail term="Page size" value={d?.pageSize ? `${d.pageSize}${d.orientation ? `, ${d.orientation}` : ''}` : null} />}
               {isDigital && <Detail term="File format" value={product.fileFormat} />}
               {isDigital && <Detail term="File size" value={d?.fileSizeBytes ? kb(d.fileSizeBytes) : null} />}
-              {isDigital && <Detail term="Use" value={d?.usage.length ? d.usage.join(', ') : null} />}
-              {isDigital && <Detail term="Works with" value={product.appCompatibility?.join(', ') ?? null} />}
-              {isDigital && d?.versionNumber && <Detail term="Version" value={`Version ${d.versionNumber}${d.versionReleasedAt ? `, updated ${new Date(d.versionReleasedAt).toLocaleDateString()}` : ''}`} />}
               {isDigital && <Detail term="Binder" value="Not included" />}
               {!isDigital && <Detail term="Options" value={product.variants ? product.variants.map((v) => v.title).join(', ') : null} />}
               {product.isExample && <Detail term="Status" value={product.isDemo ? 'Demo listing for the preview' : 'Example listing for the preview'} />}
