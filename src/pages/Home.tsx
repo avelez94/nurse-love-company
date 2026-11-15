@@ -4,7 +4,8 @@ import { site } from '../data/site'
 import type { CategoryId, IllustrationName } from '../data/types'
 import { Heart } from '../components/illustrations/Objects'
 import heroUti from '../assets/hero/uti.webp'
-import nurseReport from '../assets/collections/nursing-report.webp'
+import nurseIpad from '../assets/collections/dosage-ipad.webp'
+import nurseIphone from '../assets/collections/dosage-iphone.webp'
 import nurseDosage from '../assets/collections/dosage-calculation.webp'
 import npAssessment from '../assets/collections/head-to-toe.webp'
 import npTopical from '../assets/collections/topical-steroids.webp'
@@ -120,11 +121,20 @@ function CollectionCard({ id }: { id: 'nurse-inserts' | 'np-inserts' }) {
       <span className="collection-card__media">
         <span className="collection-card__art">
           {/* Real sample pages; each is softly blurred below its header so it reads as a peek. */}
-          <span className="page-cluster page-cluster--two page-cluster--real">
-            {(id === 'nurse-inserts' ? [nurseReport, nurseDosage] : [npAssessment, npTopical]).map((src, i) => (
-              <img key={src} className={`page-cluster__page p${i + 1}`} src={src} alt="" width={700} height={906} loading="lazy" decoding="async" />
-            ))}
-          </span>
+          {id === 'nurse-inserts' ? (
+            // The Dosage & Calculation insert as a printed page (back), on an iPad (middle) and on an iPhone (front).
+            <span className="device-cluster">
+              <img className="device-cluster__page" src={nurseDosage} alt="" width={700} height={906} loading="lazy" decoding="async" />
+              <img className="device-cluster__ipad" src={nurseIpad} alt="" width={600} height={806} loading="lazy" decoding="async" />
+              <img className="device-cluster__iphone" src={nurseIphone} alt="" width={370} height={750} loading="lazy" decoding="async" />
+            </span>
+          ) : (
+            <span className="page-cluster page-cluster--two page-cluster--real">
+              {[npAssessment, npTopical].map((src, i) => (
+                <img key={src} className={`page-cluster__page p${i + 1}`} src={src} alt="" width={700} height={906} loading="lazy" decoding="async" />
+              ))}
+            </span>
+          )}
         </span>
       </span>
       <span className="collection-card__body">
