@@ -11,6 +11,7 @@ import { VideoPlayer } from '../../components/VideoPlayer'
 import { Checkbox, Confirm, dateTime, Empty, FormError, Loading, Notice, Pill, ProgressBar, Select, TextArea, TextInput, useApiData } from '../../components/ui'
 import { slugify } from './slug'
 import { PageTitle } from './AdminApp'
+import { DeleteForever } from './DeleteForever'
 
 const categories = [
   { value: 'np-binder', label: 'NP Binder' },
@@ -110,7 +111,7 @@ export function TutorialEditor({ id }: { id: string }) {
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
   const [previewOpen, setPreviewOpen] = useState(false)
-  const [confirm, setConfirm] = useState<null | 'archive' | 'unpublish'>(null)
+  const [confirm, setConfirm] = useState<null | 'unpublish'>(null)
 
   useEffect(() => {
     if (!data) return
@@ -150,12 +151,12 @@ export function TutorialEditor({ id }: { id: string }) {
     }
   }
 
-  const status = async (action: 'publish' | 'unpublish' | 'archive' | 'restore') => {
+  const status = async (action: 'publish' | 'unpublish' | 'restore') => {
     setFormError('')
     try {
       if (action === 'publish') await api(`/api/admin/tutorials/${id}`, { method: 'PUT', body: form })
       await api(`/api/admin/tutorials/${id}/${action}`, { method: 'POST' })
-      showToast({ publish: 'Published. Anyone can watch it now.', unpublish: 'Unpublished. It is hidden and its video no longer plays publicly.', archive: 'Archived.', restore: 'Restored to draft.' }[action])
+      showToast({ publish: 'Published. Anyone can watch it now.', unpublish: 'Unpublished. It is hidden and its video no longer plays publicly.', restore: 'Restored to draft.' }[action])
       reload()
     } catch (err) {
       setFormError(errorMessage(err))
@@ -217,7 +218,8 @@ export function TutorialEditor({ id }: { id: string }) {
               </button>
               {t.status !== 'published' && t.status !== 'archived' && <button type="button" className="button button--outline button--small" onClick={() => status('publish')}>Publish</button>}
               {t.status === 'published' && <button type="button" className="button button--outline button--small" onClick={() => setConfirm('unpublish')}>Unpublish</button>}
-              {t.status !== 'archived' ? <button type="button" className="button button--outline button--small" onClick={() => setConfirm('archive')}>Archive</button> : <button type="button" className="button button--outline button--small" onClick={() => status('restore')}>Restore to draft</button>}
+              {t.status === 'archived' && <button type="button" className="button button--outline button--small" onClick={() => status('restore')}>Restore to draft</button>}
+              <DeleteForever what="tutorial" name={t.title} endpoint={`/api/admin/tutorials/${id}`} backTo="admin-tutorials" extra="with its video, captions and thumbnail" />
             </>
           )}
           <span className="spacer" />
@@ -226,8 +228,8 @@ export function TutorialEditor({ id }: { id: string }) {
       </form>
       <Confirm
         open={Boolean(confirm)}
-        title={confirm === 'archive' ? 'Archive this tutorial?' : 'Unpublish this tutorial?'}
-        confirmLabel={confirm === 'archive' ? 'Archive' : 'Unpublish'}
+        title="Unpublish this tutorial?"
+        confirmLabel="Unpublish"
         onClose={() => setConfirm(null)}
         onConfirm={async () => {
           const a = confirm!

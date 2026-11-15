@@ -120,7 +120,7 @@ describe('resource quiz', () => {
     const v2 = (await api('/api/quiz')).data.quiz
     assert.deepEqual([v2.content.title, v2.version], ['Half edited title', 2])
 
-    // Only one storefront quiz; archive needs unpublishing first.
+    // Only one storefront quiz. Archive no longer exists (Delete forever replaced it).
     const copy = await api(`/api/admin/quizzes/${id}/duplicate`, { session: a, method: 'POST' })
     await api(`/api/admin/quizzes/${copy.data.id}/publish`, { session: a, method: 'POST' })
     assert.equal((await api('/api/quiz')).data.quiz.id, copy.data.id)

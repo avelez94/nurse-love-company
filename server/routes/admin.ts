@@ -10,6 +10,7 @@ import { receiveUpload } from '../lib/upload.js'
 import { abandonUpload, attachUpload, completeUpload, startUpload } from '../services/uploads.js'
 import { bool, email as emailField, int, isoDate, oneOf, str, uuid } from '../lib/validate.js'
 import { previewProduct } from '../services/catalog.js'
+import { deleteForever } from '../services/deletion.js'
 import { createCoupon, listCoupons, setCouponActive } from '../services/coupons.js'
 import { customerDetail, listAdmins, listCustomers, saveCustomerNotes, setAdmin } from '../services/customers.js'
 import { emailDetail, listEmails, listTemplates, removeSuppression, resendEmail, saveTemplate } from '../services/emails.js'
@@ -96,10 +97,12 @@ adminRoutes.get('/admin/products/:id/preview', async (c) => {
   if (!p) throw notFound('Product')
   return c.json({ product: p })
 })
-adminRoutes.post('/admin/products/:id/:action{publish|unpublish|activate|deactivate|archive|unarchive}', async (c) => {
+adminRoutes.post('/admin/products/:id/:action{publish|unpublish|activate|deactivate|unarchive}', async (c) => {
   await setProductState(requireAdmin(c), uuid(c.req.param('id')), c.req.param('action') as 'publish', ip(c))
   return c.json({ ok: true })
 })
+// Delete forever (replaced Archive). Refused for products someone bought.
+adminRoutes.delete('/admin/products/:id', async (c) => c.json(await deleteForever(requireAdmin(c), 'product', uuid(c.req.param('id')), ip(c))))
 adminRoutes.post('/admin/products/:id/duplicate', async (c) => c.json(await duplicateProduct(requireAdmin(c), uuid(c.req.param('id')), ip(c)), 201))
 adminRoutes.put('/admin/products/:id/variants', async (c) => {
   const b = await jsonBody<{ variants: unknown }>(c)
@@ -417,10 +420,11 @@ adminRoutes.put('/admin/tutorials/:id', async (c) => {
   await updateTutorial(requireAdmin(c), uuid(c.req.param('id')), await jsonBody(c), ip(c))
   return c.json({ ok: true })
 })
-adminRoutes.post('/admin/tutorials/:id/:action{publish|unpublish|archive|restore}', async (c) => {
+adminRoutes.post('/admin/tutorials/:id/:action{publish|unpublish|restore}', async (c) => {
   await setTutorialStatus(requireAdmin(c), uuid(c.req.param('id')), c.req.param('action') as 'publish', ip(c))
   return c.json({ ok: true })
 })
+adminRoutes.delete('/admin/tutorials/:id', async (c) => c.json(await deleteForever(requireAdmin(c), 'tutorial', uuid(c.req.param('id')), ip(c))))
 adminRoutes.put('/admin/tutorials/:id/embed', async (c) => {
   const b = await jsonBody(c)
   return c.json({ embed_url: await setEmbed(requireAdmin(c), uuid(c.req.param('id')), b.url ? String(b.url) : null, ip(c)) })

@@ -6,6 +6,7 @@ import { rateLimit } from '../lib/rate-limit.js'
 import { serveMedia } from '../lib/stream.js'
 import { receiveUpload } from '../lib/upload.js'
 import { int, oneOf, uuid } from '../lib/validate.js'
+import { deleteForever } from '../services/deletion.js'
 import { adminHelp, adminPolicy, adminStory, publicPolicy, publishPolicy, savePolicyDraft, publicHelp, publicStory, publishHelp, saveHelpDraft, publishStory, saveStoryDraft, STORY_UPLOAD_TARGET, storyPortrait } from '../services/content.js'
 import { createQuiz, duplicateQuiz, getQuiz, listQuizzes, publicQuiz, publishQuiz, recordQuizEvent, saveQuizDraft, setQuizStatus } from '../services/quiz.js'
 import { adminReviews, moderateReview, myReview, productReviews, REPORT_REASONS, reportReview, reviewablePurchases, saveReview } from '../services/reviews.js'
@@ -66,8 +67,9 @@ featureRoutes.get('/admin/quizzes/:id', async (c) => c.json(await getQuiz(uuid(c
 featureRoutes.put('/admin/quizzes/:id', async (c) => c.json(await saveQuizDraft(requireAdmin(c), uuid(c.req.param('id')), await jsonBody(c))))
 featureRoutes.post('/admin/quizzes/:id/publish', async (c) => c.json(await publishQuiz(requireAdmin(c), uuid(c.req.param('id')), ip(c))))
 featureRoutes.post('/admin/quizzes/:id/duplicate', async (c) => c.json(await duplicateQuiz(requireAdmin(c), uuid(c.req.param('id')), ip(c)), 201))
+featureRoutes.delete('/admin/quizzes/:id', async (c) => c.json(await deleteForever(requireAdmin(c), 'quiz', uuid(c.req.param('id')), ip(c))))
 featureRoutes.post('/admin/quizzes/:id/:action', async (c) => {
-  const action = oneOf(c.req.param('action'), 'Action', ['unpublish', 'archive', 'restore'] as const)
+  const action = oneOf(c.req.param('action'), 'Action', ['unpublish', 'restore'] as const)
   return c.json(await setQuizStatus(requireAdmin(c), uuid(c.req.param('id')), action, ip(c)))
 })
 

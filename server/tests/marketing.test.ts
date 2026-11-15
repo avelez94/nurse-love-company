@@ -54,7 +54,7 @@ describe('banners', () => {
     assert.equal((await api('/api/admin/marketing/popup', { session: shopper, method: 'PUT', body: {} })).status, 403)
   })
 
-  it('drafts stay private; publish, deactivate and archive control what the public sees, with audit records', async () => {
+  it('drafts stay private; publish, deactivate and delete control what the public sees, with audit records', async () => {
     const a = await admin()
     const id = await create(a, strip())
     assert.equal((await publicFeed()).banners.length, 0, 'drafts are private')
@@ -67,13 +67,15 @@ describe('banners', () => {
     await api(`/api/admin/marketing/banners/${id}/deactivate`, { session: a, method: 'POST' })
     assert.equal((await publicFeed()).banners.length, 0)
     await api(`/api/admin/marketing/banners/${id}/activate`, { session: a, method: 'POST' })
-    await api(`/api/admin/marketing/banners/${id}/archive`, { session: a, method: 'POST' })
-    assert.equal((await publicFeed()).banners.length, 0)
-    const actions = (await q<{ action: string }>(`select action from audit_log where entity_id = $1 order by id`, [id])).map((r) => r.action)
-    assert.deepEqual(actions, ['marketing.banner_created', 'marketing.banner_publish', 'marketing.banner_deactivate', 'marketing.banner_activate', 'marketing.banner_archive'])
-
     const copy = await api(`/api/admin/marketing/banners/${id}/duplicate`, { session: a, method: 'POST' })
     assert.equal((await api(`/api/admin/marketing/banners/${copy.data.id}`, { session: a })).data.status, 'draft')
+    // Archive is gone; Delete forever replaced it.
+    assert.equal((await api(`/api/admin/marketing/banners/${id}/archive`, { session: a, method: 'POST' })).status, 400)
+    assert.equal((await api(`/api/admin/marketing/banners/${id}`, { session: a, method: 'DELETE' })).status, 200)
+    assert.equal((await publicFeed()).banners.length, 0)
+    assert.equal((await api(`/api/admin/marketing/banners/${id}`, { session: a })).status, 404)
+    const actions = (await q<{ action: string }>(`select action from audit_log where entity_id = $1 order by id`, [id])).map((r) => r.action)
+    assert.deepEqual(actions, ['marketing.banner_created', 'marketing.banner_publish', 'marketing.banner_deactivate', 'marketing.banner_activate', 'banner.deleted'])
   })
 
   it('respects start and end times', async () => {

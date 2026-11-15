@@ -182,6 +182,10 @@ textarea.input {
   --btn-bg: #a3123a;
   --btn-border: #a3123a;
 }
+.button--danger-outline.button--outline {
+  --btn-border: #a3123a;
+  --btn-fg: #a3123a;
+}
 .progress {
   display: grid;
   gap: 4px;

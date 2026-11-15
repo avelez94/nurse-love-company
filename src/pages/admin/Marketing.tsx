@@ -8,6 +8,7 @@ import type { IconName, PublicBanner, PublicPopup, Theme } from '../../lib/marke
 import { href, navigate } from '../../lib/router'
 import { useUI } from '../../lib/ui'
 import { PageTitle } from './AdminApp'
+import { DeleteForever } from './DeleteForever'
 
 /* ---------- Shared ---------- */
 
@@ -118,8 +119,7 @@ const styleLabel = { announcement: 'Announcement bar', strip: 'Promotional strip
 
 export function Banners() {
   const { data, error, loading } = useApiData<{ banners: BannerRow[] }>('/api/admin/marketing/banners')
-  const [showArchived, setShowArchived] = useState(false)
-  const rows = (data?.banners ?? []).filter((b) => showArchived || b.status !== 'archived')
+  const rows = (data?.banners ?? []).filter((b) => b.status !== 'archived')
   return (
     <>
       <PageTitle title="Marketing">
@@ -162,7 +162,6 @@ export function Banners() {
           </table>
         </div>
       )}
-      <Checkbox label="Show archived banners" checked={showArchived} onChange={setShowArchived} />
       <p className="muted">Times are shown in your timezone: {timezoneLabel()}.</p>
       <LauncherSettingsPanel />
     </>
@@ -271,7 +270,7 @@ export function BannerEditor({ id }: { id: string }) {
   const [busy, setBusy] = useState(false)
   const [codeCheck, setCodeCheck] = useState<{ offer: string; expiresAt: string | null } | null>(null)
   const [codeError, setCodeError] = useState('')
-  const [confirm, setConfirm] = useState<null | 'archive' | 'reset_dismissals'>(null)
+  const [confirm, setConfirm] = useState<null | 'reset_dismissals'>(null)
   const [imageBust, setImageBust] = useState(0)
   const d = detail.data
 
@@ -513,13 +512,10 @@ export function BannerEditor({ id }: { id: string }) {
             <Copy size={16} aria-hidden="true" /> Duplicate
           </button>
         )}
-        {d && d.status !== 'archived' && <button type="button" className="button button--outline" disabled={busy} onClick={() => setConfirm('archive')}>Archive</button>}
+        {d && <DeleteForever what="banner" name={d.name} endpoint={`/api/admin/marketing/banners/${d.id}`} backTo="admin-marketing" extra="with its picture and its statistics" />}
         {d && d.status === 'archived' && <button type="button" className="button button--outline" disabled={busy} onClick={() => act('restore')}>Restore as draft</button>}
       </div>
 
-      <Confirm open={confirm === 'archive'} title="Archive this banner?" confirmLabel="Archive" onConfirm={() => act('archive')} onClose={() => setConfirm(null)} busy={busy}>
-        It stops showing and moves out of the list. You can restore it later as a draft.
-      </Confirm>
       <Confirm open={confirm === 'reset_dismissals'} title="Show it again to everyone?" confirmLabel="Show again" onConfirm={() => act('reset_dismissals')} onClose={() => setConfirm(null)} busy={busy}>
         Visitors who closed this banner will see it again. Use this when the campaign changed in a meaningful way.
       </Confirm>

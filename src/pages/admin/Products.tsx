@@ -11,6 +11,7 @@ import { ProductView } from '../Product'
 import { slugify } from './slug'
 import { PreorderPanel, PrintfulLinks } from './PrintfulLinks'
 import { PageTitle } from './AdminApp'
+import { DeleteForever } from './DeleteForever'
 
 interface ListRow {
   id: string
@@ -61,7 +62,7 @@ export function Products() {
           <span className="field__label">Search</span>
           <input className="input" type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Title, slug or SKU" />
         </label>
-        <Select label="Show" value={status} onChange={setStatus} options={[{ value: 'active', label: 'All except archived' }, { value: 'published', label: 'Published' }, { value: 'draft', label: 'Drafts' }, { value: 'inactive', label: 'Inactive' }, { value: 'archived', label: 'Archived' }, { value: 'all', label: 'Everything' }]} />
+        <Select label="Show" value={status} onChange={setStatus} options={[{ value: 'active', label: 'All products' }, { value: 'published', label: 'Published' }, { value: 'draft', label: 'Drafts' }, { value: 'inactive', label: 'Inactive' }]} />
       </div>
       {error && <FormError message={error} />}
       {loading && !data ? (
@@ -171,7 +172,7 @@ export function ProductEditor({ id }: { id: string }) {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [preview, setPreview] = useState<ApiProduct | null>(null)
-  const [confirmAction, setConfirmAction] = useState<null | 'archive' | 'deactivate'>(null)
+  const [confirmAction, setConfirmAction] = useState<null | 'deactivate'>(null)
   const [replacement, setReplacement] = useState<Detail['uploads'][number] | null>(null)
   const [updateNotes, setUpdateNotes] = useState('')
   const [fileResult, setFileResult] = useState<FileResult | null>(null)
@@ -225,7 +226,7 @@ export function ProductEditor({ id }: { id: string }) {
         return
       }
       await api(`/api/admin/products/${id}/${action}`, { method: 'POST' })
-      showToast({ publish: 'Published to the shop.', unpublish: 'Moved back to draft. It is no longer in the shop.', activate: 'Activated.', deactivate: 'Deactivated. New purchases are blocked.', archive: 'Archived. Order history and downloads are kept.', unarchive: 'Restored from the archive.' }[action] ?? 'Done.')
+      showToast({ publish: 'Published to the shop.', unpublish: 'Moved back to draft. It is no longer in the shop.', activate: 'Activated.', deactivate: 'Deactivated. New purchases are blocked.', unarchive: 'Restored from the archive.' }[action] ?? 'Done.')
       await reload()
     } catch (err) {
       setSaveError(errorMessage(err))
@@ -398,7 +399,8 @@ export function ProductEditor({ id }: { id: string }) {
               <button type="button" className="button button--outline button--small" onClick={() => act('duplicate')}>
                 <Copy size={16} aria-hidden="true" /> Duplicate
               </button>
-              {p.archived_at ? <button type="button" className="button button--outline button--small" onClick={() => act('unarchive')}>Restore</button> : <button type="button" className="button button--outline button--small" onClick={() => setConfirmAction('archive')}>Archive</button>}
+              {p.archived_at && <button type="button" className="button button--outline button--small" onClick={() => act('unarchive')}>Restore</button>}
+              <DeleteForever what="product" name={p.title} endpoint={`/api/admin/products/${id}`} backTo="admin-products" extra="with its pictures, files and reviews. Products someone has bought cannot be deleted; turn those off with Deactivate" />
             </>
           )}
           <span className="spacer" />
@@ -408,8 +410,8 @@ export function ProductEditor({ id }: { id: string }) {
 
       <Confirm
         open={Boolean(confirmAction)}
-        title={confirmAction === 'archive' ? 'Archive this product?' : 'Deactivate this product?'}
-        confirmLabel={confirmAction === 'archive' ? 'Archive' : 'Deactivate'}
+        title="Deactivate this product?"
+        confirmLabel="Deactivate"
         onClose={() => setConfirmAction(null)}
         onConfirm={async () => {
           const a = confirmAction!

@@ -5,6 +5,7 @@ import { rateLimit } from '../lib/rate-limit.js'
 import { serveMedia } from '../lib/stream.js'
 import { receiveUpload } from '../lib/upload.js'
 import { int, oneOf, str, uuid } from '../lib/validate.js'
+import { deleteForever } from '../services/deletion.js'
 import {
   createBanner,
   duplicateBanner,
@@ -78,9 +79,11 @@ marketingRoutes.delete('/admin/marketing/banners/:id/image', async (c) => {
   return c.json({ ok: true })
 })
 
+marketingRoutes.delete('/admin/marketing/banners/:id', async (c) => c.json(await deleteForever(requireAdmin(c), 'banner', uuid(c.req.param('id')), ip(c))))
+
 // Registered after the image routes, so /image is never taken for an action.
 marketingRoutes.post('/admin/marketing/banners/:id/:action', async (c) => {
-  const action = oneOf(c.req.param('action'), 'Action', ['publish', 'unpublish', 'activate', 'deactivate', 'archive', 'restore', 'reset_dismissals'] as const)
+  const action = oneOf(c.req.param('action'), 'Action', ['publish', 'unpublish', 'activate', 'deactivate', 'restore', 'reset_dismissals'] as const)
   return c.json(await setBannerStatus(requireAdmin(c), uuid(c.req.param('id')), action, ip(c)))
 })
 /** Checks a coupon code against Stripe and shows the real offer, without saving anything. */

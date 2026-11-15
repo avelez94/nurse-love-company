@@ -9,6 +9,7 @@ import { href, navigate } from '../../lib/router'
 import { useUI } from '../../lib/ui'
 import { emptyQuiz, explainRules, publishProblems, QUIZ_COLLECTIONS, type QuizContent, type QuizQuestion, type QuizResult } from '../../../shared/quiz'
 import { PageTitle } from './AdminApp'
+import { DeleteForever } from './DeleteForever'
 
 /*
   Marketing > Resource Quiz. The owner writes the questions, the result
@@ -45,12 +46,11 @@ function QuizStats({ s }: { s: QuizRow['stats'] }) {
 
 export function Quizzes() {
   const { data, error, loading } = useApiData<{ quizzes: QuizRow[] }>('/api/admin/quizzes')
-  const [showArchived, setShowArchived] = useState(false)
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   const [createError, setCreateError] = useState('')
-  const rows = (data?.quizzes ?? []).filter((q) => showArchived || q.status !== 'archived')
+  const rows = (data?.quizzes ?? []).filter((q) => q.status !== 'archived')
 
   const create = async () => {
     setBusy(true)
@@ -104,7 +104,6 @@ export function Quizzes() {
           </table>
         </div>
       )}
-      <Checkbox label="Show archived quizzes" checked={showArchived} onChange={setShowArchived} />
       <Confirm open={creating} title="New quiz" confirmLabel="Create draft" onConfirm={create} onClose={() => setCreating(false)} busy={busy} disabled={!name.trim()}>
         <div className="form-stack">
           <TextInput label="Internal name" value={name} onChange={setName} maxLength={80} hint="Only you see this, for example “Spring 2027 quiz”." />
@@ -451,7 +450,7 @@ export function QuizEditor({ id }: { id: string }) {
         <button type="button" className="button button--outline" disabled={busy} onClick={() => act('duplicate', 'Copy created.')}>
           <Copy size={16} aria-hidden="true" /> Duplicate
         </button>
-        {d.status === 'draft' && <button type="button" className="button button--outline" disabled={busy} onClick={() => act('archive', 'Archived.')}>Archive</button>}
+        <DeleteForever what="quiz" name={d.name} endpoint={`/api/admin/quizzes/${d.id}`} backTo="admin-quizzes" extra="with its questions, results and statistics" />
         {archived && <button type="button" className="button button--outline" disabled={busy} onClick={() => act('restore', 'Restored as a draft.')}>Restore</button>}
         {dirty && <span className="muted">Unsaved changes</span>}
       </div>

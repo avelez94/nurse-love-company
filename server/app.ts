@@ -9,6 +9,7 @@ import { config, deployEnv, integrationStatus, isProduction } from './env.js'
 import { pruneRateLimits } from './lib/rate-limit.js'
 import { recheckCoupons } from './services/marketing.js'
 import { startScheduledCoupons } from './services/coupons.js'
+import { deleteArchivedOnce } from './services/deletion.js'
 import { cleanAbandonedUploads } from './services/uploads.js'
 import { clientIp } from './http.js'
 import { rateLimit } from './lib/rate-limit.js'
@@ -105,9 +106,11 @@ export function createApp() {
     await drainOutbox(100)
     await pruneRateLimits()
     const uploadsCleaned = await cleanAbandonedUploads()
+    // One time: delete everything archived before Archive became Delete forever.
+    const archivedDeleted = await deleteArchivedOnce().catch((err) => ({ error: String((err as Error).message) }))
     const couponsStarted = await startScheduledCoupons().catch((err) => ({ error: String((err as Error).message) }))
     const couponBannersStopped = await recheckCoupons()
-    return c.json({ ok: true, uploadsCleaned, couponsStarted, couponBannersStopped, automations, updateNotifications, emailList, printful: printfulWork }, 200, { 'cache-control': 'no-store' })
+    return c.json({ ok: true, uploadsCleaned, archivedDeleted, couponsStarted, couponBannersStopped, automations, updateNotifications, emailList, printful: printfulWork }, 200, { 'cache-control': 'no-store' })
   })
 
   // Staging gate: the whole staging site, dashboards included, needs the

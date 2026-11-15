@@ -1045,6 +1045,28 @@ alter table printful_orders add column if not exists released_by text;
 create index if not exists printful_orders_held_idx on printful_orders (created_at) where state = 'held';
 insert into schema_migrations (name) values ('010_preorders.sql');
 
+-- 011_delete_forever.sql
+-- Delete forever (replaces Archive).
+--
+-- Released product files stay unchangeable, as before. The only new
+-- exception: the store's own "Delete forever" for a product may remove that
+-- product's file versions. It marks its transaction with
+-- nlc.deleting_product = <product id>, and it already refuses any product
+-- someone bought or claimed (their downloads also point at these rows, so
+-- the database would refuse it too).
+create or replace function product_versions_guard() returns trigger language plpgsql as $$
+begin
+  if tg_op = 'DELETE' and current_setting('nlc.deleting_product', true) = old.product_id::text then
+    return old;
+  end if;
+  raise exception '% rows are immutable', tg_table_name;
+end $$;
+
+drop trigger if exists product_versions_immutable on product_versions;
+create trigger product_versions_immutable before update or delete on product_versions
+  for each row execute function product_versions_guard();
+insert into schema_migrations (name) values ('011_delete_forever.sql');
+
 -- 3. Row level security on every store table. The store's server is the
 -- table owner and is unaffected; Supabase's public Data API sees nothing.
 do $$ declare t record; begin

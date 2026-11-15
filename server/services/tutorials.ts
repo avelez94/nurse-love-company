@@ -227,6 +227,12 @@ async function removeMuxPublic(tutorialId: string) {
   await q('update tutorials set mux_public_playback_id = null where id = $1', [tutorialId])
 }
 
+/** Deletes a tutorial's video from Mux. Used when a tutorial is deleted forever. */
+export async function deleteMuxAsset(assetId: string) {
+  if (!muxConfigured()) return
+  await mux(`/video/v1/assets/${assetId}`, { method: 'DELETE' })
+}
+
 /** Short lived signed playback token for admin previews of unpublished Mux videos. */
 export function muxSignedToken(playbackId: string, aud: 'v' | 't' = 'v') {
   const { signingKeyId, signingPrivateKey } = config.video.mux

@@ -319,10 +319,14 @@ describe('product versions', () => {
 })
 
 describe('products and orders', () => {
-  it('inactive and archived products leave the shop but keep history and downloads', async () => {
+  it('a bought product cannot be deleted; deactivated, it leaves the shop but keeps history and downloads', async () => {
     const { buyer, productId, order, ent } = await boughtDigital()
     const admin = await signUp('owner@example.com', 'admin')
-    await api(`/api/admin/products/${productId}/archive`, { session: admin, method: 'POST' })
+    const del = await api(`/api/admin/products/${productId}`, { session: admin, method: 'DELETE' })
+    assert.equal(del.status, 409)
+    assert.match(del.data.error, /cannot be deleted/)
+    assert.ok(await one('select 1 from products where id = $1', [productId]))
+    await api(`/api/admin/products/${productId}/deactivate`, { session: admin, method: 'POST' })
     const catalog = await api('/api/catalog')
     assert.equal(catalog.data.products.length, 0)
     assert.equal((await api('/api/products/np-test-pages')).status, 404)
