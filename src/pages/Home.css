@@ -104,23 +104,33 @@
   height: auto;
   filter: drop-shadow(0 12px 18px rgb(var(--shadow-color) / 0.13));
 }
-.hero__page--med {
-  width: 25%;
-  left: 31%;
-  top: 19%;
+.hero__page--back {
+  width: 24%;
+  left: 33%;
+  top: 17%;
   transform: rotate(-8deg);
 }
-.hero__page--dump {
-  width: 25%;
-  left: 51%;
-  top: 9%;
-  transform: rotate(3deg);
-}
-.hero__tablet {
-  width: 28%;
-  left: 66%;
+.hero__device--ipad {
+  width: 29%;
+  left: 49%;
   top: 7%;
-  transform: rotate(7deg);
+  transform: rotate(2deg);
+}
+.hero__tablet.hero__device--iphone {
+  width: 15%;
+  left: 74%;
+  top: 22%;
+  transform: rotate(6deg);
+}
+/* Devices are cut out, so they carry their own shadow instead of a paper edge. */
+.hero__device-img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.hero__device--ipad,
+.hero__device--iphone {
+  filter: drop-shadow(0 14px 22px rgb(var(--shadow-color) / 0.22));
 }
 /* A real insert page: white paper with a hint of edge. */
 .hero__page-img {
@@ -164,9 +174,9 @@
 
 @media (max-width: 1100px) {
   .hero__art { width: 70%; }
-  .hero__page--med { left: 33%; top: 24%; }
-  .hero__page--dump { left: 53%; top: 15%; }
-  .hero__tablet { left: 69%; top: 12%; width: 27%; }
+  .hero__page--back { left: 30%; top: 22%; }
+  .hero__device--ipad { left: 48%; top: 12%; }
+  .hero__tablet.hero__device--iphone { left: 74%; top: 26%; width: 15%; }
 }
 
 /* Stacked layout: text first, art below, the fade turns vertical. */
@@ -201,9 +211,9 @@
   .hero__backdrop {
     background: radial-gradient(ellipse 80% 70% at 50% 55%, #fbe6ec 0%, rgb(251 230 236 / 0.55) 50%, transparent 85%);
   }
-  .hero__page--med { width: 33%; left: 4%; top: 26%; }
-  .hero__page--dump { width: 33%; left: 30%; top: 18%; }
-  .hero__tablet { width: 38%; left: 58%; top: 14%; }
+  .hero__page--back { width: 31%; left: 6%; top: 24%; }
+  .hero__device--ipad { width: 38%; left: 30%; top: 14%; }
+  .hero__tablet.hero__device--iphone { width: 20%; left: 70%; top: 26%; }
   .hero__label-wrap {
     order: 3;
     position: relative;

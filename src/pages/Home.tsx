@@ -11,8 +11,8 @@ import npAssessment from '../assets/collections/head-to-toe.webp'
 import npTopical from '../assets/collections/topical-steroids.webp'
 import freebieSeedlings from '../assets/freebie/dnp-seedlings.webp'
 import freebieBrainDump from '../assets/freebie/brain-dump.webp'
-import heroDermatology from '../assets/hero/dermatology.webp'
-import heroAsthma from '../assets/hero/asthma.webp'
+import heroUtiIpad from '../assets/hero/uti-ipad.webp'
+import heroUtiIphone from '../assets/hero/uti-iphone.webp'
 import { DigitalLabel, ShipsLabel } from '../components/Labels'
 import { BannerSlot } from '../components/Marketing'
 import { openQuizPanel, useMarketing } from '../lib/marketing'
@@ -41,17 +41,17 @@ function Hero() {
   const { quiz } = useMarketing()
   return (
     <section className="hero" aria-labelledby="hero-title">
-      <div className="hero__art" role="img" aria-label="Sample Nurse Practitioner binder inserts: Inhaler Pharmacotherapy for Asthma, the Visual Lesion Chart, and the UTI Diagnosis and Treatment clinical guide.">
+      <div className="hero__art" role="img" aria-label="The UTI Diagnosis and Treatment clinical guide, a Nurse Practitioner binder insert, as a printed page, on an iPad and on an iPhone.">
         <div className="hero__backdrop" />
-        <div className="hero__page hero__page--med">
-          <img className="hero__page-img hero__float hero__float--back" src={heroAsthma} alt="" width={900} height={1165} decoding="async" />
+        {/* Printed page in back, iPad in the middle, iPhone in front. Each floats gently on its own rhythm (switched off for reduced motion). */}
+        <div className="hero__page hero__page--back">
+          <img className="hero__page-img hero__float hero__float--back" src={heroUti} alt="" width={900} height={1165} decoding="async" />
         </div>
-        <div className="hero__page hero__page--dump">
-          <img className="hero__page-img hero__float hero__float--middle" src={heroDermatology} alt="" width={900} height={1165} decoding="async" />
+        <div className="hero__page hero__device--ipad">
+          <img className="hero__device-img hero__float hero__float--middle" src={heroUtiIpad} alt="" width={640} height={858} decoding="async" />
         </div>
-        {/* All three pages float gently, each on its own rhythm (switched off for reduced motion). */}
-        <div className="hero__tablet">
-          <img className="hero__page-img hero__float hero__front" src={heroUti} alt="" width={900} height={1165} decoding="async" />
+        <div className="hero__tablet hero__device--iphone">
+          <img className="hero__device-img hero__float hero__front" src={heroUtiIphone} alt="" width={400} height={815} decoding="async" />
         </div>
       </div>
       <div className="container hero__inner">
