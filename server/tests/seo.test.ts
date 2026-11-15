@@ -2,7 +2,8 @@ import './env.js'
 import assert from 'node:assert/strict'
 import { after, before, beforeEach, describe, it } from 'node:test'
 import { pathFor, routeNameFor } from '../../shared/routes.js'
-import { setPageTemplateForTests } from '../seo.js'
+import { readFileSync } from 'node:fs'
+import { TAGLINE, setPageTemplateForTests } from '../seo.js'
 import { api, digitalProduct, q, setup, teardown } from './helpers.js'
 
 const TEMPLATE = `<!doctype html><html><head>
@@ -99,5 +100,18 @@ describe('Search engines and link previews', () => {
     assert.ok(!map.includes('account'))
     // Tests run as development, which asks search engines to stay away.
     assert.equal((await api('/api/seo/robots.txt')).data, 'User-agent: *\nDisallow: /\n')
+  })
+})
+
+describe('Tagline', () => {
+  it('says the approved tagline word for word everywhere', async () => {
+    assert.equal(TAGLINE, 'Study resources, digital/printable inserts & everyday favorites for your nursing life.')
+    const html = TAGLINE.replace('&', '&amp;')
+    const index = readFileSync('index.html', 'utf8')
+    assert.ok(index.includes(`name="description" content="${html}"`), 'home description')
+    assert.ok(index.includes(`property="og:description" content="${html}"`), 'home link preview')
+    assert.ok(readFileSync('src/data/site.ts', 'utf8').includes(`copy: '${TAGLINE}'`), 'home page hero')
+    assert.ok(readFileSync('middleware.ts', 'utf8').includes(html.charAt(0).toLowerCase() + html.slice(1, -1)), 'coming soon page')
+    assert.ok(((await page('/no-such-page')).data as string).includes(`content="${html}"`), 'default description')
   })
 })

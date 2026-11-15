@@ -14,7 +14,7 @@ export const site = {
   hero: {
     line1: 'Your nursing life,',
     line2: 'beautifully organized.',
-    copy: 'Study resources, printable inserts & everyday favorites for your nursing life.',
+    copy: 'Study resources, digital/printable inserts & everyday favorites for your nursing life.',
     primary: 'Shop resources',
     secondary: 'Find your essentials',
     label: 'Inserts only • Binder not included',

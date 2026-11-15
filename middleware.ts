@@ -66,7 +66,7 @@ function comingSoonPage() {
   <main>
     <p class="brand">Nurse Love<small>COMPANY</small></p>
     <h1>Coming <em>soon</em></h1>
-    <p>We're putting the finishing touches on study resources, printable inserts and everyday favorites for your nursing life.</p>
+    <p>We're putting the finishing touches on study resources, digital/printable inserts &amp; everyday favorites for your nursing life.</p>
     <p>Check back soon. We can't wait to share it with you.</p>
     <svg class="heart" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 8.3a4.3 4.3 0 0 1 7.5 2.5C19.5 16.4 12 21 12 21z" fill="none" stroke="#d80853" stroke-width="1.6" stroke-linejoin="round"/></svg>
   </main>

@@ -19,7 +19,9 @@ import { config, deployEnv } from './env.js'
 import { PUBLIC_WHERE, publicProduct } from './services/catalog.js'
 
 const SITE = 'Nurse Love Company'
-const SITE_DESCRIPTION = 'Nurse Love Company. Study resources, printable inserts and everyday favorites for your nursing life. Made by a nurse, for nurses.'
+/** The approved tagline. Keep it word for word everywhere (index.html, the hero, the coming soon page). */
+export const TAGLINE = 'Study resources, digital/printable inserts & everyday favorites for your nursing life.'
+const SITE_DESCRIPTION = TAGLINE
 
 interface Meta {
   title: string
@@ -34,7 +36,7 @@ interface Meta {
 
 const STATIC_META: Record<string, { title: string; description: string }> = {
   home: { title: `${SITE} | Printable nurse and NP binder inserts`, description: SITE_DESCRIPTION },
-  shop: { title: `Shop digital resources | ${SITE}`, description: 'Printable binder inserts and study resources for nurses, nurse practitioners and NP students, plus everyday favorites. Made by a nurse, for nurses.' },
+  shop: { title: `Shop digital resources | ${SITE}`, description: `${TAGLINE} For nurses, nurse practitioners and NP students.` },
   'nurse-binder-inserts': { title: `Nurse Binder Inserts | ${SITE}`, description: 'Nurse Binder Inserts: printable resources for your nursing journey. Digital download, binder not included.' },
   'np-binder-inserts': { title: `Nurse Practitioner Binder Inserts | ${SITE}`, description: 'Nurse Practitioner Binder Inserts: printable resources for your NP journey, for NP students and nurse practitioners. Digital download, binder not included.' },
   'extra-cute': { title: `A little extra cute | ${SITE}`, description: 'Apparel, accessories and pretty pens for your nursing life, shipped to you.' },
