@@ -1,7 +1,8 @@
 import { Download } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { href } from '../../lib/router'
-import { dateTime, FormError, Loading, money, Notice, Pill, useApiData } from '../../components/ui'
+import { Dialog } from '../../components/Dialog'
+import { dateOnly, dateTime, Empty, FormError, Loading, money, Notice, Pill, useApiData } from '../../components/ui'
 import { PageTitle } from './AdminApp'
 
 type Preset = 'today' | '7d' | '30d' | 'mtd' | 'ytd' | 'custom'
@@ -167,12 +168,7 @@ export function Overview() {
           {data.customers && (
             <section className="panel" aria-labelledby="customers-split">
               <h2 className="panel__title" id="customers-split">Customers in this period</h2>
-              <dl className="mk-stats">
-                <div><dt>All customers</dt><dd>{data.customers.total}</dd></div>
-                <div><dt>Paying customers</dt><dd>{data.customers.paying}</dd></div>
-                <div><dt>Freebie only</dt><dd>{data.customers.freebieOnly}</dd></div>
-                <div><dt>Free claims</dt><dd>{data.freeClaims?.claims ?? 0}</dd></div>
-              </dl>
+              <CustomerBoxes qs={qs} counts={{ all: data.customers.total, paying: data.customers.paying, freebie: data.customers.freebieOnly, claims: data.freeClaims?.claims ?? 0 }} />
               <p className="muted">Free claims are Freebie Corner resources claimed at $0. They are left out of sales, orders and average order value below; paying customers are customers with at least one paid order.</p>
             </section>
           )}
@@ -326,5 +322,95 @@ export function IntegrationNotice({ integrations }: { integrations: Report['inte
         <strong>Awaiting configuration:</strong> {missing.join(', ')}. See <a href={href('admin-settings')}>Settings</a> for details.
       </span>
     </Notice>
+  )
+}
+
+/* ---------- Customers in this period: each box opens the list behind it ---------- */
+
+type Group = 'all' | 'paying' | 'freebie' | 'claims'
+const groupInfo: Record<Group, { label: string; title: string; note: string }> = {
+  all: { label: 'All customers', title: 'All customers in this period', note: 'Everyone with a completed order in this period, paid or free.' },
+  paying: { label: 'Paying customers', title: 'Paying customers', note: 'Customers with at least one paid order in this period.' },
+  freebie: { label: 'Freebie only', title: 'Freebie only customers', note: 'Customers whose only orders in this period were free claims ($0).' },
+  claims: { label: 'Free claims', title: 'Free claims', note: 'Freebie Corner resources claimed at $0 in this period.' },
+}
+
+interface CustomerRow { user_id: string; name: string; email: string; paid_orders: number; free_claims: number; paid_cents: number; last_order_at: string }
+interface ClaimRow { id: string; product: string; order_id: string; order_number: string; paid_at: string; user_id: string | null; customer_name: string; email: string }
+
+function CustomerBoxes({ qs, counts }: { qs: string; counts: Record<Group, number> }) {
+  const [open, setOpen] = useState<Group | null>(null)
+  return (
+    <>
+      <div className="mk-stats mk-stats--buttons">
+        {(Object.keys(groupInfo) as Group[]).map((g) => (
+          <button key={g} type="button" className="mk-stat-button" onClick={() => setOpen(g)} aria-haspopup="dialog">
+            <span className="mk-stat-button__label">{groupInfo[g].label}</span>
+            <span className="mk-stat-button__value">{counts[g]}</span>
+            <span className="mk-stat-button__hint">See who</span>
+          </button>
+        ))}
+      </div>
+      <Dialog open={open !== null} onClose={() => setOpen(null)} title={open ? groupInfo[open].title : ''} variant="wide">
+        {open && <CustomerList qs={qs} group={open} />}
+      </Dialog>
+    </>
+  )
+}
+
+function CustomerList({ qs, group }: { qs: string; group: Group }) {
+  const { data, error, loading } = useApiData<{ customers?: CustomerRow[]; claims?: ClaimRow[] }>(`/api/admin/overview/customers?${qs}&group=${group}`)
+  if (error) return <FormError message={error} />
+  if (loading && !data) return <Loading />
+  const note = <p className="muted">{groupInfo[group].note}</p>
+  if (group === 'claims') {
+    const rows = data?.claims ?? []
+    return (
+      <>
+        {note}
+        {!rows.length ? <Empty title="No free claims in this period" /> : (
+          <div className="data-table-wrap">
+            <table className="data-table">
+              <thead><tr><th>Resource</th><th>Customer</th><th>Order</th><th>Claimed</th></tr></thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id}>
+                    <td>{r.product}</td>
+                    <td>{r.user_id ? <a href={href(`admin-customer-${r.user_id}`)}>{r.customer_name || r.email}</a> : r.customer_name || r.email}<br /><span className="muted">{r.email}</span></td>
+                    <td><a href={href(`admin-order-${r.order_id}`)}>{r.order_number}</a></td>
+                    <td>{dateOnly(r.paid_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p><a href={href('admin-orders?amount=free')}>See all $0 orders</a></p>
+      </>
+    )
+  }
+  const rows = data?.customers ?? []
+  return (
+    <>
+      {note}
+      {!rows.length ? <Empty title="No customers in this group for this period" /> : (
+        <div className="data-table-wrap">
+          <table className="data-table">
+            <thead><tr><th>Customer</th><th className="num">Paid orders</th><th className="num">Free claims</th><th className="num">Paid</th><th>Last order</th></tr></thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.user_id}>
+                  <td><a href={href(`admin-customer-${r.user_id}`)}>{r.name || r.email}</a><br /><span className="muted">{r.email}</span></td>
+                  <td className="num">{r.paid_orders}</td>
+                  <td className="num">{r.free_claims}</td>
+                  <td className="num">{money(r.paid_cents)}</td>
+                  <td>{dateOnly(r.last_order_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </>
   )
 }

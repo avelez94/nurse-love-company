@@ -19,7 +19,7 @@ import { addShipment, requestRefund } from '../services/orders.js'
 import { kickUpdateNotifications, releaseNotifications, retryReleaseNotifications, saveProduct } from '../services/updates.js'
 import { recordDelivery, setShipmentStatus } from '../services/delivery.js'
 import { adminProductDetail, adminProductList, approveImage, createProduct, deleteImage, duplicateProduct, saveVariants, setProductState, updateImages } from '../services/products.js'
-import { ordersCsv, revenueReport, salesCsv } from '../services/reports.js'
+import { customerBreakdown, ordersCsv, revenueReport, salesCsv } from '../services/reports.js'
 import { defaultSettings, getSettings, setSetting, type Settings } from '../services/settings.js'
 import {
   adminTutorial,
@@ -64,6 +64,11 @@ adminRoutes.get('/admin/overview', async (c) => {
   )
   return c.json({ ...report, counts, integrations: integrationStatus() })
 })
+
+// Who is behind each Customers in this period box.
+adminRoutes.get('/admin/overview/customers', async (c) =>
+  c.json(await customerBreakdown(range(c), oneOf(c.req.query('group'), 'Group', ['all', 'paying', 'freebie', 'claims'] as const))),
+)
 
 adminRoutes.get('/admin/reports/orders.csv', async (c) => {
   const csv = await ordersCsv(range(c))
@@ -205,6 +210,9 @@ adminRoutes.get('/admin/orders', async (c) => {
   if (c.req.query('status')) add('o.status = $?', c.req.query('status'))
   else where.push(`o.status <> 'pending'`)
   if (c.req.query('fulfillment')) add('o.fulfillment_status = $?', c.req.query('fulfillment'))
+  // Amount paid: free ($0, for example Freebie Corner claims) or paid (more than $0).
+  if (c.req.query('amount') === 'free') where.push('o.total_cents = 0')
+  else if (c.req.query('amount') === 'paid') where.push('o.total_cents > 0')
   if (c.req.query('type') === 'digital' || c.req.query('type') === 'physical') add(`exists (select 1 from order_items oi where oi.order_id = o.id and oi.product_type = $?)`, c.req.query('type'))
   if (c.req.query('customer')) add('o.user_id = $?', c.req.query('customer'))
   if (c.req.query('from')) add('o.created_at >= $?', isoDate(c.req.query('from'), 'Start date').toISOString())

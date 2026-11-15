@@ -41,6 +41,8 @@ export function Orders() {
   const [status, setStatus] = useState('')
   const [fulfillment, setFulfillment] = useState('')
   const [type, setType] = useState('')
+  // Links can open the list already filtered, for example /admin-orders?amount=free.
+  const [amount, setAmount] = useState(() => new URLSearchParams(window.location.search).get('amount') ?? '')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const params = new URLSearchParams()
@@ -48,6 +50,7 @@ export function Orders() {
   if (status) params.set('status', status)
   if (fulfillment) params.set('fulfillment', fulfillment)
   if (type) params.set('type', type)
+  if (amount) params.set('amount', amount)
   if (from) params.set('from', new Date(`${from}T00:00:00`).toISOString())
   if (to) params.set('to', new Date(new Date(`${to}T00:00:00`).getTime() + 86400000).toISOString())
   params.set('demo', '0')
@@ -68,6 +71,7 @@ export function Orders() {
         </label>
         <Select label="Payment" value={status} onChange={setStatus} options={[{ value: '', label: 'Any (except unpaid)' }, ...['paid', 'partially_refunded', 'refunded', 'disputed', 'pending', 'failed', 'canceled'].map((s) => ({ value: s, label: s.replace('_', ' ') }))]} />
         <Select label="Fulfillment" value={fulfillment} onChange={setFulfillment} options={[{ value: '', label: 'Any' }, ...['unfulfilled', 'partially_fulfilled', 'fulfilled', 'not_required'].map((s) => ({ value: s, label: s.replace('_', ' ') }))]} />
+        <Select label="Amount paid" value={amount} onChange={setAmount} options={[{ value: '', label: 'Any amount' }, { value: 'free', label: 'Free ($0)' }, { value: 'paid', label: 'Paid (more than $0)' }]} />
         <Select label="Contains" value={type} onChange={setType} options={[{ value: '', label: 'Any items' }, { value: 'digital', label: 'Digital items' }, { value: 'physical', label: 'Physical items' }]} />
         <label className="field">
           <span className="field__label">From</span>

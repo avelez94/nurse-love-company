@@ -186,3 +186,38 @@ export async function salesCsv(r: Range) {
     ['quantity', 'Quantity'], ['unit', 'Unit price (USD)'], ['gross', 'Gross sales (USD)'], ['refunded_quantity', 'Refunded quantity'], ['demo', 'Demo data'],
   ])
 }
+
+export type CustomerGroup = 'all' | 'paying' | 'freebie' | 'claims'
+
+/**
+  Who is behind each "Customers in this period" box on the Overview. Uses the
+  same rules as the counts: completed orders (paid or free) in the range.
+*/
+export async function customerBreakdown(r: Range, group: CustomerGroup) {
+  const demoAll = r.includeDemo ? '' : 'and not o.is_demo'
+  const params = [r.from.toISOString(), r.to.toISOString()]
+  if (group === 'claims') {
+    const claims = await q(
+      `select oi.id, oi.title_snapshot as product, o.id as order_id, o.order_number, o.paid_at, o.user_id, o.customer_name, o.email
+         from order_items oi join orders o on o.id = oi.order_id
+        where oi.is_freebie and o.status in ${PAID} and o.paid_at >= $1 and o.paid_at < $2 ${demoAll}
+        order by o.paid_at desc limit 500`,
+      params,
+    )
+    return { claims }
+  }
+  const having = group === 'paying' ? 'having count(*) filter (where not o.is_free_claim) > 0' : group === 'freebie' ? 'having count(*) filter (where not o.is_free_claim) = 0' : ''
+  const customers = await q(
+    `select o.user_id, max(o.customer_name) as name, max(o.email) as email,
+            count(*) filter (where not o.is_free_claim)::int as paid_orders,
+            count(*) filter (where o.is_free_claim)::int as free_claims,
+            coalesce(sum(o.total_cents) filter (where not o.is_free_claim), 0)::int as paid_cents,
+            max(o.paid_at) as last_order_at
+       from orders o
+      where o.status in ${PAID} and o.paid_at >= $1 and o.paid_at < $2 and o.user_id is not null ${demoAll}
+      group by o.user_id ${having}
+      order by max(o.paid_at) desc limit 500`,
+    params,
+  )
+  return { customers }
+}

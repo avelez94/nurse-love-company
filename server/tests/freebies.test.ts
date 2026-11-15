@@ -143,6 +143,36 @@ describe('freebies and email list consent', () => {
     assert.deepEqual((await events('mixed@example.com')).map((e) => `${e.action}:${e.source}:${e.wording_version}`), ['subscribe:checkout:checkout-v1'])
   })
 
+  it('the Overview boxes list who is behind each count, and Orders filter by amount paid', async () => {
+    const admin = await signUp('owner@example.com', 'admin')
+    const id = await freebie(admin)
+    const freeOnly = await signUp('freeonly@example.com')
+    assert.equal((await checkout(freeOnly, [id], true)).status, 200)
+    const both = await signUp('both@example.com')
+    assert.equal((await checkout(both, [id], true)).status, 200)
+    const paidProduct = await digitalProduct('paid-planner', 1500)
+    const order = await pendingOrder(both, [{ productId: paidProduct }])
+    await payOrder(order.id, order.subtotal)
+
+    const qs = `from=${encodeURIComponent(new Date(Date.now() - 86_400_000).toISOString())}&to=${encodeURIComponent(new Date(Date.now() + 60_000).toISOString())}`
+    const list = async (group: string) => (await api(`/api/admin/overview/customers?${qs}&group=${group}`, { session: admin })).data
+    assert.deepEqual((await list('all')).customers.map((c: any) => c.email).sort(), ['both@example.com', 'freeonly@example.com'])
+    const paying = (await list('paying')).customers
+    assert.deepEqual(paying.map((c: any) => [c.email, c.paid_orders, c.free_claims, c.paid_cents]), [['both@example.com', 1, 1, 1500]])
+    assert.deepEqual((await list('freebie')).customers.map((c: any) => c.email), ['freeonly@example.com'])
+    const claims = (await list('claims')).claims
+    assert.equal(claims.length, 2)
+    assert.ok(claims.every((c: any) => c.product && c.order_number))
+    assert.equal((await api(`/api/admin/overview/customers?${qs}&group=nope`, { session: admin })).status, 400)
+    assert.equal((await api(`/api/admin/overview/customers?${qs}&group=all`, { session: freeOnly })).status, 403)
+
+    const orders = async (amount: string) => (await api(`/api/admin/orders?amount=${amount}`, { session: admin })).data.orders
+    assert.equal((await orders('free')).length, 2)
+    assert.ok((await orders('free')).every((o: any) => o.total_cents === 0))
+    assert.deepEqual((await orders('paid')).map((o: any) => o.total_cents), [1500])
+    assert.equal((await orders('')).length, 3)
+  })
+
   it('free claims stay out of sales, verified reviews and paid email automations', async () => {
     const admin = await signUp('owner@example.com', 'admin')
     const id = await freebie(admin)
