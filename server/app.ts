@@ -15,6 +15,7 @@ import { clientIp } from './http.js'
 import { rateLimit } from './lib/rate-limit.js'
 import { originGuard, sessionMiddleware, type AppEnv } from './http.js'
 import { HttpError } from './lib/errors.js'
+import { renderPage, robotsTxt, sitemapXml } from './seo.js'
 import { accountRoutes } from './routes/account.js'
 import { adminRoutes } from './routes/admin.js'
 import { marketingRoutes } from './routes/marketing.js'
@@ -133,6 +134,16 @@ export function createApp() {
       })
     })
   }
+
+  // Pages, robots.txt and sitemap.xml with each page's own title, preview and
+  // product details (server/seo.ts). vercel.json sends page addresses here.
+  const pageCache = 'public, max-age=0, s-maxage=300, stale-while-revalidate=600'
+  app.get('/api/seo/page', async (c) => {
+    const page = await renderPage(c.req.query('p') || '/')
+    return c.html(page.html, page.status, { 'cache-control': pageCache, ...(page.noindex ? { 'x-robots-tag': 'noindex' } : {}) })
+  })
+  app.get('/api/seo/robots.txt', (c) => c.text(robotsTxt(), 200, { 'cache-control': pageCache }))
+  app.get('/api/seo/sitemap.xml', async (c) => c.body(await sitemapXml(), 200, { 'content-type': 'application/xml; charset=utf-8', 'cache-control': pageCache }))
 
   // JSON bodies are capped at 1 MB. File uploads stream with their own limits.
   app.use('/api/*', async (c, next) => {

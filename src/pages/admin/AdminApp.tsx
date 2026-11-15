@@ -1,6 +1,6 @@
 import { BarChart3, BookHeart, ClipboardList, ExternalLink, FileVideo, LifeBuoy, LogOut, Mail, Megaphone, Menu, Package, ScrollText, Settings as SettingsIcon, Truck, UserRound, Users, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { href, navigate, type AdminView } from '../../lib/router'
+import { currentRouteName, href, navigate, type AdminView } from '../../lib/router'
 import { useSession } from '../../lib/session'
 import { Wordmark } from '../../components/Wordmark'
 import { Loading } from '../../components/ui'
@@ -68,7 +68,7 @@ export default function AdminApp({ view, param }: { view: AdminView; param?: str
   useEffect(() => setMenuOpen(false), [view, param])
   useEffect(() => {
     if (!loading && !user) {
-      rememberReturn(window.location.hash.slice(1) || 'admin')
+      rememberReturn(currentRouteName())
       navigate('sign-in')
     }
   }, [loading, user])

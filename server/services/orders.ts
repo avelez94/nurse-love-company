@@ -23,6 +23,7 @@ import { applyRefundToEntitlements, grantPurchaseEntitlements } from './entitlem
 import { getSettings } from './settings.js'
 import { longDate, ymd } from '../lib/dates.js'
 import { kickPrintful, linksForLines, physicalSales, queuePrintfulOrder, useQuote } from './printful.js'
+import { pathFor } from '../../shared/routes.js'
 
 export interface CartLine {
   productId: string
@@ -284,8 +285,8 @@ export async function createCheckout(user: SessionUser, lines: CartLine[], opts:
             ],
           }
         : {}),
-      success_url: `${config.appUrl}/#checkout-success`,
-      cancel_url: `${config.appUrl}/#checkout-canceled`,
+      success_url: `${config.appUrl}${pathFor('checkout-success')}`,
+      cancel_url: `${config.appUrl}${pathFor('checkout-canceled')}`,
     },
     { idempotencyKey: `checkout:${order.id}` },
   )

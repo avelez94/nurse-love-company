@@ -13,7 +13,7 @@ import {
   type IconName,
   type PublicBanner,
 } from '../lib/marketing'
-import { useRoute, type Route } from '../lib/router'
+import { linkHref, useRoute, type Route } from '../lib/router'
 import { Heart } from './illustrations/Objects'
 import './Marketing.css'
 
@@ -32,7 +32,7 @@ function BannerLink({ banner, className, preview, onClick }: { banner: Pick<Publ
   return (
     <a
       className={className}
-      href={banner.link}
+      href={linkHref(banner.link)}
       {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
       onClick={(e) => {
         if (preview) e.preventDefault()

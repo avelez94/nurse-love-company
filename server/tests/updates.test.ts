@@ -92,7 +92,7 @@ describe('automatic product updates on save', () => {
     assert.match(m.text, /version 2, updated/)
     assert.match(m.text, /What changed: Added a fluid balance page\./)
     assert.match(m.text, /One download of the updated version is ready/)
-    assert.ok(m.html.includes('/#account-downloads'), 'My downloads button')
+    assert.ok(m.html.includes('/account-downloads'), 'My downloads button')
     assert.ok(!/\/api\/downloads|deliver|token=/.test(m.html), 'no file or redemption link')
     assert.match(m.text, /Hi Dana,/)
 

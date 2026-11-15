@@ -3,7 +3,7 @@ import { Fragment, useEffect, useId, useMemo, useRef, useState, type ReactNode }
 import { answerText, parseAnswer, type PublicFaq } from '../../shared/faq'
 import { site } from '../data/site'
 import { openQuizPanel } from '../lib/marketing'
-import { href } from '../lib/router'
+import { href, linkHref } from '../lib/router'
 import { PageHeader } from '../pages/PageHeader'
 import { TutorialHelpLink } from './TutorialCard'
 import './HelpFaq.css'
@@ -63,7 +63,7 @@ function Answer({ answer, terms, preview }: { answer: string; terms: string[]; p
             }
             const external = part.href.startsWith('https://')
             return (
-              <a key={j} href={part.href} onClick={preview ? (e) => e.preventDefault() : undefined} {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
+              <a key={j} href={linkHref(part.href)} onClick={preview ? (e) => e.preventDefault() : undefined} {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
                 {label}
                 {external && <span className="visually-hidden"> (opens in a new tab)</span>}
               </a>

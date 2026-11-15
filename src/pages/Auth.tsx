@@ -137,7 +137,7 @@ export function ForgotPassword() {
     setBusy(true)
     setError('')
     try {
-      await api('/api/auth/request-password-reset', { body: { email, redirectTo: `${window.location.origin}/#reset-password` } })
+      await api('/api/auth/request-password-reset', { body: { email, redirectTo: `${window.location.origin}${href('reset-password')}` } })
       setDone(true)
     } catch (err) {
       setError(errorMessage(err))

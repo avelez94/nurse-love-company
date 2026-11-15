@@ -99,7 +99,7 @@ describe('email automations', () => {
     assert.equal(m.to, 'reminder@example.com')
     assert.match(m.subject, /Your nursing goodies are waiting/)
     assert.ok(m.html.includes('Test np-a') && !m.html.includes('Test np-b'), 'only the undownloaded item')
-    assert.ok(m.html.includes('/#account-downloads'), 'links to My downloads')
+    assert.ok(m.html.includes('/account-downloads'), 'links to My downloads')
     assert.ok(!/\/api\/downloads|deliver|token=/.test(m.html), 'never a file or redemption link')
     assert.match(m.text, /Each purchase includes one download/)
     assert.ok(!/expire/i.test(m.text), 'does not imply downloads expire')
@@ -170,8 +170,8 @@ describe('email automations', () => {
     await run(at(o.paidAt, 7))
     assert.equal(sent.length, 1)
     const m = sent[0]
-    assert.ok(m.html.includes(`/#account-review-${a}`) && m.html.includes(`/#account-review-${b}`), 'a Leave a review button for each product')
-    assert.ok(!m.html.includes(`/#account-review-${c}`), 'not for the product already reviewed')
+    assert.ok(m.html.includes(`/account-review-${a}`) && m.html.includes(`/account-review-${b}`), 'a Leave a review button for each product')
+    assert.ok(!m.html.includes(`/account-review-${c}`), 'not for the product already reviewed')
     assert.match(m.text, /honestly/)
     assert.ok(!/discount|coupon|gift card|reward you/i.test(m.text), 'no incentives')
     assert.equal(await entSnapshot(buyer.id), before)
@@ -220,7 +220,7 @@ describe('email automations', () => {
     // Overdue (the processor was down): goes out on the next run.
     await run(at(deliveredAt, 40))
     assert.equal(sent.length, 1)
-    assert.ok(sent[0].html.includes(`/#account-review-${tee}`))
+    assert.ok(sent[0].html.includes(`/account-review-${tee}`))
     await run(at(deliveredAt, 41))
     assert.equal(sent.length, 1)
   })
@@ -257,7 +257,7 @@ describe('email automations', () => {
 
     await run(at(dA, 14))
     assert.equal(sent.length, 1, 'tee and pen delivered together: one email')
-    assert.ok(sent[0].html.includes(`#account-review-${tee}`) && sent[0].html.includes(`#account-review-${pen}`) && !sent[0].html.includes(`#account-review-${mug}`))
+    assert.ok(sent[0].html.includes(`/account-review-${tee}`) && sent[0].html.includes(`/account-review-${pen}`) && !sent[0].html.includes(`/account-review-${mug}`))
 
     // Problem resolved and delivered later: its own email from its own delivery date.
     const dB = new Date(o.paidAt.getTime() + 9 * DAY)
@@ -266,7 +266,7 @@ describe('email automations', () => {
     assert.equal(sent.length, 1)
     await run(at(dB, 14))
     assert.equal(sent.length, 2)
-    assert.ok(sent[1].html.includes(`#account-review-${mug}`))
+    assert.ok(sent[1].html.includes(`/account-review-${mug}`))
   })
 
   it('mixed orders follow each item: reminder at 3 days, digital review at 7, physical after delivery', async () => {

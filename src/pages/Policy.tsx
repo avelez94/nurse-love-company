@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { href } from '../lib/router'
+import { href, linkHref } from '../lib/router'
 import { parsePolicyBody, POLICY_META, type Inline, type PolicyKey, type PublishedPolicy } from '../../shared/policies'
 import { PageHeader } from './PageHeader'
 import './Policy.css'
@@ -34,7 +34,7 @@ function Parts({ parts }: { parts: Inline[] }) {
         p.type === 'text' ? (
           <span key={i}>{p.text}</span>
         ) : p.href.startsWith('#') ? (
-          <a key={i} href={p.href}>
+          <a key={i} href={linkHref(p.href)}>
             {p.label}
           </a>
         ) : (

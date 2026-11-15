@@ -33,6 +33,7 @@ import { audit } from '../lib/audit.js'
 import { badRequest, notFound } from '../lib/errors.js'
 import { isEligible } from './reviews.js'
 import { getSettings, setSetting } from './settings.js'
+import { pathFor } from '../../shared/routes.js'
 
 export type AutomationKind = 'download_reminder' | 'digital_review' | 'physical_review'
 export const AUTOMATION_KINDS: AutomationKind[] = ['download_reminder', 'digital_review', 'physical_review']
@@ -171,15 +172,15 @@ const ORDER_SKIP: Record<string, string> = {
 }
 
 /** Links for the customer. Opening them changes nothing; signing in returns the customer to the same page. */
-export const downloadsUrl = () => `${config.appUrl}/#account-downloads`
-export const reviewUrl = (productId: string) => `${config.appUrl}/#account-review-${productId}`
+export const downloadsUrl = () => `${config.appUrl}${pathFor('account-downloads')}`
+export const reviewUrl = (productId: string) => `${config.appUrl}${pathFor(`account-review-${productId}`)}`
 
 function preferenceToken(userId: string, pref: Preference) {
   const payload = Buffer.from(`${userId}:${pref}`).toString('base64url')
   const sig = createHmac('sha256', config.authSecret).update(`email-pref:${payload}`).digest('base64url').slice(0, 32)
   return `${payload}.${sig}`
 }
-export const preferenceUrl = (userId: string, pref: Preference) => `${config.appUrl}/#email-preferences?t=${preferenceToken(userId, pref)}`
+export const preferenceUrl = (userId: string, pref: Preference) => `${config.appUrl}${pathFor(`email-preferences?t=${preferenceToken(userId, pref)}`)}`
 const preferenceText: Record<Preference, string> = { download_reminders: 'Stop download reminder emails', review_requests: 'Stop review request emails' }
 
 const footerFor: Record<AutomationKind, string> = {
@@ -514,7 +515,7 @@ export async function previewAutomation(kind: AutomationKind, t?: Partial<Templa
     buttonUrl: kind === 'download_reminder' ? downloadsUrl() : undefined,
     items: await sampleItems(kind),
     footerNote: footerFor[kind],
-    preference: { url: `${config.appUrl}/#email-preferences`, text: preferenceText[pref] },
+    preference: { url: `${config.appUrl}${pathFor('email-preferences')}`, text: preferenceText[pref] },
   })
 }
 
@@ -529,7 +530,7 @@ export async function testSend(actor: SessionUser, kind: AutomationKind, toInput
     vars: { name: 'Taylor', order_number: 'NLC-10001' },
     items: await sampleItems(kind),
     footerNote: footerFor[kind],
-    preference: { url: `${config.appUrl}/#email-preferences`, text: preferenceText[pref] },
+    preference: { url: `${config.appUrl}${pathFor('email-preferences')}`, text: preferenceText[pref] },
     subjectPrefix: '[Test] ',
     idempotencyKey: `automation-test:${kind}:${randomUUID()}`,
   })

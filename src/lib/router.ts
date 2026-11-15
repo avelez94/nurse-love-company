@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react'
+import { pathFor, routeNameFor } from '../../shared/routes'
 
 /*
-  Tiny hash router. Routes are plain names (#shop, #product-glaucoma) so links
-  work on any static host, including the hosted preview, with no server setup.
+  Tiny router. Routes are plain names (shop, product-glaucoma). Each one has a
+  real address (/shop, /products/glaucoma; see shared/routes.ts) so search
+  engines can index every page. Old links like /#shop still work: they are
+  turned into the new address. The single file preview build (artifact mode)
+  has no server, so it keeps using #names.
 */
+const HASH_MODE = import.meta.env?.MODE === 'artifact'
 
 export type Route =
   | { name: 'home' }
@@ -155,24 +160,106 @@ export function parseHash(raw: string, search = ''): Route {
 }
 
 export function href(route: string): string {
-  return route ? `#${route}` : '#home'
+  if (HASH_MODE) return route ? `#${route}` : '#home'
+  return pathFor(route)
+}
+
+/** A stored link (banner, Our Story button): "#shop" style internal links become real addresses. */
+export function linkHref(link: string): string {
+  return link.startsWith('#') ? href(link.slice(1)) : link
+}
+
+const ROUTE_EVENT = 'nlc:route'
+
+/** The current route name, with its ?query, for example 'account-downloads' or 'reset-password?token=abc'. */
+export function currentRouteName(): string {
+  if (HASH_MODE) return window.location.hash.slice(1) || 'home'
+  const name = routeNameFor(window.location.pathname)
+  return window.location.search ? `${name}${window.location.search}` : name
+}
+
+/** Turns an old /#name link into the new address. True when it did. */
+function upgradeLegacyHash(): boolean {
+  const raw = decodeURIComponent(window.location.hash.replace(/^#/, ''))
+  if (!raw) return false
+  const [name, hashQuery = ''] = raw.split('?')
+  if (parseHash(name).name === 'not-found' && name !== '') return false
+  const params = new URLSearchParams(window.location.search)
+  new URLSearchParams(hashQuery).forEach((v, k) => params.set(k, v))
+  const query = params.toString()
+  window.history.replaceState(null, '', `${pathFor(name)}${query ? `?${query}` : ''}`)
+  return true
+}
+
+function readRoute(): Route {
+  if (HASH_MODE) return parseHash(window.location.hash, window.location.search)
+  const name = routeNameFor(window.location.pathname)
+  return parseHash(`#${name}${window.location.search}`, window.location.search)
 }
 
 export function navigate(route: string) {
-  const target = href(route)
-  if (window.location.hash === target) {
-    window.scrollTo({ top: 0 })
+  if (HASH_MODE) {
+    const target = href(route)
+    if (window.location.hash === target) {
+      window.scrollTo({ top: 0 })
+      return
+    }
+    window.location.hash = target
     return
   }
-  window.location.hash = target
+  const target = href(route)
+  if (`${window.location.pathname}${window.location.search}` !== target) window.history.pushState(null, '', target)
+  window.scrollTo({ top: 0 })
+  window.dispatchEvent(new Event(ROUTE_EVENT))
+}
+
+/** Same site links open without reloading the page. */
+function onLinkClick(e: MouseEvent) {
+  if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+  const a = (e.target as Element | null)?.closest?.('a')
+  if (!a || (a.target && a.target !== '_self') || a.hasAttribute('download')) return
+  const raw = a.getAttribute('href') ?? ''
+  if (raw.startsWith('#')) {
+    // An old style internal link (#shop). In page anchors (#main) are left alone.
+    if (parseHash(raw).name === 'not-found') return
+    e.preventDefault()
+    navigate(raw.slice(1))
+    return
+  }
+  const url = new URL(a.href, window.location.href)
+  if (url.origin !== window.location.origin || url.pathname.startsWith('/api/')) return
+  e.preventDefault()
+  navigate(`${routeNameFor(url.pathname)}${url.search}`)
+}
+
+// Installed once for the whole page and never removed (several components use the route).
+let linksInstalled = false
+function installLinkHandler() {
+  if (linksInstalled || HASH_MODE) return
+  linksInstalled = true
+  document.addEventListener('click', onLinkClick)
 }
 
 export function useRoute(): Route {
-  const [route, setRoute] = useState(() => parseHash(window.location.hash, window.location.search))
+  const [route, setRoute] = useState(() => {
+    if (!HASH_MODE) upgradeLegacyHash()
+    return readRoute()
+  })
   useEffect(() => {
-    const onChange = () => setRoute(parseHash(window.location.hash, window.location.search))
+    const onChange = () => {
+      if (!HASH_MODE) upgradeLegacyHash()
+      setRoute(readRoute())
+    }
     window.addEventListener('hashchange', onChange)
-    return () => window.removeEventListener('hashchange', onChange)
+    if (HASH_MODE) return () => window.removeEventListener('hashchange', onChange)
+    window.addEventListener('popstate', onChange)
+    window.addEventListener(ROUTE_EVENT, onChange)
+    installLinkHandler()
+    return () => {
+      window.removeEventListener('hashchange', onChange)
+      window.removeEventListener('popstate', onChange)
+      window.removeEventListener(ROUTE_EVENT, onChange)
+    }
   }, [])
   return route
 }

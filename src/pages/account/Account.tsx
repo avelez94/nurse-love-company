@@ -2,7 +2,7 @@ import { Download, FileText, LogOut, Package, Printer, Truck } from 'lucide-reac
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { api, errorMessage } from '../../lib/api'
 import { useCart } from '../../lib/cart'
-import { href, navigate, type AccountView } from '../../lib/router'
+import { currentRouteName, href, navigate, type AccountView } from '../../lib/router'
 import { useSession } from '../../lib/session'
 import { useStore } from '../../lib/store'
 import { ProductArt } from '../../components/ProductArt'
@@ -25,7 +25,7 @@ export function AccountArea({ view, param }: { view: AccountView; param?: string
   const { user, loading, signOut } = useSession()
   useEffect(() => {
     if (!loading && !user) {
-      rememberReturn(window.location.hash.slice(1) || 'account')
+      rememberReturn(currentRouteName())
       navigate('sign-in')
     }
   }, [loading, user])

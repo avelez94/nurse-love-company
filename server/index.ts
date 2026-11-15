@@ -6,6 +6,7 @@ import { boot } from './boot.js'
 import { kickDispatcher } from './email/outbox.js'
 import { config, deployEnv, deploymentProblems, integrationStatus } from './env.js'
 import { seedIfEmpty } from './seed.js'
+import { renderPage, robotsTxt, sitemapXml } from './seo.js'
 
 const problems = deploymentProblems()
 if (problems.length) {
@@ -23,8 +24,14 @@ const app = createApp()
 // In production this one server also serves the built storefront.
 if (existsSync('dist/index.html')) {
   app.use('/assets/*', serveStatic({ root: './dist', onFound: (_p, c) => c.header('cache-control', 'public, max-age=31536000, immutable') }))
-  app.use('/*', serveStatic({ root: './dist' }))
-  app.get('*', serveStatic({ path: './dist/index.html' }))
+  app.get('/robots.txt', (c) => c.text(robotsTxt()))
+  app.get('/sitemap.xml', async (c) => c.body(await sitemapXml(), 200, { 'content-type': 'application/xml; charset=utf-8' }))
+  app.use('/*', async (c, next) => (c.req.path === '/' || c.req.path === '/index.html' ? next() : serveStatic({ root: './dist' })(c, next)))
+  // Every page address gets the storefront with that page's own title and preview tags.
+  app.get('*', async (c) => {
+    const page = await renderPage(c.req.path)
+    return c.html(page.html, page.status, page.noindex ? { 'x-robots-tag': 'noindex' } : {})
+  })
 }
 
 serve({ fetch: app.fetch, port: config.port }, (info) => {

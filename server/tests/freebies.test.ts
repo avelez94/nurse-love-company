@@ -48,7 +48,7 @@ describe('freebies and email list consent', () => {
     const id = await freebie(admin)
     const sent: string[] = []
     setSender(async (m) => {
-      sent.push(`${m.to}|${m.subject}|${m.html.includes('/#account-downloads')}`)
+      sent.push(`${m.to}|${m.subject}|${m.html.includes('/account-downloads')}`)
       return { id: `re_${sent.length}` }
     })
     const buyer = await signUp('free@example.com', 'customer', 'Fran Free')

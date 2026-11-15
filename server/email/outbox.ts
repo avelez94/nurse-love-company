@@ -16,6 +16,7 @@ import { Resend } from 'resend'
 import { one, q, type Queryable } from '../db/pool.js'
 import { config } from '../env.js'
 import { AUTOMATION_TYPES, defaultTemplates, renderEmail, templateInfo, type EmailType, type TemplateText } from './templates.js'
+import { pathFor } from '../../shared/routes.js'
 
 export interface QueueEmailInput {
   type: EmailType
@@ -45,10 +46,10 @@ export async function loadTemplate(type: EmailType, client?: Queryable): Promise
 export function accountUrl(kind: string, vars: Record<string, string>): string {
   if (kind === 'reset') return vars.url
   if (kind === 'none') return ''
-  if (kind === 'downloads') return `${config.appUrl}/#account-downloads`
-  if (kind === 'admin_orders') return `${config.appUrl}/#admin-orders`
-  if (kind === 'order' && vars.order_number) return `${config.appUrl}/#account-order-${encodeURIComponent(vars.order_number)}`
-  return `${config.appUrl}/#account`
+  if (kind === 'downloads') return `${config.appUrl}${pathFor('account-downloads')}`
+  if (kind === 'admin_orders') return `${config.appUrl}${pathFor('admin-orders')}`
+  if (kind === 'order' && vars.order_number) return `${config.appUrl}${pathFor(`account-order-${encodeURIComponent(vars.order_number)}`)}`
+  return `${config.appUrl}${pathFor('account')}`
 }
 
 /** Writes the email to the outbox. Returns the email id (existing id if the key was already used). */

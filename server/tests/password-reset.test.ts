@@ -2,6 +2,7 @@ import './env.js'
 import assert from 'node:assert/strict'
 import { after, beforeEach, describe, it } from 'node:test'
 import { parseHash } from '../../src/lib/router.js'
+import { routeNameFor } from '../../shared/routes.js'
 import { api, app, one, ORIGIN, setup, signUp, teardown } from './helpers.js'
 
 beforeEach(setup)
@@ -9,7 +10,7 @@ after(teardown)
 
 /** The reset link exactly as it appears in the email. */
 async function emailedLink(email: string) {
-  await api('/api/auth/request-password-reset', { body: { email, redirectTo: `${ORIGIN}/#reset-password` } })
+  await api('/api/auth/request-password-reset', { body: { email, redirectTo: `${ORIGIN}/reset-password` } })
   const row = await one<{ html: string }>(`select html from emails where type = 'password_reset' and to_email = $1 order by id desc limit 1`, [email])
   const m = row!.html.match(/href="([^"]*\/api\/auth\/reset-password\/[^"]+)"/)
   assert.ok(m, 'the email has a reset button')
@@ -22,7 +23,7 @@ async function land(link: string) {
   const res = await app.request(`${u.pathname}${u.search}`, { headers: { origin: ORIGIN } })
   assert.equal(res.status, 302)
   const to = new URL(res.headers.get('location')!)
-  return parseHash(to.hash, to.search)
+  return parseHash(`#${routeNameFor(to.pathname)}${to.search}`, to.search)
 }
 
 describe('password reset from the email link', () => {
