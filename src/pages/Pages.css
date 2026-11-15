@@ -515,3 +515,41 @@
   font-size: var(--text-sm);
   line-height: 1.55;
 }
+
+/* Size guide: a quiet text button under the size picker, opening the item's sizing images. */
+.size-guide-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
+  align-self: flex-start;
+  margin-top: calc(var(--space-2) * -1);
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  color: var(--raspberry);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.size-guide-button:hover {
+  color: var(--raspberry-dark);
+}
+.size-guide-button:focus-visible {
+  outline: 3px solid var(--raspberry);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.size-guide {
+  display: grid;
+  gap: var(--space-4);
+}
+.size-guide img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+  background: #fff;
+}

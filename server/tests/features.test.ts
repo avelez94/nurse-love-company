@@ -5,7 +5,7 @@ import sharp from 'sharp'
 import { pickResult, type QuizContent } from '../../shared/quiz.js'
 import { storage } from '../lib/storage.js'
 import { watermarkPreview } from '../lib/watermark.js'
-import { api, digitalProduct, entitlementsFor, one, payOrder, pendingOrder, q, setup, signUp, teardown } from './helpers.js'
+import { api, digitalProduct, entitlementsFor, one, payOrder, pendingOrder, q, setup, signUp, teardown, physicalProduct } from './helpers.js'
 
 beforeEach(setup)
 after(teardown)
@@ -352,6 +352,29 @@ describe('limited product previews', () => {
     assert.equal((await api('/api/admin/settings/previews', { session: a, method: 'PUT', body: { blur: 140, sharp_top: 10 } })).status, 400)
     assert.equal((await api('/api/admin/settings/previews', { session: a, method: 'PUT', body: { blur: 35, sharp_top: 12 } })).status, 200)
     assert.deepEqual((await api('/api/admin/settings', { session: a })).data.settings.previews, { blur: 35, sharp_top: 12 })
+  })
+
+  it('size guides are shown as uploaded, only for their own product, and stay size guides', async () => {
+    const a = await admin()
+    const tee = await physicalProduct('guide-tee')
+    const other = await physicalProduct('other-tee')
+    const original = await png(1200, 900, '#ffffff')
+    const up = await api(`/api/admin/products/${tee}/images?kind=size_guide`, { session: a, body: original, headers: { 'content-type': 'image/png', 'x-file-name': 'sizes.png' } })
+    assert.equal(up.status, 201, JSON.stringify(up.data))
+    assert.equal(up.data.approved, true, 'no approval step: it is a chart, not a preview')
+    const img = (await one<{ storage_key: string; width: number; height: number }>('select storage_key, width, height from product_images where id = $1', [up.data.id]))!
+    assert.ok(!img.storage_key.includes('/preview-'), 'not watermarked')
+    assert.deepEqual([img.width, img.height], [1200, 900], 'kept at full size so it can be read')
+    assert.equal((await api(`/api/media/${up.data.id}`)).status, 200)
+    const pub = (await api('/api/products/guide-tee')).data.product
+    assert.deepEqual(pub.images.filter((i: { kind: string }) => i.kind === 'size_guide').map((i: { id: string }) => i.id), [up.data.id])
+    assert.equal(pub.images.filter((i: { kind: string }) => i.kind === 'gallery').length, 0, 'not mixed into the photos')
+    assert.equal((await api('/api/products/other-tee')).data.product.images.length, 0, 'each item has its own')
+    // It cannot be relabeled as a photo or a sample.
+    await api(`/api/admin/products/${tee}/images`, { session: a, method: 'PUT', body: { images: [{ id: up.data.id, alt: 'Sizes in inches', kind: 'gallery' }] } })
+    const after = (await one<{ kind: string; alt: string }>('select kind, alt from product_images where id = $1', [up.data.id]))!
+    assert.deepEqual(after, { kind: 'size_guide', alt: 'Sizes in inches' })
+    assert.ok(other)
   })
 
   it('samples are watermarked, reduced, approved before showing, and never expose the paid file', async () => {

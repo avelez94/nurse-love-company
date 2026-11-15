@@ -99,6 +99,8 @@ export interface Product {
   description: string
   gallery: ImageRef[]
   samplePages: SamplePage[]
+  /** Sizing images for items that ship, shown behind the Size guide button. */
+  sizeGuide?: Array<{ src: string; alt: string; width: number; height: number }>
   /** Price in US cents once confirmed. */
   priceCents: number | null
   /** e.g. "PDF". Only when confirmed for this product. */

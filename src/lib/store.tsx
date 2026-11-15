@@ -19,7 +19,7 @@ interface ApiImage {
   alt: string
   width: number | null
   height: number | null
-  kind: 'gallery' | 'sample' | 'detail'
+  kind: 'gallery' | 'sample' | 'detail' | 'size_guide'
   variantId: string | null
 }
 
@@ -97,6 +97,7 @@ export function toProduct(p: ApiProduct): Product {
     gallery: gallery.length ? gallery.map(photo) : fallbackGallery,
     samplePages: samples.map((s): SamplePage => ({ kind: 'photo', title: s.alt || (s.kind === 'detail' ? 'Close up detail' : 'Sample page'), src: s.url, alt: s.alt || `${s.kind === 'detail' ? 'Close up detail' : 'Sample page'} from ${p.title}, watermarked preview`, width: s.width ?? 850, height: s.height ?? 1100 })),
     realSamples: samples.length > 0,
+    sizeGuide: p.images.filter((i) => i.kind === 'size_guide').map((i) => ({ src: i.url, alt: i.alt || `Size guide for ${p.title}`, width: i.width ?? 1200, height: i.height ?? 1200 })),
     whatsIncluded: p.whatsIncluded ?? [],
     walkthrough: p.walkthrough ?? null,
     priceCents: p.priceCents,

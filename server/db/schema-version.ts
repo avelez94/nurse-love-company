@@ -3,4 +3,4 @@
  * the database, so a deployment whose migrations were not run says so. A test
  * keeps it in step with the files in migrations/.
  */
-export const LATEST_MIGRATION = '011_delete_forever.sql'
+export const LATEST_MIGRATION = '012_size_guides.sql'

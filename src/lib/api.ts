@@ -96,7 +96,7 @@ export async function uploadAsset<T = any>(
   purpose: UploadPurpose,
   targetId: string,
   file: File,
-  opts: { imageKind?: 'gallery' | 'sample' | 'detail'; alt?: string; onProgress?: (fraction: number) => void; signal?: AbortSignal } = {},
+  opts: { imageKind?: 'gallery' | 'sample' | 'detail' | 'size_guide'; alt?: string; onProgress?: (fraction: number) => void; signal?: AbortSignal } = {},
 ): Promise<T> {
   const start = await api<{ mode: 'server' | 'direct'; url: string; id?: string }>('/api/admin/uploads', {
     body: { purpose, target_id: targetId, file_name: file.name, size: file.size, type: file.type, image_kind: opts.imageKind, alt: opts.alt ?? '' },

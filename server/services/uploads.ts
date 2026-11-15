@@ -76,7 +76,7 @@ export interface UploadRequest {
   fileName: string
   size: number
   type: string
-  imageKind?: 'gallery' | 'sample' | 'detail'
+  imageKind?: 'gallery' | 'sample' | 'detail' | 'size_guide'
   alt?: string
 }
 
@@ -167,7 +167,7 @@ export async function completeUpload(actor: SessionUser, id: string, ip?: string
     if (u.video_upload_id) await recordUploadFailure(u.target_id, u.video_upload_id, (err as Error).message)
     throw err
   }
-  return attachUpload(actor, u.purpose, u.target_id, f, { imageKind: (u.image_kind ?? 'gallery') as 'gallery' | 'sample' | 'detail', alt: u.alt, videoUploadId: u.video_upload_id, wait: true }, ip)
+  return attachUpload(actor, u.purpose, u.target_id, f, { imageKind: (u.image_kind ?? 'gallery') as 'gallery' | 'sample' | 'detail' | 'size_guide', alt: u.alt, videoUploadId: u.video_upload_id, wait: true }, ip)
 }
 
 /** The browser reports a direct upload that did not finish. Nothing is attached; the object is removed. */
@@ -191,7 +191,7 @@ export async function attachUpload(
   purpose: Purpose,
   targetId: string,
   f: UploadedFile,
-  opts: { imageKind?: 'gallery' | 'sample' | 'detail'; alt?: string; videoUploadId?: string | null; wait?: boolean },
+  opts: { imageKind?: 'gallery' | 'sample' | 'detail' | 'size_guide'; alt?: string; videoUploadId?: string | null; wait?: boolean },
   ip?: string,
 ) {
   if (purpose === 'product_image') {
@@ -219,9 +219,9 @@ export async function attachUpload(
     const row = await one(
       `insert into product_images (product_id, kind, storage_key, content_type, width, height, alt, approved, sort_order)
        values ($1,$2,$3,$4,$5,$6,$7,$8,(select coalesce(max(sort_order),-1)+1 from product_images where product_id = $1 and kind = $2)) returning id, kind, alt, width, height, sort_order, variant_id, approved`,
-      [targetId, kind, key, contentType, size?.width ?? null, size?.height ?? null, opts.alt ?? '', kind === 'gallery'],
+      [targetId, kind, key, contentType, size?.width ?? null, size?.height ?? null, opts.alt ?? '', kind === 'gallery' || kind === 'size_guide'],
     )
-    const what = kind === 'sample' ? 'a watermarked sample page (awaiting approval)' : kind === 'detail' ? 'a watermarked detail image (awaiting approval)' : 'a product photo'
+    const what = kind === 'sample' ? 'a watermarked sample page (awaiting approval)' : kind === 'detail' ? 'a watermarked detail image (awaiting approval)' : kind === 'size_guide' ? 'a size guide image' : 'a product photo'
     await audit({ actor, action: 'product.image_uploaded', entityType: 'product', entityId: targetId, summary: `Uploaded ${what} (${f.fileName})`, ip })
     return row
   }

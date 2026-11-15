@@ -1,9 +1,10 @@
 import { ServerUnavailablePage } from '../components/Unavailable'
-import { ArrowRight, BookOpen, Check, PlayCircle, ShoppingBag } from 'lucide-react'
+import { ArrowRight, BookOpen, Check, PlayCircle, Ruler, ShoppingBag } from 'lucide-react'
 import { useState } from 'react'
 import { getCategory } from '../data/catalog'
 import type { Product as ProductRecord } from '../data/types'
 import { Heart } from '../components/illustrations/Objects'
+import { Dialog } from '../components/Dialog'
 import { Gallery } from '../components/Gallery'
 import { Price, ProductLabels, shipByText } from '../components/Labels'
 import { useAddToBag, VariantPicker } from '../components/Overlays'
@@ -86,6 +87,7 @@ export function ProductView({ product, preview = false }: { product: ProductReco
             </p>
           )}
           {!isDigital && (product.variants?.length ? <VariantPicker product={product} value={variantId} onChange={setVariantId} /> : <p className="muted product__variants">Sizes, colors and options will be listed once confirmed.</p>)}
+          {!isDigital && product.sizeGuide && product.sizeGuide.length > 0 && <SizeGuide title={product.title} images={product.sizeGuide} />}
 
           {!isDigital && product.preorder && (
             <p className="notice notice--preorder">
@@ -193,3 +195,21 @@ export function ProductView({ product, preview = false }: { product: ProductReco
   )
 }
 
+/** The Size guide button and the sizing images the owner added for this item. */
+function SizeGuide({ title, images }: { title: string; images: NonNullable<ProductRecord['sizeGuide']> }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button type="button" className="size-guide-button" onClick={() => setOpen(true)} aria-haspopup="dialog">
+        <Ruler size={18} aria-hidden="true" /> Size guide
+      </button>
+      <Dialog open={open} onClose={() => setOpen(false)} title={`Size guide: ${title}`} variant="wide">
+        <div className="size-guide">
+          {images.map((img) => (
+            <img key={img.src} src={img.src} alt={img.alt} width={img.width} height={img.height} loading="lazy" decoding="async" />
+          ))}
+        </div>
+      </Dialog>
+    </>
+  )
+}

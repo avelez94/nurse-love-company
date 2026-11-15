@@ -210,11 +210,11 @@ export async function updateImages(actor: SessionUser, productId: string, list: 
     const id = uuid(img.id, 'image id')
     const alt = str(img.alt, 'Alt text', { optional: true, max: 250 })
     const variant = img.variant_id ? uuid(img.variant_id, 'variant') : null
-    const kind = oneOf(img.kind, 'Image type', ['gallery', 'sample', 'detail'] as const, 'gallery')
-    // Photos stay photos: only watermarked previews can be samples or details, so the kind can only switch between those two.
+    const kind = oneOf(img.kind, 'Image type', ['gallery', 'sample', 'detail', 'size_guide'] as const, 'gallery')
+    // Photos and size guides stay what they are: only watermarked previews can switch, between sample and detail.
     await q(
       `update product_images set alt = $3, sort_order = $4, variant_id = $5,
-         kind = case when kind <> 'gallery' and $6 <> 'gallery' then $6 else kind end
+         kind = case when kind in ('sample','detail') and $6 in ('sample','detail') then $6 else kind end
        where id = $1 and product_id = $2`,
       [id, productId, alt, i, variant, kind],
     )
@@ -224,7 +224,7 @@ export async function updateImages(actor: SessionUser, productId: string, list: 
 
 /** The owner checks a watermarked preview, then approves it for the product page (or withdraws it). */
 export async function approveImage(actor: SessionUser, productId: string, imageId: string, approved: boolean, ip?: string) {
-  const img = await one<{ kind: string }>(`update product_images set approved = $3 where id = $1 and product_id = $2 and kind <> 'gallery' returning kind`, [imageId, productId, approved])
+  const img = await one<{ kind: string }>(`update product_images set approved = $3 where id = $1 and product_id = $2 and kind in ('sample','detail') returning kind`, [imageId, productId, approved])
   if (!img) throw notFound('Preview image')
   await audit({ actor, action: approved ? 'product.preview_approved' : 'product.preview_withdrawn', entityType: 'product', entityId: productId, summary: `${approved ? 'Approved' : 'Withdrew'} a ${img.kind === 'detail' ? 'detail' : 'sample page'} preview`, ip })
 }

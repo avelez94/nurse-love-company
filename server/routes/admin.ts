@@ -131,7 +131,7 @@ adminRoutes.post('/admin/products/:id/images', async (c) => {
   const actor = requireAdmin(c)
   const id = uuid(c.req.param('id'))
   if (!(await one('select 1 from products where id = $1', [id]))) throw notFound('Product')
-  const kind = oneOf(c.req.query('kind'), 'Image type', ['gallery', 'sample', 'detail'] as const, 'gallery')
+  const kind = oneOf(c.req.query('kind'), 'Image type', ['gallery', 'sample', 'detail', 'size_guide'] as const, 'gallery')
   const f = await receiveUpload(c, 'image', `product-images/${id}`, config.limits.imageBytes)
   const alt = str(decodeURIComponent(c.req.header('x-alt-text') ?? ''), 'Alt text', { optional: true, max: 250 })
   return c.json(await attachUpload(actor, 'product_image', id, f, { imageKind: kind, alt }, ip(c)), 201)
@@ -163,7 +163,7 @@ adminRoutes.post('/admin/uploads', async (c) => {
       fileName: str(b.file_name, 'File name', { max: 200 }),
       size: Number(b.size),
       type: String(b.type ?? '').slice(0, 100),
-      imageKind: oneOf(b.image_kind, 'Image type', ['gallery', 'sample', 'detail'] as const, 'gallery'),
+      imageKind: oneOf(b.image_kind, 'Image type', ['gallery', 'sample', 'detail', 'size_guide'] as const, 'gallery'),
       alt: str(b.alt, 'Alt text', { optional: true, max: 250 }),
     }),
     201,

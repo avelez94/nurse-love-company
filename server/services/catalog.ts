@@ -21,7 +21,7 @@ export interface PublicImage {
   alt: string
   width: number | null
   height: number | null
-  kind: 'gallery' | 'sample' | 'detail'
+  kind: 'gallery' | 'sample' | 'detail' | 'size_guide'
   variantId: string | null
 }
 
@@ -105,7 +105,7 @@ export async function loadProducts(where: string, params: unknown[], client?: Qu
       inStock,
       soldOutBehavior: String(r.out_of_stock_behavior),
       preorder: r.type === 'physical' && r.preorder && r.preorder_ship_by ? { shipBy: ymd(r.preorder_ship_by as Date | string)! } : null,
-      images: imgs.map((i) => ({ id: i.id, url: imageUrl(i.id), alt: String(i.alt ?? ''), width: (i.width as number) ?? null, height: (i.height as number) ?? null, kind: i.kind as 'gallery' | 'sample' | 'detail', variantId: (i.variant_id as string) ?? null })),
+      images: imgs.map((i) => ({ id: i.id, url: imageUrl(i.id), alt: String(i.alt ?? ''), width: (i.width as number) ?? null, height: (i.height as number) ?? null, kind: i.kind as PublicImage['kind'], variantId: (i.variant_id as string) ?? null })),
       whatsIncluded: (r.whats_included as string[]) ?? [],
       walkthrough: r.walkthrough_slug ? { slug: String(r.walkthrough_slug), title: String(r.walkthrough_title) } : null,
       variants: vs.map((v) => ({

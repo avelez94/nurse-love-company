@@ -1067,6 +1067,14 @@ create trigger product_versions_immutable before update or delete on product_ver
   for each row execute function product_versions_guard();
 insert into schema_migrations (name) values ('011_delete_forever.sql');
 
+-- 012_size_guides.sql
+-- Size guides: each item that ships can have its own sizing images, shown to
+-- shoppers behind a "Size guide" button on the product page. They are shown
+-- as uploaded (no watermark or blur), like product photos.
+alter table product_images drop constraint if exists product_images_kind_check;
+alter table product_images add constraint product_images_kind_check check (kind in ('gallery','sample','detail','size_guide'));
+insert into schema_migrations (name) values ('012_size_guides.sql');
+
 -- 3. Row level security on every store table. The store's server is the
 -- table owner and is unaffected; Supabase's public Data API sees nothing.
 do $$ declare t record; begin

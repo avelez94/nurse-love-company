@@ -147,7 +147,7 @@ const blank: Form = {
 
 interface Detail {
   product: Form & { id: string; status: string; active: boolean; archived_at: string | null; is_demo: boolean; current_version_id: string | null; updated_at: string }
-  images: Array<{ id: string; kind: 'gallery' | 'sample' | 'detail'; approved: boolean; alt: string; width: number | null; height: number | null; sort_order: number; variant_id: string | null }>
+  images: Array<{ id: string; kind: 'gallery' | 'sample' | 'detail' | 'size_guide'; approved: boolean; alt: string; width: number | null; height: number | null; sort_order: number; variant_id: string | null }>
   variants: Array<{ id: string; title: string; options: { size?: string; color?: string }; sku: string | null; price_cents: number | null; inventory_quantity: number; active: boolean }>
   versions: Array<{ id: string; version_number: number; file_name: string; file_size: number; notes: string; released_at: string; released_by: string }>
   uploads: Array<{ id: string; file_name: string; file_size: number; created_at: string; uploaded_by: string }>
@@ -316,8 +316,9 @@ export function ProductEditor({ id }: { id: string }) {
           {!isNew && form.type === 'physical' && <PreorderPanel productId={id} />}
           {!isNew && data && form.type === 'physical' && <PrintfulLinks productId={id} variantsKey={data.variants.map((v) => `${v.id}:${v.active}`).join(',')} reload={reload} />}
           {!isNew && data && <Images productId={id} images={data.images.filter((i) => i.kind === 'gallery')} variants={data.variants} reload={reload} />}
+          {!isNew && data && form.type === 'physical' && <Images kind="size_guide" productId={id} images={data.images.filter((i) => i.kind === 'size_guide')} variants={[]} reload={reload} />}
           {/* Sample previews, "What's included" and walkthroughs are for digital files, so physical items do not show them. Saved values are kept. */}
-          {!isNew && data && form.type === 'digital' && <Previews productId={id} images={data.images.filter((i) => i.kind !== 'gallery')} reload={reload} />}
+          {!isNew && data && form.type === 'digital' && <Previews productId={id} images={data.images.filter((i) => i.kind === 'sample' || i.kind === 'detail')} reload={reload} />}
           {form.type === 'digital' && (
             <section className="panel form-stack">
               <h2 className="panel__title">What's included and walkthrough</h2>
@@ -483,7 +484,8 @@ function Variants({ productId, variants, reload }: { productId: string; variants
   )
 }
 
-function Images({ productId, images, variants, reload }: { productId: string; images: Detail['images']; variants: Detail['variants']; reload: () => void }) {
+function Images({ productId, images, variants, reload, kind = 'gallery' }: { productId: string; images: Detail['images']; variants: Detail['variants']; reload: () => void; kind?: 'gallery' | 'size_guide' }) {
+  const guide = kind === 'size_guide'
   const [list, setList] = useState(images)
   const [progress, setProgress] = useState<{ name: string; value: number } | null>(null)
   const [error, setError] = useState('')
@@ -491,7 +493,7 @@ function Images({ productId, images, variants, reload }: { productId: string; im
   const input = useRef<HTMLInputElement>(null)
   useEffect(() => setList(images), [images])
 
-  const upload = async (files: FileList | null, kind: 'gallery') => {
+  const upload = async (files: FileList | null) => {
     if (!files?.length) return
     setError('')
     for (const f of Array.from(files)) {
@@ -530,20 +532,24 @@ function Images({ productId, images, variants, reload }: { productId: string; im
   return (
     <section className="panel form-stack">
       <div className="panel__head">
-        <h2 className="panel__title">Product photos</h2>
+        <h2 className="panel__title">{guide ? 'Size guide' : 'Product photos'}</h2>
         <div className="button-row">
           <label className="button button--outline button--small">
-            <ImagePlus size={16} aria-hidden="true" /> Add photos
-            <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onChange={(e) => { void upload(e.target.files, 'gallery'); e.target.value = '' }} />
+            <ImagePlus size={16} aria-hidden="true" /> {guide ? 'Add size guide images' : 'Add photos'}
+            <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onChange={(e) => { void upload(e.target.files); e.target.value = '' }} />
           </label>
         </div>
       </div>
-      <p className="muted">Full marketing graphics are shown whole, never cropped, and shoppers can enlarge them. Images are public only while the product is published.</p>
+      <p className="muted">
+        {guide
+          ? 'Sizing charts or measurement pictures for this item. When there is at least one, a Size guide button appears under the size choices, and shoppers see these images, in this order, exactly as uploaded.'
+          : 'Full marketing graphics are shown whole, never cropped, and shoppers can enlarge them. Images are public only while the product is published.'}
+      </p>
       {progress && <ProgressBar value={progress.value} label={`Uploading ${progress.name}`} />}
       <FormError message={error} />
       {missingAlt > 0 && <Notice tone="warn">{missingAlt} image{missingAlt === 1 ? ' needs' : 's need'} alt text for shoppers using screen readers.</Notice>}
       {!list.length ? (
-        <p className="muted">No images yet. The shop shows a simple illustration until you add photos.</p>
+        <p className="muted">{guide ? 'No size guide yet. The Size guide button stays hidden until you add an image.' : 'No images yet. The shop shows a simple illustration until you add photos.'}</p>
       ) : (
         <div className="image-grid">
           {list.map((img, i) => (
